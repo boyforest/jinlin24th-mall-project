@@ -1,13 +1,13 @@
 # 金霖二十四养 Spring Boot 电商后端
 
-面向课程项目和完整 Demo 的私域电商系统，包含：
+面向客户，管理者的完整私域电商系统，包含：
 
-- C 端微信小程序 API：商品浏览、下单、会员体系
+- C 端微信小程序 API：商品浏览、下单、会员体系（未完成）
 - B 端商家管理后台 API：客户、订单、商品、仓储管理
 - Spring Boot RESTful 后端
-- React + Vite 管理后台 Demo
+- React + Vite 管理后台 （demo）
 - Redis 登录态增强、商品缓存、登录限流
-- RocketMQ 订单消息 Demo 开关
+- RocketMQ 订单消息  开关
 
 ## 技术栈
 

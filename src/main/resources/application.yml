@@ -1,0 +1,91 @@
+server:
+  port: 7878
+
+spring:
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    # 注意：敏感信息不要写死在 application.yml，建议通过环境变量注入
+    url: ${DB_URL:jdbc:mysql://localhost:3306/jinlin24th?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:}
+
+
+  # Redis 配置
+  data:
+    redis:
+      # Redis 服务器地址
+      host: ${REDIS_HOST:localhost}
+      # Redis 端口号
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      # Redis 密码（无密码则注释）
+      # password: ${REDIS_PASSWORD:}
+      # 选择数据库，默认16个库，日常用 db1 隔离业务
+      database: ${REDIS_DATABASE:1}
+      # 连接超时时间
+      timeout: 10000ms
+      # 连接池配置
+      lettuce:
+        pool:
+          max-active: 8   # 最大连接数
+          max-idle: 8     # 最大空闲连接
+          min-idle: 2     # 最小空闲
+
+mybatis-plus:
+  mapper-locations: classpath:mapper/**/*.xml
+  type-aliases-package: com.jinlin24th.jinlin.pojo.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+wx:
+  miniapp:
+    appid: ${WX_MINIAPP_APPID:}
+    secret: ${WX_MINIAPP_SECRET:}
+  pay:
+    enabled: ${WX_PAY_ENABLED:false}
+    mch-id: ${WX_PAY_MCH_ID:}
+    api-v3-key: ${WX_PAY_API_V3_KEY:}
+    serial-no: ${WX_PAY_SERIAL_NO:}
+    private-key-path: ${WX_PAY_PRIVATE_KEY_PATH:}
+    certificate-path: ${WX_PAY_CERTIFICATE_PATH:}
+    api-base-url: ${WX_PAY_API_BASE_URL:https://api.mch.weixin.qq.com}
+    notify-url: ${WX_PAY_NOTIFY_URL:https://your-domain.com/api/payment/notify}
+    refund-notify-url: ${WX_PAY_REFUND_NOTIFY_URL:https://your-domain.com/api/payment/refund/notify}
+    sandbox: ${WX_PAY_SANDBOX:false}
+
+# JWT 配置
+jwt:
+  secret: ${JWT_SECRET:dGhpcyBpcyBhIHNlY3JldCBrZXkgZm9yIGp3dCB0b2tlbiBzaWduaW5n}
+  expiration: 604800000  # 7天（毫秒）
+
+admin:
+  username: ${ADMIN_USERNAME:admin}
+  password: ${ADMIN_PASSWORD:123123}
+
+app:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000}
+  cache:
+    product-detail-ttl-ms: ${PRODUCT_DETAIL_CACHE_TTL_MS:1800000}
+    product-sku-ttl-ms: ${PRODUCT_SKU_CACHE_TTL_MS:1800000}
+  mq:
+    enabled: ${ROCKETMQ_ENABLED:false}
+    topic-order-created: ${ROCKETMQ_TOPIC_ORDER_CREATED:order-created-topic}
+    consumer-group-order-created: ${ROCKETMQ_CONSUMER_GROUP_ORDER_CREATED:jinlin-order-created-consumer}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: mq
+
+rocketmq:
+  name-server: ${ROCKETMQ_NAME_SERVER:}
+  producer:
+    group: ${ROCKETMQ_PRODUCER_GROUP:jinlin-producer}
+    retry-times-when-send-failed: ${ROCKETMQ_PRODUCER_RETRY_TIMES_WHEN_SEND_FAILED:2}
+    retry-times-when-send-async-failed: ${ROCKETMQ_PRODUCER_RETRY_TIMES_WHEN_SEND_ASYNC_FAILED:2}

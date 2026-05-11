@@ -1,0 +1,36 @@
+server:
+  port: 7878
+
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/jinlin24th?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+    username: root
+    password: your-local-mysql-password
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password:
+      database: 1
+
+wx:
+  miniapp:
+    appid: your-miniapp-appid
+    secret: your-miniapp-secret
+  pay:
+    enabled: false
+    mch-id:
+    api-v3-key:
+    serial-no:
+    private-key-path:
+    certificate-path:
+
+jwt:
+  secret: replace-with-at-least-32-bytes-dev-secret
+  expiration: 604800000
+
+admin:
+  username: admin
+  password: change-me

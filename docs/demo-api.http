@@ -1,0 +1,65 @@
+### 小程序登录
+POST http://localhost:7878/user/appUser/login
+Content-Type: application/json
+
+{
+  "code": "demo-code",
+  "nickname": "演示用户",
+  "avatarUrl": "https://example.com/avatar.png"
+}
+
+### 管理员登录
+POST http://localhost:7878/admin/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "admin123456"
+}
+
+### 商品列表
+GET http://localhost:7878/user/product/list?page=1&size=10
+
+### 商品详情
+GET http://localhost:7878/user/product/1
+
+### 商品 SKU
+GET http://localhost:7878/user/product/1/skus
+
+### 购物车列表
+GET http://localhost:7878/user/cart/list
+Authorization: Bearer {{userToken}}
+
+### 加入购物车
+POST http://localhost:7878/user/cart
+Content-Type: application/json
+Authorization: Bearer {{userToken}}
+
+{
+  "productId": 1,
+  "skuId": 1,
+  "quantity": 2,
+  "checked": 1
+}
+
+### 创建订单
+POST http://localhost:7878/user/order/create
+Content-Type: application/json
+Authorization: Bearer {{userToken}}
+
+{
+  "receiverName": "张三",
+  "receiverPhone": "13800138000",
+  "receiverAddress": "上海市浦东新区",
+  "remark": "demo订单",
+  "items": [
+    {
+      "skuId": 1,
+      "quantity": 2
+    }
+  ]
+}
+
+### 管理端订单列表
+GET http://localhost:7878/admin/order/list?page=1&size=10
+Authorization: Bearer {{adminToken}}

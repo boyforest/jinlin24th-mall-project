@@ -130,6 +130,9 @@ CREATE TABLE IF NOT EXISTS `app_user` (
   `total_points` int DEFAULT 0 COMMENT '累计积分',
   `total_amount` decimal(10,2) DEFAULT 0.00 COMMENT '累计消费金额',
   `order_count` int DEFAULT 0 COMMENT '订单数',
+  `is_distributor` tinyint NOT NULL DEFAULT 0 COMMENT '是否分销商：0-否，1-是',
+  `distributor_enabled_time` datetime DEFAULT NULL COMMENT '分销资格开启时间',
+  `distributor_disabled_time` datetime DEFAULT NULL COMMENT '分销资格关闭时间',
   `status` tinyint DEFAULT 1 COMMENT '1-正常，0-禁用',
   `deleted` tinyint NOT NULL DEFAULT 0 COMMENT '0-未删除，1-已删除',
   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -139,7 +142,8 @@ CREATE TABLE IF NOT EXISTS `app_user` (
   UNIQUE KEY `uk_openid` (`openid`),
   KEY `idx_phone` (`phone`),
   KEY `idx_unionid` (`unionid`),
-  KEY `idx_parent_user_id` (`parent_user_id`)
+  KEY `idx_parent_user_id` (`parent_user_id`),
+  KEY `idx_is_distributor` (`is_distributor`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='小程序用户表';
 
 -- 8. 商家客户表
@@ -610,6 +614,18 @@ ON DUPLICATE KEY UPDATE
 INSERT INTO `sys_role_permission` (`role_id`, `permission_id`)
 SELECT 1, p.`id` FROM `sys_permission` p
 ON DUPLICATE KEY UPDATE `role_id` = VALUES(`role_id`);
+
+-- 默认后台管理员：账号 admin，初始密码 123123
+-- 注意：password_hash 为 BCrypt 哈希，生产环境上线前必须登录后修改初始密码。
+INSERT INTO `sys_admin` (`id`, `username`, `password_hash`, `real_name`, `status`) VALUES
+(1, 'admin', '$2a$10$KwwYK1vaw.XZiv.NXF1nbuy1ZOsrEJuNSQOGXJOZsGql.l.YjHka.', '超级管理员', 1)
+ON DUPLICATE KEY UPDATE
+  `real_name` = VALUES(`real_name`),
+  `status` = VALUES(`status`);
+
+INSERT INTO `sys_admin_role` (`admin_id`, `role_id`) VALUES
+(1, 1)
+ON DUPLICATE KEY UPDATE `admin_id` = VALUES(`admin_id`);
 
 INSERT INTO `system_config` (`config_key`, `config_value`, `description`, `status`) VALUES
 ('mall.name', '金霖二十四养', '商城名称', 1),

@@ -1,6 +1,8 @@
 package com.jinlin24th.jinlin.controller;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.jinlin24th.jinlin.common.constant.BizCode;
+import com.jinlin24th.jinlin.common.exception.BizException;
 import com.jinlin24th.jinlin.common.result.Result;
 import com.jinlin24th.jinlin.pojo.dto.FollowRecordDTO;
 import com.jinlin24th.jinlin.pojo.vo.FollowRecordVO;
@@ -30,7 +32,7 @@ public class AdminFollowRecordController {
     public Result<FollowRecordVO> get(@PathVariable Long id) {
         FollowRecordVO vo = followRecordService.getVO(id);
         if (vo == null) {
-            return Result.error(404, "跟进记录不存在");
+            throw BizException.of(BizCode.FOLLOW_RECORD_NOT_FOUND);
         }
         return Result.success(vo);
     }

@@ -42,8 +42,6 @@ public class JwtUtil {
 
     private static SecretKey buildSigningKey(String secret) {
         // 1) Base64 编码密钥（推荐，强度更容易达标）
-        // 2) 普通字符串（会按 UTF-8 转 bytes，但需满足长度要求）
-        //
         // 注意：HMAC-SHA 的密钥长度必须足够（建议至少 32 字节），否则 jjwt 会直接抛异常。
         if (secret == null || secret.isBlank()) {
             throw new IllegalStateException("jwt.secret 不能为空");
@@ -134,6 +132,7 @@ public class JwtUtil {
         // 业务自定义字段（注意：JWT payload 是明文可解码的，不要放密码/隐私信息）
         claims.put("userId", userId);
         claims.put("tokenType", TOKEN_TYPE_USER);
+        //todo
         return buildToken(userId.toString(), claims, jti);
     }
 

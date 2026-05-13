@@ -1,6 +1,8 @@
 package com.jinlin24th.jinlin.controller;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.jinlin24th.jinlin.common.constant.BizCode;
+import com.jinlin24th.jinlin.common.exception.BizException;
 import com.jinlin24th.jinlin.common.result.Result;
 import com.jinlin24th.jinlin.pojo.dto.CustomerDTO;
 import com.jinlin24th.jinlin.pojo.vo.CustomerVO;
@@ -31,7 +33,7 @@ public class AdminCustomerController {
     public Result<CustomerVO> get(@PathVariable Long id) {
         CustomerVO vo = bizCustomerService.getVO(id);
         if (vo == null) {
-            return Result.error(404, "客户不存在");
+            throw BizException.of(BizCode.CUSTOMER_NOT_FOUND);
         }
         return Result.success(vo);
     }
@@ -39,7 +41,7 @@ public class AdminCustomerController {
     @PostMapping
     public Result<CustomerVO> create(@RequestBody CustomerDTO dto) {
         if(dto.getAdminId()== null){
-            return Result.error(400, "请指定销售人员");
+            throw BizException.of(BizCode.SALES_REQUIRED);
         }
         return Result.success(bizCustomerService.create(dto));
     }
@@ -48,7 +50,7 @@ public class AdminCustomerController {
     public Result<CustomerVO> update(@PathVariable Long id, @RequestBody CustomerDTO dto) {
         CustomerVO vo = bizCustomerService.update(id, dto);
         if (vo == null) {
-            return Result.error(404, "客户不存在");
+            throw BizException.of(BizCode.CUSTOMER_NOT_FOUND);
         }
         return Result.success(vo);
     }

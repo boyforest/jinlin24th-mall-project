@@ -1,6 +1,8 @@
 package com.jinlin24th.jinlin.controller;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.jinlin24th.jinlin.common.constant.BizCode;
+import com.jinlin24th.jinlin.common.exception.BizException;
 import com.jinlin24th.jinlin.common.result.Result;
 import com.jinlin24th.jinlin.pojo.vo.OrderVO;
 import com.jinlin24th.jinlin.service.OrderService;
@@ -31,7 +33,7 @@ public class AdminOrderController {
     public Result<OrderVO> get(@PathVariable Long id) {
         OrderVO vo = orderService.get(id);
         if (vo == null) {
-            return Result.error(404, "订单不存在");
+            throw BizException.of(BizCode.ORDER_NOT_FOUND);
         }
         return Result.success(vo);
     }

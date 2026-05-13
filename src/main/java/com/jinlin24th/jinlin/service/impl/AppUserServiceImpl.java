@@ -71,6 +71,8 @@ public class AppUserServiceImpl extends ServiceImpl<AppUserMapper, AppUser> impl
             user.setAvatar(dto.getAvatarUrl());
             user.setGender(0);
             user.setStatus(1);
+            user.setIsDistributor(0);
+            user.setParentUserId(resolveValidInviterId(dto.getInviterUserId()));
             user.setLastLoginTime(LocalDateTime.now());
             save(user);
         } else {
@@ -101,6 +103,26 @@ public class AppUserServiceImpl extends ServiceImpl<AppUserMapper, AppUser> impl
     }
 
     @Override
+    public AppUserVO updateDistributor(Long id, Integer enabled) {
+        // 管理端开关分销资格：只接受 0/1，顺手记录开启/关闭时间，便于后续审计。
+        if (id == null || enabled == null || (enabled != 0 && enabled != 1)) {
+            return null;
+        }
+        AppUser user = getById(id);
+        if (user == null) {
+            return null;
+        }
+        LocalDateTime now = LocalDateTime.now();
+        lambdaUpdate()
+            .set(AppUser::getIsDistributor, enabled)
+            .set(enabled == 1, AppUser::getDistributorEnabledTime, now)
+            .set(enabled == 0, AppUser::getDistributorDisabledTime, now)
+            .eq(AppUser::getId, id)
+            .update();
+        return getUserInfo(id);
+    }
+
+    @Override
     public List<AppUserVO> getUserList() {
         // 管理端列表（不分页）：批量查会员等级，避免 N+1
         List<AppUser> users = list();
@@ -126,11 +148,12 @@ public class AppUserServiceImpl extends ServiceImpl<AppUserMapper, AppUser> impl
     }
 
     @Override
-    public IPage<AppUserVO> adminPage(long page, long size, Integer status) {
-        // 管理端分页：支持按 status 筛选
+    public IPage<AppUserVO> adminPage(long page, long size, Integer status, Integer isDistributor) {
+        // 管理端分页：支持按 status / isDistributor 筛选
         Page<AppUser> p = new Page<>(page, size);
         IPage<AppUser> entityPage = lambdaQuery()
             .eq(status != null, AppUser::getStatus, status)
+            .eq(isDistributor != null, AppUser::getIsDistributor, isDistributor)
             .orderByDesc(AppUser::getId)
             .page(p);
 
@@ -158,6 +181,24 @@ public class AppUserServiceImpl extends ServiceImpl<AppUserMapper, AppUser> impl
         return voPage;
     }
 
+    /**
+     * 校验邀请人是否具备分销资格。
+     * <p>
+     * 只有邀请人存在、未被逻辑删除、状态正常且 isDistributor=1 时，才允许绑定 parentUserId。
+     */
+    private Long resolveValidInviterId(Long inviterUserId) {
+        if (inviterUserId == null || inviterUserId <= 0) {
+            return null;
+        }
+        AppUser inviter = lambdaQuery()
+            .eq(AppUser::getId, inviterUserId)
+            .eq(AppUser::getStatus, 1)
+            .eq(AppUser::getDeleted, 0)
+            .eq(AppUser::getIsDistributor, 1)
+            .one();
+        return inviter == null ? null : inviter.getId();
+    }
+
     private AppUserVO toVO(AppUser user, String memberLevelName) {
         // 统一 VO 转换，避免 Controller/Service 到处手写映射
         AppUserVO vo = new AppUserVO();
@@ -170,6 +211,10 @@ public class AppUserServiceImpl extends ServiceImpl<AppUserMapper, AppUser> impl
         vo.setMemberLevelName(memberLevelName);
         vo.setPoints(user.getPoints());
         vo.setTotalAmount(user.getTotalAmount());
+        vo.setParentUserId(user.getParentUserId());
+        vo.setIsDistributor(user.getIsDistributor());
+        vo.setDistributorEnabledTime(user.getDistributorEnabledTime());
+        vo.setDistributorDisabledTime(user.getDistributorDisabledTime());
         vo.setCreateTime(user.getCreateTime());
         return vo;
     }

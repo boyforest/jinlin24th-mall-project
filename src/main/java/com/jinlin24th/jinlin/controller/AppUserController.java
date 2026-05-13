@@ -4,12 +4,14 @@ import com.jinlin24th.jinlin.common.auth.CurrentUserId;
 import com.jinlin24th.jinlin.common.auth.AuthSessionService;
 import com.jinlin24th.jinlin.common.exception.BizException;
 import com.jinlin24th.jinlin.common.rate.LoginRateLimitService;
+import com.jinlin24th.jinlin.common.rate.annotation.RedisRateLimit;
 import com.jinlin24th.jinlin.common.result.Result;
 import com.jinlin24th.jinlin.common.util.JwtUtil;
 import com.jinlin24th.jinlin.pojo.dto.UserLoginDTO;
 import com.jinlin24th.jinlin.pojo.vo.AppUserVO;
 import com.jinlin24th.jinlin.pojo.vo.UserLoginVO;
 import com.jinlin24th.jinlin.service.AppUserService;
+import com.jinlin24th.jinlin.service.SmsService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
@@ -23,17 +25,47 @@ public class AppUserController {
     private final JwtUtil jwtUtil;
     private final AuthSessionService authSessionService;
     private final LoginRateLimitService loginRateLimitService;
+    private final SmsService smsService;
 
     public AppUserController(
         AppUserService appUserService,
         JwtUtil jwtUtil,
         AuthSessionService authSessionService,
-        LoginRateLimitService loginRateLimitService
+        LoginRateLimitService loginRateLimitService,
+        SmsService smsService
     ) {
         this.appUserService = appUserService;
         this.jwtUtil = jwtUtil;
         this.authSessionService = authSessionService;
         this.loginRateLimitService = loginRateLimitService;
+        this.smsService = smsService;
+    }
+
+    /**
+     * 发送注册短信验证码示例。
+     * <p>
+     * 当前仅演示“接口接收请求 -> MQ 异步发送短信”的链路，真实验证码应写入 Redis 并在注册/绑定手机号时校验。
+     */
+    @PostMapping("/sms/code")
+    @RedisRateLimit(key = "sms:code:send", windowSeconds = 60, limit = 5)
+    public Result<Boolean> sendSmsCode(
+        @RequestParam String phone,
+        @RequestParam(defaultValue = "login") String scene
+    ) {
+        return Result.success(smsService.sendCode(phone, scene));
+    }
+
+    /**
+     * 校验短信验证码示例。
+     */
+    @PostMapping("/sms/verify")
+    @RedisRateLimit(key = "sms:code:verify", windowSeconds = 60, limit = 20)
+    public Result<Boolean> verifySmsCode(
+        @RequestParam String phone,
+        @RequestParam(defaultValue = "login") String scene,
+        @RequestParam String code
+    ) {
+        return Result.success(smsService.verifyCode(phone, scene, code));
     }
 
     @PostMapping("/login")
@@ -77,5 +109,3 @@ public class AppUserController {
         return Result.success(appUserService.getUserInfo(userId));
     }
 }
-
-

@@ -2,6 +2,8 @@ package com.jinlin24th.jinlin.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jinlin24th.jinlin.common.config.WxPayConfig;
+import com.jinlin24th.jinlin.common.constant.BizCode;
+import com.jinlin24th.jinlin.common.exception.BizException;
 import com.jinlin24th.jinlin.common.result.Result;
 import com.jinlin24th.jinlin.pojo.dto.WxPayPrepayDTO;
 import com.jinlin24th.jinlin.service.WxPayService;
@@ -72,7 +74,7 @@ public class WxPayController {
             return Result.success(result);
         } catch (Exception e) {
             log.error("创建支付订单失败", e);
-            return Result.error("创建支付订单失败：" + e.getMessage());
+            throw BizException.of(BizCode.WECHAT_PAY_ERROR, "创建支付订单失败：" + e.getMessage());
         }
     }
 
@@ -86,7 +88,7 @@ public class WxPayController {
             return Result.success(result);
         } catch (Exception e) {
             log.error("查询订单失败", e);
-            return Result.error("查询订单失败：" + e.getMessage());
+            throw BizException.of(BizCode.WECHAT_PAY_ERROR, "查询订单失败：" + e.getMessage());
         }
     }
 
@@ -100,7 +102,7 @@ public class WxPayController {
             return Result.success("关闭订单成功");
         } catch (Exception e) {
             log.error("关闭订单失败", e);
-            return Result.error("关闭订单失败：" + e.getMessage());
+            throw BizException.of(BizCode.WECHAT_PAY_ERROR, "关闭订单失败：" + e.getMessage());
         }
     }
 
@@ -118,7 +120,7 @@ public class WxPayController {
             return Result.success(refundId);
         } catch (Exception e) {
             log.error("申请退款失败", e);
-            return Result.error("申请退款失败：" + e.getMessage());
+            throw BizException.of(BizCode.WECHAT_PAY_ERROR, "申请退款失败：" + e.getMessage());
         }
     }
 
@@ -132,7 +134,7 @@ public class WxPayController {
             return Result.success(result);
         } catch (Exception e) {
             log.error("查询退款失败", e);
-            return Result.error("查询退款失败：" + e.getMessage());
+            throw BizException.of(BizCode.WECHAT_PAY_ERROR, "查询退款失败：" + e.getMessage());
         }
     }
 
@@ -148,7 +150,7 @@ public class WxPayController {
             return Result.success(result);
         } catch (Exception e) {
             log.error("下载对账单失败", e);
-            return Result.error("下载对账单失败：" + e.getMessage());
+            throw BizException.of(BizCode.WECHAT_PAY_ERROR, "下载对账单失败：" + e.getMessage());
         }
     }
 

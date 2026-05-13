@@ -10,6 +10,7 @@ import com.jinlin24th.jinlin.mapper.OrderMasterMapper;
 import com.jinlin24th.jinlin.pojo.entity.PaymentRecord;
 import com.jinlin24th.jinlin.pojo.entity.OrderMaster;
 import com.jinlin24th.jinlin.pojo.dto.WxPayPrepayDTO;
+import com.jinlin24th.jinlin.service.DistributionService;
 import com.jinlin24th.jinlin.service.WxPayService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,6 +45,9 @@ public class WxPayServiceImpl implements WxPayService {
 
     @Autowired
     private OrderMasterMapper orderMasterMapper;
+
+    @Autowired
+    private DistributionService distributionService;
 
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -265,6 +269,9 @@ public class WxPayServiceImpl implements WxPayService {
                 orderMaster.setPayTime(LocalDateTime.now());
                 orderMaster.setUpdateTime(LocalDateTime.now());
                 orderMasterMapper.updateById(orderMaster);
+
+                // 支付成功后生成分销佣金记录：仅具备分销资格的上级才会产生佣金，distribution.uk_order_id 保证幂等。
+                distributionService.createForPaidOrder(orderMaster);
             }
 
             log.info("支付处理完成，订单号：{}", outTradeNo);
@@ -339,6 +346,9 @@ public class WxPayServiceImpl implements WxPayService {
                     orderMaster.setUpdateTime(LocalDateTime.now());
                     orderMasterMapper.updateById(orderMaster);
                 }
+
+                // 退款成功后作废该订单对应佣金，避免财务继续结算。
+                distributionService.markRefundedByOrderNo(paymentRecord.getOrderNo());
             }
 
             log.info("退款处理完成，退款单号：{}", outRefundNo);

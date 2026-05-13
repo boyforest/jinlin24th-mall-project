@@ -1,5 +1,6 @@
 package com.jinlin24th.jinlin.common.auth;
 
+import com.jinlin24th.jinlin.common.constant.BizCode;
 import com.jinlin24th.jinlin.common.exception.BizException;
 import com.jinlin24th.jinlin.common.util.RedisUtil;
 import org.springframework.beans.factory.annotation.Value;
@@ -39,7 +40,7 @@ public class AuthSessionService {
         boolean ok = redisUtil.set(buildJtiKey(userId), jti, tokenTtl);
         // 登录态属于关键路径：写失败建议直接失败，避免“发了 token 但 Redis 没写进去”导致鉴权混乱
         if (!ok) {
-            throw new BizException(500, "登录态写入失败（Redis）");
+            throw BizException.of(BizCode.AUTH_SESSION_WRITE_FAILED);
         }
     }
 
@@ -59,7 +60,7 @@ public class AuthSessionService {
         }
         boolean ok = redisUtil.set(buildAdminJtiKey(adminName.trim()), jti, tokenTtl);
         if (!ok) {
-            throw new BizException(500, "登录态写入失败（Redis）");
+            throw BizException.of(BizCode.AUTH_SESSION_WRITE_FAILED);
         }
     }
 

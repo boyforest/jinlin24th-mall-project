@@ -1,6 +1,8 @@
 package com.jinlin24th.jinlin.controller;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.jinlin24th.jinlin.common.constant.BizCode;
+import com.jinlin24th.jinlin.common.exception.BizException;
 import com.jinlin24th.jinlin.common.result.Result;
 import com.jinlin24th.jinlin.pojo.entity.Warehouse;
 import com.jinlin24th.jinlin.pojo.vo.WarehouseVO;
@@ -30,7 +32,7 @@ public class AdminWarehouseController {
     public Result<Warehouse> get(@PathVariable Long id) {
         Warehouse warehouse = warehouseService.getRequired(id);
         if (warehouse == null) {
-            return Result.error(404, "仓库不存在");
+            throw BizException.of(BizCode.WAREHOUSE_NOT_FOUND);
         }
         return Result.success(warehouse);
     }
@@ -44,7 +46,7 @@ public class AdminWarehouseController {
     public Result<Warehouse> update(@PathVariable Long id, @RequestBody Warehouse warehouse) {
         Warehouse updated = warehouseService.update(id, warehouse);
         if (updated == null) {
-            return Result.error(404, "仓库不存在");
+            throw BizException.of(BizCode.WAREHOUSE_NOT_FOUND);
         }
         return Result.success(updated);
     }

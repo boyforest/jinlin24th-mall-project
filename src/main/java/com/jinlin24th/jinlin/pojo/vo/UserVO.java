@@ -19,8 +19,11 @@ public class UserVO implements Serializable {
     private Integer totalPoints;
     private BigDecimal totalAmount;
     private Integer orderCount;
+    private Long parentUserId;
+    private Integer isDistributor;
+    private LocalDateTime distributorEnabledTime;
+    private LocalDateTime distributorDisabledTime;
     private Integer status;
     private LocalDateTime lastLoginTime;
     private LocalDateTime createTime;
 }
-

@@ -1,5 +1,7 @@
 package com.jinlin24th.jinlin.controller;
 
+import com.jinlin24th.jinlin.common.constant.BizCode;
+import com.jinlin24th.jinlin.common.exception.BizException;
 import com.jinlin24th.jinlin.common.result.Result;
 import com.jinlin24th.jinlin.pojo.dto.DistributionConfigDTO;
 import com.jinlin24th.jinlin.pojo.entity.Distribution;
@@ -7,9 +9,12 @@ import com.jinlin24th.jinlin.pojo.vo.DistributionVO;
 import com.jinlin24th.jinlin.pojo.vo.DistributionConfigVO;
 import com.jinlin24th.jinlin.service.DistributionConfigService;
 import com.jinlin24th.jinlin.service.DistributionService;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+
+import java.io.IOException;
 
 @RestController
 @RequestMapping("/admin/distribution")
@@ -34,7 +39,7 @@ public class DistributionController {
     public Result<Distribution> getById(@PathVariable Long id) {
         Distribution distribution = distributionService.getRequired(id);
         if (distribution == null) {
-            return Result.error(404, "分销记录不存在");
+            throw BizException.of(BizCode.DISTRIBUTION_NOT_FOUND);
         }
         return Result.success(distribution);
     }
@@ -43,7 +48,7 @@ public class DistributionController {
     public Result<Distribution> settle(@RequestParam Long id) {
         Distribution distribution = distributionService.settle(id);
         if (distribution == null) {
-            return Result.error(400, "结算失败");
+            throw BizException.of(BizCode.DISTRIBUTION_SETTLE_FAILED);
         }
         return Result.success(distribution);
     }
@@ -56,5 +61,15 @@ public class DistributionController {
     @PutMapping("/config")
     public Result<DistributionConfigVO> updateConfig(@RequestBody DistributionConfigDTO dto) {
         return Result.success(distributionConfigService.updateVO(dto));
+    }
+
+    /**
+     * 导出佣金记录 CSV。
+     * <p>
+     * 示例：GET /admin/distribution/export?status=1
+     */
+    @GetMapping("/export")
+    public void export(@RequestParam(required = false) Integer status, HttpServletResponse response) throws IOException {
+        distributionService.exportCsv(response, status);
     }
 }

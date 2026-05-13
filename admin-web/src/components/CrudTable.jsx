@@ -1,0 +1,249 @@
+import React, { useEffect, useMemo, useState } from 'react'
+import { App, Button, Form, Input, InputNumber, Modal, Select, Space, Table } from 'antd'
+import { DeleteOutlined, EditOutlined, EyeOutlined, PlusOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons'
+
+/**
+ * 通用 CRUD 表格组件。
+ * <p>
+ * 约定：API 的分页参数仍使用 page/size，后端返回 records/total/current/size。
+ */
+export default function CrudTable({
+  title,
+  filters = [],
+  columns = [],
+  formFields = [],
+  rowKey = 'id',
+  listApi,
+  detailApi,
+  createApi,
+  updateApi,
+  deleteApi,
+  actions,
+  extraActions,
+  toolbarExtra
+}) {
+  const { message, modal } = App.useApp()
+  const [filterForm] = Form.useForm()
+  const [editForm] = Form.useForm()
+  const [records, setRecords] = useState([])
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 })
+  const [loading, setLoading] = useState(false)
+  const [editing, setEditing] = useState(null)
+  const [detail, setDetail] = useState(null)
+  const [saving, setSaving] = useState(false)
+
+  const tableColumns = useMemo(() => {
+    const base = columns.map(column => ({ ...column }))
+    const actionColumn = {
+      title: '操作',
+      key: 'actions',
+      fixed: 'right',
+      width: 180,
+      render: (_, record) => (
+        <Space size="small">
+          {detailApi && <Button size="small" icon={<EyeOutlined />} onClick={() => showDetail(record)}>查看</Button>}
+          {updateApi && <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(record)}>编辑</Button>}
+          {deleteApi && <Button size="small" danger icon={<DeleteOutlined />} onClick={() => confirmDelete(record)}>删除</Button>}
+          {extraActions?.(record, reload)}
+        </Space>
+      )
+    }
+    return [...base, actionColumn]
+  }, [columns, detailApi, updateApi, deleteApi, extraActions])
+
+  useEffect(() => {
+    loadData(1, pagination.pageSize)
+  }, [])
+
+  /**
+   * 加载列表数据，保持原接口 page/size 参数不变。
+   */
+  async function loadData(page = pagination.current, size = pagination.pageSize) {
+    setLoading(true)
+    try {
+      const params = { page, size, ...cleanObject(filterForm.getFieldsValue()) }
+      const data = await listApi(params)
+      const list = Array.isArray(data) ? data : data?.records || []
+      setRecords(list)
+      setPagination({
+        current: Number(data?.current || page),
+        pageSize: Number(data?.size || size),
+        total: Number(data?.total || list.length)
+      })
+    } catch (error) {
+      message.error(error.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function reload() {
+    loadData(pagination.current, pagination.pageSize)
+  }
+
+  function search() {
+    loadData(1, pagination.pageSize)
+  }
+
+  function reset() {
+    filterForm.resetFields()
+    loadData(1, pagination.pageSize)
+  }
+
+  async function showDetail(record) {
+    try {
+      const data = await detailApi(record[rowKey])
+      setDetail(data)
+    } catch (error) {
+      message.error(error.message)
+    }
+  }
+
+  function openCreate() {
+    setEditing({})
+    editForm.resetFields()
+  }
+
+  function openEdit(record) {
+    setEditing(record)
+    editForm.setFieldsValue(record)
+  }
+
+  async function save() {
+    const values = await editForm.validateFields()
+    setSaving(true)
+    try {
+      if (editing?.[rowKey]) {
+        await updateApi(editing[rowKey], cleanObject(values))
+        message.success('已更新')
+      } else {
+        await createApi(cleanObject(values))
+        message.success('已新增')
+      }
+      setEditing(null)
+      reload()
+    } catch (error) {
+      message.error(error.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  function confirmDelete(record) {
+    modal.confirm({
+      title: `确认删除 ID ${record[rowKey]}？`,
+      okText: '删除',
+      cancelText: '取消',
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        await deleteApi(record[rowKey])
+        message.success('已删除')
+        reload()
+      }
+    })
+  }
+
+  return (
+    <section className="page-card">
+      <div className="page-toolbar">
+        <Form className="filter-form" form={filterForm} layout="inline" onFinish={search}>
+          {filters.map(field => <FilterItem key={field.name} field={field} />)}
+          <Form.Item>
+            <Space>
+              <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>查询</Button>
+              <Button onClick={reset}>重置</Button>
+              <Button icon={<ReloadOutlined />} onClick={reload} />
+            </Space>
+          </Form.Item>
+        </Form>
+        <Space>
+          {toolbarExtra?.({ reload })}
+          {createApi && <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新增</Button>}
+        </Space>
+      </div>
+
+      <Table
+        rowKey={rowKey}
+        loading={loading}
+        columns={tableColumns}
+        dataSource={records}
+        scroll={{ x: 'max-content' }}
+        pagination={{
+          current: pagination.current,
+          pageSize: pagination.pageSize,
+          total: pagination.total,
+          showSizeChanger: true,
+          showTotal: total => `共 ${total} 条`
+        }}
+        onChange={next => loadData(next.current, next.pageSize)}
+      />
+
+      <Modal
+        title={`${editing?.[rowKey] ? '编辑' : '新增'}${title}`}
+        open={Boolean(editing)}
+        okText="保存"
+        cancelText="取消"
+        confirmLoading={saving}
+        onOk={save}
+        onCancel={() => setEditing(null)}
+        destroyOnHidden
+      >
+        <Form form={editForm} layout="vertical">
+          {formFields.map(field => <EditItem key={field.name} field={field} />)}
+        </Form>
+      </Modal>
+
+      <Modal
+        title={`${title}详情`}
+        open={Boolean(detail)}
+        footer={null}
+        onCancel={() => setDetail(null)}
+        width={720}
+      >
+        <pre className="detail-json">{JSON.stringify(detail, null, 2)}</pre>
+      </Modal>
+    </section>
+  )
+}
+
+function FilterItem({ field }) {
+  return (
+    <Form.Item name={field.name} label={field.label}>
+      {renderControl(field, true)}
+    </Form.Item>
+  )
+}
+
+function EditItem({ field }) {
+  return (
+    <Form.Item name={field.name} label={field.label} rules={field.rules || []}>
+      {renderControl(field, false)}
+    </Form.Item>
+  )
+}
+
+function renderControl(field, allowAll) {
+  if (field.type === 'select') {
+    return (
+      <Select
+        allowClear={allowAll}
+        placeholder={field.placeholder || '请选择'}
+        options={field.options || []}
+        style={{ minWidth: field.width || 160 }}
+      />
+    )
+  }
+  if (field.type === 'number') {
+    return <InputNumber min={0} precision={field.precision} placeholder={field.placeholder} style={{ minWidth: field.width || 160 }} />
+  }
+  if (field.type === 'textarea') {
+    return <Input.TextArea rows={4} placeholder={field.placeholder} />
+  }
+  return <Input placeholder={field.placeholder} style={{ minWidth: field.width || 180 }} />
+}
+
+function cleanObject(object) {
+  return Object.fromEntries(
+    Object.entries(object || {}).filter(([, value]) => value !== undefined && value !== null && value !== '')
+  )
+}

@@ -1,6 +1,5 @@
 package com.jinlin24th.jinlin.service.impl;
 
-import com.alibaba.fastjson2.JSON;
 import com.jinlin24th.jinlin.common.cache.ProductCacheService;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -49,7 +48,7 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
 
     @Override
     public ProductVO getVO(Long id) {
-        Product product = getById(id);
+        Product product = getCachedProduct(id);
         if (product == null) {
             return null;
         }
@@ -61,7 +60,7 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
     @Override
     public ProductVO getUserVO(Long id) {
         ProductVO cached = productCacheService.getUserProductVO(id);
-        if (cached != null) {
+        if (cached != null || productCacheService.hasUserProductVOCache(id)) {
             return cached;
         }
         Product product = lambdaQuery()
@@ -70,6 +69,7 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
             .eq(Product::getDeleted, 0)
             .one();
         if (product == null) {
+            productCacheService.cacheNullUserProductVO(id);
             return null;
         }
         ProductVO vo = new ProductVO();
@@ -101,6 +101,28 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
         ProductVO vo = new ProductVO();
         BeanUtils.copyProperties(product, vo);
         return vo;
+    }
+
+    /**
+     * 商品实体缓存查询。
+     * <p>
+     * 先查 Redis，未命中再回源数据库；数据库不存在时写入短 TTL 空值缓存，防止缓存穿透。
+     */
+    private Product getCachedProduct(Long id) {
+        Product cached = productCacheService.getProduct(id);
+        if (cached != null || productCacheService.hasProductCache(id)) {
+            return cached;
+        }
+
+        Product product = lambdaQuery()
+            .eq(Product::getId, id)
+            .one();
+        if (product == null) {
+            productCacheService.cacheNullProduct(id);
+            return null;
+        }
+        productCacheService.cacheProduct(id, product);
+        return product;
     }
 
     @Override

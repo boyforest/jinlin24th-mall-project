@@ -15,6 +15,10 @@ public class AppUserVO implements Serializable {
     private String memberLevelName;
     private Integer points;
     private java.math.BigDecimal totalAmount;
+    private Long parentUserId;
+    private Integer isDistributor;
+    private LocalDateTime distributorEnabledTime;
+    private LocalDateTime distributorDisabledTime;
     private LocalDateTime createTime;
     private String token;
 }

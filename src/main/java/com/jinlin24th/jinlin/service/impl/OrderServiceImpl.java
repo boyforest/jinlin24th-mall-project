@@ -10,13 +10,21 @@ import com.jinlin24th.jinlin.pojo.entity.OrderMaster;
 import com.jinlin24th.jinlin.pojo.entity.Product;
 import com.jinlin24th.jinlin.pojo.entity.ProductSku;
 import com.jinlin24th.jinlin.pojo.vo.OrderVO;
+import com.jinlin24th.jinlin.common.mq.producer.OrderTimeoutMessageProducer;
+import com.jinlin24th.jinlin.common.mq.producer.SmsMessageProducer;
 import com.jinlin24th.jinlin.service.OrderItemService;
 import com.jinlin24th.jinlin.service.OrderMasterService;
 import com.jinlin24th.jinlin.service.OrderService;
 import com.jinlin24th.jinlin.service.ProductService;
 import com.jinlin24th.jinlin.service.ProductSkuService;
+import com.jinlin24th.jinlin.service.InventoryService;
+import com.jinlin24th.jinlin.service.InventoryLogService;
+import com.jinlin24th.jinlin.pojo.entity.Inventory;
+import com.jinlin24th.jinlin.pojo.entity.InventoryLog;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +37,7 @@ import java.util.Random;
 import java.util.stream.Collectors;
 
 @Service
+@Slf4j
 public class OrderServiceImpl implements OrderService {
 
     @Autowired
@@ -45,6 +54,18 @@ public class OrderServiceImpl implements OrderService {
 
     @Autowired
     private ApplicationEventPublisher applicationEventPublisher;
+
+    @Autowired
+    private InventoryService inventoryService;
+
+    @Autowired
+    private InventoryLogService inventoryLogService;
+
+    @Autowired
+    private ObjectProvider<OrderTimeoutMessageProducer> orderTimeoutMessageProducerProvider;
+
+    @Autowired
+    private ObjectProvider<SmsMessageProducer> smsMessageProducerProvider;
 
     @Override
     @Transactional
@@ -74,6 +95,9 @@ public class OrderServiceImpl implements OrderService {
             if (product == null) {
                 return null;
             }
+
+            // 下单时先占用库存，超时未支付取消时再归还库存。
+            occupyInventory(orderNo, sku.getId(), i.getQuantity());
 
             // 价格以 SKU 的 memberPrice 优先（简化实现：未根据会员等级折扣动态计算）
             BigDecimal price = sku.getMemberPrice() != null ? sku.getMemberPrice() : sku.getPrice();
@@ -141,7 +165,137 @@ public class OrderServiceImpl implements OrderService {
         event.setCreateTime(LocalDateTime.now().toString());
         applicationEventPublisher.publishEvent(new OrderCreatedSpringEvent(this, event));
 
+        // MQ 开启时发送订单超时取消延迟消息；未开启时 ObjectProvider 返回 null，不影响下单主流程。
+        OrderTimeoutMessageProducer orderTimeoutProducer = orderTimeoutMessageProducerProvider.getIfAvailable();
+        if (orderTimeoutProducer != null) {
+            orderTimeoutProducer.sendTimeoutCancel(master.getId(), master.getOrderNo(), master.getUserId());
+        }
+
+        // 下单成功短信异步通知：真实短信平台未接入前，消费者会打印模拟发送日志。
+        SmsMessageProducer smsProducer = smsMessageProducerProvider.getIfAvailable();
+        if (smsProducer != null && master.getReceiverPhone() != null && !master.getReceiverPhone().isBlank()) {
+            smsProducer.sendOrderSuccess(master.getReceiverPhone(), master.getOrderNo());
+        }
+
         return toVO(master, items);
+    }
+
+    /**
+     * 取消未支付订单，并恢复库存。
+     * <p>
+     * 使用 LambdaUpdate 做状态 CAS：只有 status=0 的待付款订单才能改为 40-已取消，
+     * 避免支付回调刚把订单改成已支付时，延迟消息又错误关闭订单。
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean cancelUnpaidOrder(String orderNo, String reason) {
+        if (orderNo == null || orderNo.isBlank()) {
+            return false;
+        }
+
+        OrderMaster master = orderMasterService.lambdaQuery()
+            .eq(OrderMaster::getOrderNo, orderNo)
+            .one();
+        if (master == null || !Integer.valueOf(0).equals(master.getStatus())) {
+            log.info("订单无需超时取消: orderNo={}, status={}", orderNo, master == null ? null : master.getStatus());
+            return false;
+        }
+
+        boolean updated = orderMasterService.lambdaUpdate()
+            .set(OrderMaster::getStatus, 40)
+            .set(OrderMaster::getUpdateTime, LocalDateTime.now())
+            .eq(OrderMaster::getOrderNo, orderNo)
+            .eq(OrderMaster::getStatus, 0)
+            .update();
+        if (!updated) {
+            log.info("订单状态已变化，跳过超时取消: orderNo={}", orderNo);
+            return false;
+        }
+
+        List<OrderItem> items = orderItemService.lambdaQuery()
+            .eq(OrderItem::getOrderNo, orderNo)
+            .list();
+        items.forEach(item -> restoreInventory(orderNo, item, reason));
+        return true;
+    }
+
+    /**
+     * 下单时占用库存，并记录出库流水。
+     * <p>
+     * 当前订单模型没有 warehouseId，因此按 skuId 选择第一条有库存的库存记录；
+     * 后续做多仓发货时，建议在订单明细中保存 warehouseId 快照。
+     */
+    private void occupyInventory(String orderNo, Long skuId, Integer quantity) {
+        Inventory inventory = inventoryService.lambdaQuery()
+            .eq(Inventory::getSkuId, skuId)
+            .ge(Inventory::getStock, quantity)
+            .orderByAsc(Inventory::getId)
+            .last("LIMIT 1")
+            .one();
+        if (inventory == null) {
+            throw new IllegalArgumentException("库存不足，SKU ID：" + skuId);
+        }
+
+        int beforeStock = inventory.getStock() == null ? 0 : inventory.getStock();
+        int afterStock = beforeStock - quantity;
+        boolean updated = inventoryService.lambdaUpdate()
+            .set(Inventory::getStock, afterStock)
+            .set(Inventory::getUpdateTime, LocalDateTime.now())
+            .eq(Inventory::getId, inventory.getId())
+            .eq(Inventory::getStock, beforeStock)
+            .update();
+        if (!updated) {
+            throw new IllegalArgumentException("库存繁忙，请重试，SKU ID：" + skuId);
+        }
+
+        InventoryLog logEntity = new InventoryLog();
+        logEntity.setWarehouseId(inventory.getWarehouseId());
+        logEntity.setSkuId(skuId);
+        logEntity.setType(2);
+        logEntity.setQuantity(-quantity);
+        logEntity.setBeforeStock(beforeStock);
+        logEntity.setAfterStock(afterStock);
+        logEntity.setOrderNo(orderNo);
+        logEntity.setRemark("用户下单占用库存");
+        logEntity.setOperatorId(0L);
+        logEntity.setCreateTime(LocalDateTime.now());
+        inventoryLogService.save(logEntity);
+    }
+
+    /**
+     * 按订单明细恢复库存，并记录库存流水。
+     */
+    private void restoreInventory(String orderNo, OrderItem item, String reason) {
+        Inventory inventory = inventoryService.lambdaQuery()
+            .eq(Inventory::getSkuId, item.getSkuId())
+            .orderByAsc(Inventory::getId)
+            .last("LIMIT 1")
+            .one();
+        if (inventory == null) {
+            log.warn("订单超时取消恢复库存时未找到库存记录: orderNo={}, skuId={}", orderNo, item.getSkuId());
+            return;
+        }
+
+        int beforeStock = inventory.getStock() == null ? 0 : inventory.getStock();
+        int afterStock = beforeStock + item.getQuantity();
+        inventoryService.lambdaUpdate()
+            .set(Inventory::getStock, afterStock)
+            .set(Inventory::getUpdateTime, LocalDateTime.now())
+            .eq(Inventory::getId, inventory.getId())
+            .update();
+
+        InventoryLog logEntity = new InventoryLog();
+        logEntity.setWarehouseId(inventory.getWarehouseId());
+        logEntity.setSkuId(item.getSkuId());
+        logEntity.setType(1);
+        logEntity.setQuantity(item.getQuantity());
+        logEntity.setBeforeStock(beforeStock);
+        logEntity.setAfterStock(afterStock);
+        logEntity.setOrderNo(orderNo);
+        logEntity.setRemark(reason);
+        logEntity.setOperatorId(0L);
+        logEntity.setCreateTime(LocalDateTime.now());
+        inventoryLogService.save(logEntity);
     }
 
     @Override

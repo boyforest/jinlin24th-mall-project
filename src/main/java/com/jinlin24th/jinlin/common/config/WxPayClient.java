@@ -1,5 +1,6 @@
 package com.jinlin24th.jinlin.common.config;
 
+import com.jinlin24th.jinlin.common.constant.HttpStatus;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
@@ -94,7 +95,7 @@ public class WxPayClient {
 
         try (Response httpResponse = client.newCall(reqBuilder.build()).execute()) {
             String respBody = com.jinlin24th.jinlin.common.util.WxPayUtil.extractBody(httpResponse);
-            if (httpResponse.code() >= 200 && httpResponse.code() < 300) {
+            if (httpResponse.code() >= HttpStatus.OK && httpResponse.code() < HttpStatus.MULTIPLE_CHOICES) {
                 com.jinlin24th.jinlin.common.util.WxPayUtil.validateResponse(wechatPayPublicKeyId, wechatPayPublicKey,
                         httpResponse.headers(), respBody);
                 return respBody;

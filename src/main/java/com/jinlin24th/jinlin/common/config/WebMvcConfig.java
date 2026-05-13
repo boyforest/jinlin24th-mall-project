@@ -3,6 +3,7 @@ package com.jinlin24th.jinlin.common.config;
 import com.jinlin24th.jinlin.common.auth.CurrentUserIdArgumentResolver;
 import com.jinlin24th.jinlin.common.auth.AdminJwtInterceptor;
 import com.jinlin24th.jinlin.common.auth.JwtInterceptor;
+import com.jinlin24th.jinlin.common.log.OperationLogInterceptor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
@@ -18,15 +19,18 @@ public class WebMvcConfig implements WebMvcConfigurer {
 
     private final JwtInterceptor jwtInterceptor;
     private final AdminJwtInterceptor adminJwtInterceptor;
+    private final OperationLogInterceptor operationLogInterceptor;
     private final String corsAllowedOrigins;
 
     public WebMvcConfig(
         JwtInterceptor jwtInterceptor,
         AdminJwtInterceptor adminJwtInterceptor,
+        OperationLogInterceptor operationLogInterceptor,
         @Value("${app.cors.allowed-origins:*}") String corsAllowedOrigins
     ) {
         this.jwtInterceptor = jwtInterceptor;
         this.adminJwtInterceptor = adminJwtInterceptor;
+        this.operationLogInterceptor = operationLogInterceptor;
         this.corsAllowedOrigins = corsAllowedOrigins;
     }
 
@@ -48,6 +52,11 @@ public class WebMvcConfig implements WebMvcConfigurer {
             );
 
         registry.addInterceptor(adminJwtInterceptor)
+            .addPathPatterns("/admin/**")
+            .excludePathPatterns("/admin/login");
+
+        // 后台增删改操作日志：在鉴权后记录，便于从 token 中拿到管理员账号
+        registry.addInterceptor(operationLogInterceptor)
             .addPathPatterns("/admin/**")
             .excludePathPatterns("/admin/login");
     }

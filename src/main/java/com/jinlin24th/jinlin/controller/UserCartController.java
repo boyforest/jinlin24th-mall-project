@@ -1,6 +1,8 @@
 package com.jinlin24th.jinlin.controller;
 
 import com.jinlin24th.jinlin.common.auth.CurrentUserId;
+import com.jinlin24th.jinlin.common.constant.BizCode;
+import com.jinlin24th.jinlin.common.exception.BizException;
 import com.jinlin24th.jinlin.common.result.Result;
 import com.jinlin24th.jinlin.pojo.dto.CartDTO;
 import com.jinlin24th.jinlin.pojo.vo.CartVO;
@@ -28,7 +30,7 @@ public class UserCartController {
     public Result<CartVO> add(@CurrentUserId Long userId, @RequestBody CartDTO dto) {
         CartVO vo = cartAppService.add(userId, dto);
         if (vo == null) {
-            return Result.error(400, "加入购物车失败");
+            throw BizException.of(BizCode.CART_ADD_FAILED);
         }
         return Result.success(vo);
     }
@@ -37,7 +39,7 @@ public class UserCartController {
     public Result<CartVO> update(@CurrentUserId Long userId, @PathVariable Long id, @RequestBody CartDTO dto) {
         CartVO vo = cartAppService.update(userId, id, dto);
         if (vo == null) {
-            return Result.error(404, "购物车记录不存在");
+            throw BizException.of(BizCode.CART_RECORD_NOT_FOUND);
         }
         return Result.success(vo);
     }
@@ -46,7 +48,7 @@ public class UserCartController {
     public Result<Boolean> delete(@CurrentUserId Long userId, @PathVariable Long id) {
         Boolean ok = cartAppService.delete(userId, id);
         if (!ok) {
-            return Result.error(404, "购物车记录不存在");
+            throw BizException.of(BizCode.CART_RECORD_NOT_FOUND);
         }
         return Result.success(true);
     }

@@ -1,6 +1,9 @@
 package com.jinlin24th.jinlin.controller;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.jinlin24th.jinlin.common.constant.BizCode;
+import com.jinlin24th.jinlin.common.exception.BizException;
+import com.jinlin24th.jinlin.common.rate.annotation.RedisRateLimit;
 import com.jinlin24th.jinlin.common.result.Result;
 import com.jinlin24th.jinlin.pojo.vo.ProductSkuVO;
 import com.jinlin24th.jinlin.pojo.vo.ProductVO;
@@ -27,15 +30,17 @@ public class UserProductController {
     }
 
     @GetMapping("/{id}")
+    @RedisRateLimit(key = "user:product:detail", windowSeconds = 60, limit = 120)
     public Result<ProductVO> get(@PathVariable Long id) {
         ProductVO vo = productService.getUserVO(id);
         if (vo == null) {
-            return Result.error(404, "商品不存在");
+            throw BizException.of(BizCode.PRODUCT_NOT_FOUND);
         }
         return Result.success(vo);
     }
 
     @GetMapping("/{id}/skus")
+    @RedisRateLimit(key = "user:product:skus", windowSeconds = 60, limit = 120)
     public Result<List<ProductSkuVO>> skus(@PathVariable Long id) {
         return Result.success(productService.userSkus(id));
     }

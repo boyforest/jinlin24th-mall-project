@@ -88,6 +88,21 @@ public class AppUser {
     private Integer orderCount;
 
     /**
+     * 是否分销商：0-否，1-是
+     */
+    private Integer isDistributor;
+
+    /**
+     * 分销资格开启时间
+     */
+    private LocalDateTime distributorEnabledTime;
+
+    /**
+     * 分销资格关闭时间
+     */
+    private LocalDateTime distributorDisabledTime;
+
+    /**
      * 状态：1-正常�?-禁用
      */
     private Integer status;

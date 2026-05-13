@@ -8,6 +8,15 @@ import com.jinlin24th.jinlin.pojo.vo.OrderVO;
 public interface OrderService {
     OrderVO create(Long userId, OrderCreateDTO dto);
 
+    /**
+     * 取消未支付订单，并恢复订单占用库存。
+     *
+     * @param orderNo 订单编号
+     * @param reason 取消原因
+     * @return true-本次成功取消，false-订单不存在或已不是待付款状态
+     */
+    boolean cancelUnpaidOrder(String orderNo, String reason);
+
     IPage<OrderVO> userPage(Long userId, long page, long size, Integer status);
 
     IPage<OrderVO> adminPage(long page, long size, Integer status, Long userId, String orderNo);

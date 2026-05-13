@@ -1,5 +1,6 @@
 package com.jinlin24th.jinlin.common.exception;
 
+import com.jinlin24th.jinlin.common.constant.BizCode;
 import lombok.Getter;
 
 /**
@@ -8,23 +9,38 @@ import lombok.Getter;
 @Getter
 public class BizException extends RuntimeException {
 
-    private final int code;
+    private final BizCode bizCode;
 
-    public BizException(int code, String message) {
+    public BizException(BizCode bizCode, String message) {
         super(message);
-        this.code = code;
+        this.bizCode = bizCode;
     }
 
     public static BizException unauthorized(String message) {
-        return new BizException(401, message);
+        return new BizException(BizCode.UNAUTHORIZED, message);
     }
 
     public static BizException forbidden(String message) {
-        return new BizException(403, message);
+        return new BizException(BizCode.FORBIDDEN, message);
     }
 
     public static BizException badRequest(String message) {
-        return new BizException(400, message);
+        return new BizException(BizCode.BAD_REQUEST, message);
+    }
+
+    public static BizException of(BizCode bizCode) {
+        return new BizException(bizCode, bizCode.getMessage());
+    }
+
+    public static BizException of(BizCode bizCode, String message) {
+        return new BizException(bizCode, message);
+    }
+
+    public int getCode() {
+        return bizCode.getCode();
+    }
+
+    public int getHttpStatus() {
+        return bizCode.getHttpStatus();
     }
 }
-

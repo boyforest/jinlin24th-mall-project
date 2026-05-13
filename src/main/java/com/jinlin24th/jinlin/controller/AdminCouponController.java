@@ -1,6 +1,8 @@
 package com.jinlin24th.jinlin.controller;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.jinlin24th.jinlin.common.constant.BizCode;
+import com.jinlin24th.jinlin.common.exception.BizException;
 import com.jinlin24th.jinlin.common.result.Result;
 import com.jinlin24th.jinlin.pojo.dto.CouponDTO;
 import com.jinlin24th.jinlin.pojo.vo.CouponVO;
@@ -30,7 +32,7 @@ public class AdminCouponController {
     public Result<CouponVO> get(@PathVariable Long id) {
         CouponVO vo = couponService.getVO(id);
         if (vo == null) {
-            return Result.error(404, "优惠券不存在");
+            throw BizException.of(BizCode.COUPON_NOT_FOUND);
         }
         return Result.success(vo);
     }
@@ -44,7 +46,7 @@ public class AdminCouponController {
     public Result<CouponVO> update(@PathVariable Long id, @RequestBody CouponDTO dto) {
         CouponVO vo = couponService.update(id, dto);
         if (vo == null) {
-            return Result.error(404, "优惠券不存在");
+            throw BizException.of(BizCode.COUPON_NOT_FOUND);
         }
         return Result.success(vo);
     }

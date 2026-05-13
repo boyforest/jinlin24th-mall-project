@@ -1,5 +1,6 @@
 package com.jinlin24th.jinlin.common.result;
 
+import com.jinlin24th.jinlin.common.constant.BizCode;
 import lombok.Data;
 
 @Data
@@ -10,22 +11,21 @@ public class Result<T> {
 
     public static <T> Result<T> success() {
         Result<T> result = new Result<>();
-        result.setCode(200);
-        result.setMessage("success");
+        result.setCode(BizCode.SUCCESS.getCode());
+        result.setMessage(BizCode.SUCCESS.getMessage());
         return result;
     }
 
     public static <T> Result<T> success(T data) {
         Result<T> result = new Result<>();
-        result.setCode(200);
-        result.setMessage("success");
+        result.setCode(BizCode.SUCCESS.getCode());
+        result.setMessage(BizCode.SUCCESS.getMessage());
         result.setData(data);
         return result;
     }
 
     public static <T> Result<T> error(String message) {
-
-        return error(500, message);
+        return error(BizCode.SYSTEM_ERROR.getCode(), message);
     }
 
     public static <T> Result<T> error(Integer code, String message) {
@@ -34,5 +34,18 @@ public class Result<T> {
         result.setMessage(message);
         return result;
     }
-}
 
+    public static <T> Result<T> error(BizCode bizCode) {
+        Result<T> result = new Result<>();
+        result.setCode(bizCode.getCode());
+        result.setMessage(bizCode.getMessage());
+        return result;
+    }
+
+    public static <T> Result<T> error(BizCode bizCode, String message) {
+        Result<T> result = new Result<>();
+        result.setCode(bizCode.getCode());
+        result.setMessage(message);
+        return result;
+    }
+}

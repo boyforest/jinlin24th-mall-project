@@ -1,5 +1,6 @@
 package com.jinlin24th.jinlin.common.util;
 
+import com.alibaba.fastjson2.JSON;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.RedisConnectionFailureException;
@@ -27,6 +28,11 @@ import java.util.concurrent.TimeUnit;
  * 3) 统一使用 Duration 作为 TTL 参数：语义清晰、不容易写错单位
  */
 public class RedisUtil {
+
+    /**
+     * 全站 Redis key 统一前缀，新增业务 key 都应以该前缀开始。
+     */
+    public static final String KEY_PREFIX = "ecommerce:";
 
     private static final DefaultRedisScript<Long> INCREMENT_WITH_EXPIRE_SCRIPT = new DefaultRedisScript<>(
         """
@@ -159,12 +165,9 @@ public class RedisUtil {
 
     public boolean set(String key, String value, Duration ttl) {
         String k = requireKey(key);
+        requireTtl(ttl);
         try {
-            if (ttl == null) {
-                redis.opsForValue().set(k, value);
-            } else {
-                redis.opsForValue().set(k, value, ttl);
-            }
+            redis.opsForValue().set(k, value, ttl);
             return true;
         } catch (DataAccessException e) {
             log.warn("Redis set 失败, key={}, ttl={}", k, ttl, e);
@@ -174,15 +177,45 @@ public class RedisUtil {
 
     public void setRequired(String key, String value, Duration ttl) {
         String k = requireKey(key);
+        requireTtl(ttl);
         try {
-            if (ttl == null) {
-                redis.opsForValue().set(k, value);
-            } else {
-                redis.opsForValue().set(k, value, ttl);
-            }
+            redis.opsForValue().set(k, value, ttl);
         } catch (DataAccessException e) {
             log.error("Redis setRequired 失败, key={}, ttl={}", k, ttl, e);
             throw new RedisConnectionFailureException("Redis 写入失败", e);
+        }
+    }
+
+    /**
+     * 写入 JSON 对象缓存。
+     *
+     * @param key Redis key，必须使用统一前缀
+     * @param value 任意可 JSON 序列化对象
+     * @param ttl 过期时间，必须大于 0
+     * @return 是否写入成功
+     */
+    public boolean setObject(String key, Object value, Duration ttl) {
+        return set(key, JSON.toJSONString(value), ttl);
+    }
+
+    /**
+     * 读取 JSON 对象缓存。
+     *
+     * @param key Redis key
+     * @param clazz 目标类型
+     * @return 缓存不存在或解析失败时返回 null
+     */
+    public <T> T getObject(String key, Class<T> clazz) {
+        String json = get(key);
+        if (json == null) {
+            return null;
+        }
+        try {
+            return JSON.parseObject(json, clazz);
+        } catch (Exception e) {
+            log.warn("Redis JSON 对象解析失败，将删除脏缓存, key={}", key, e);
+            delete(key);
+            return null;
         }
     }
 
@@ -215,8 +248,30 @@ public class RedisUtil {
      */
     public long incr(String key, long delta) {
         String k = requireKey(key);
-        Long v = redis.opsForValue().increment(k, delta);
-        return v == null ? 0 : v;
+        try {
+            Long v = redis.opsForValue().increment(k, delta);
+            return v == null ? 0 : v;
+        } catch (DataAccessException e) {
+            log.warn("Redis incr 失败, key={}, delta={}", k, delta, e);
+            return 0;
+        }
+    }
+
+    /**
+     * 自减操作，适合计数器回退等场景。
+     */
+    public long decr(String key, long delta) {
+        String k = requireKey(key);
+        if (delta <= 0) {
+            throw new IllegalArgumentException("delta 必须 > 0");
+        }
+        try {
+            Long v = redis.opsForValue().decrement(k, delta);
+            return v == null ? 0 : v;
+        } catch (DataAccessException e) {
+            log.warn("Redis decr 失败, key={}, delta={}", k, delta, e);
+            return 0;
+        }
     }
 
     /**
@@ -264,6 +319,16 @@ public class RedisUtil {
         if (!StringUtils.hasText(key)) {
             throw new IllegalArgumentException("key 不能为空");
         }
-        return key.trim();
+        String normalized = key.trim();
+        if (!normalized.startsWith(KEY_PREFIX)) {
+            log.debug("Redis key 未使用统一前缀: key={}", normalized);
+        }
+        return normalized;
+    }
+
+    private static void requireTtl(Duration ttl) {
+        if (ttl == null || ttl.isZero() || ttl.isNegative()) {
+            throw new IllegalArgumentException("ttl 必须 > 0，禁止永久缓存");
+        }
     }
 }

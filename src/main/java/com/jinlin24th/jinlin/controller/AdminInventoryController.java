@@ -1,6 +1,8 @@
 package com.jinlin24th.jinlin.controller;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.jinlin24th.jinlin.common.constant.BizCode;
+import com.jinlin24th.jinlin.common.exception.BizException;
 import com.jinlin24th.jinlin.common.result.Result;
 import com.jinlin24th.jinlin.pojo.entity.Inventory;
 import com.jinlin24th.jinlin.pojo.vo.InventoryVO;
@@ -31,7 +33,7 @@ public class AdminInventoryController {
     public Result<Inventory> get(@PathVariable Long id) {
         Inventory inventory = inventoryService.getRequired(id);
         if (inventory == null) {
-            return Result.error(404, "库存记录不存在");
+            throw BizException.of(BizCode.INVENTORY_NOT_FOUND);
         }
         return Result.success(inventory);
     }
@@ -40,7 +42,7 @@ public class AdminInventoryController {
     public Result<Inventory> update(@PathVariable Long id, @RequestBody Inventory inventory) {
         Inventory updated = inventoryService.update(id, inventory);
         if (updated == null) {
-            return Result.error(404, "库存记录不存在");
+            throw BizException.of(BizCode.INVENTORY_NOT_FOUND);
         }
         return Result.success(updated);
     }

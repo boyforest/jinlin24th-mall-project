@@ -1,6 +1,8 @@
 package com.jinlin24th.jinlin.controller;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.jinlin24th.jinlin.common.constant.BizCode;
+import com.jinlin24th.jinlin.common.exception.BizException;
 import com.jinlin24th.jinlin.common.result.Result;
 import com.jinlin24th.jinlin.pojo.entity.InventoryLog;
 import com.jinlin24th.jinlin.pojo.vo.InventoryLogVO;
@@ -32,7 +34,7 @@ public class AdminInventoryLogController {
     public Result<InventoryLog> get(@PathVariable Long id) {
         InventoryLog log = inventoryLogService.getRequired(id);
         if (log == null) {
-            return Result.error(404, "库存流水不存在");
+            throw BizException.of(BizCode.INVENTORY_LOG_NOT_FOUND);
         }
         return Result.success(log);
     }

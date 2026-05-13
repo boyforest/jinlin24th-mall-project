@@ -1,5 +1,7 @@
 package com.jinlin24th.jinlin.controller;
 
+import com.jinlin24th.jinlin.common.constant.BizCode;
+import com.jinlin24th.jinlin.common.exception.BizException;
 import com.jinlin24th.jinlin.common.result.Result;
 import com.jinlin24th.jinlin.pojo.entity.ProductCategory;
 import com.jinlin24th.jinlin.service.ProductCategoryService;
@@ -32,7 +34,7 @@ public class AdminProductCategoryController {
     public Result<ProductCategory> get(@PathVariable Long id) {
         ProductCategory category = productCategoryService.getById(id);
         if (category == null) {
-            return Result.error(404, "分类不存在");
+            throw BizException.of(BizCode.PRODUCT_CATEGORY_NOT_FOUND);
         }
         return Result.success(category);
     }
@@ -55,4 +57,3 @@ public class AdminProductCategoryController {
         return Result.success(productCategoryService.removeById(id));
     }
 }
-

@@ -1,6 +1,8 @@
 package com.jinlin24th.jinlin.controller;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.jinlin24th.jinlin.common.constant.BizCode;
+import com.jinlin24th.jinlin.common.exception.BizException;
 import com.jinlin24th.jinlin.common.result.Result;
 import com.jinlin24th.jinlin.pojo.dto.ProductSkuDTO;
 import com.jinlin24th.jinlin.pojo.vo.ProductSkuVO;
@@ -31,7 +33,7 @@ public class AdminProductSkuController {
     public Result<ProductSkuVO> get(@PathVariable Long id) {
         ProductSkuVO vo = productSkuService.getVO(id);
         if (vo == null) {
-            return Result.error(404, "SKU不存在");
+            throw BizException.of(BizCode.SKU_NOT_FOUND);
         }
         return Result.success(vo);
     }
@@ -46,7 +48,7 @@ public class AdminProductSkuController {
     public Result<ProductSkuVO> update(@PathVariable Long id, @RequestBody ProductSkuDTO dto) {
         ProductSkuVO vo = productSkuService.update(id, dto);
         if (vo == null) {
-            return Result.error(404, "SKU不存在");
+            throw BizException.of(BizCode.SKU_NOT_FOUND);
         }
         return Result.success(vo);
     }

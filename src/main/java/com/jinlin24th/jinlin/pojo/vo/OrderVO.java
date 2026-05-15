@@ -12,6 +12,8 @@ public class OrderVO implements Serializable {
     private Long id;
     private String orderNo;
     private Long userId;
+    private Long recommenderUserId;
+    private Long level2RecommenderUserId;
     private BigDecimal totalAmount;
     private BigDecimal payAmount;
     private BigDecimal freightAmount;
@@ -42,4 +44,3 @@ public class OrderVO implements Serializable {
         private BigDecimal totalPrice;
     }
 }
-

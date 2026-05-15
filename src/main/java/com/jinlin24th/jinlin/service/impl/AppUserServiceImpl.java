@@ -123,6 +123,41 @@ public class AppUserServiceImpl extends ServiceImpl<AppUserMapper, AppUser> impl
     }
 
     @Override
+    public AppUserVO getRecommender(Long userId) {
+        AppUser user = getById(userId);
+        if (user == null || user.getParentUserId() == null) {
+            return null;
+        }
+        AppUser recommender = lambdaQuery()
+            .eq(AppUser::getId, user.getParentUserId())
+            .eq(AppUser::getStatus, 1)
+            .eq(AppUser::getDeleted, 0)
+            .one();
+        return recommender == null ? null : toVO(recommender, null);
+    }
+
+    @Override
+    public AppUserVO bindRecommender(Long userId, Long recommenderUserId) {
+        if (userId == null || recommenderUserId == null || recommenderUserId <= 0 || userId.equals(recommenderUserId)) {
+            return null;
+        }
+        AppUser user = getById(userId);
+        if (user == null || user.getParentUserId() != null) {
+            return null;
+        }
+        Long validRecommenderId = resolveValidInviterId(recommenderUserId);
+        if (validRecommenderId == null) {
+            return null;
+        }
+        lambdaUpdate()
+            .set(AppUser::getParentUserId, validRecommenderId)
+            .eq(AppUser::getId, userId)
+            .isNull(AppUser::getParentUserId)
+            .update();
+        return getRecommender(userId);
+    }
+
+    @Override
     public List<AppUserVO> getUserList() {
         // 管理端列表（不分页）：批量查会员等级，避免 N+1
         List<AppUser> users = list();

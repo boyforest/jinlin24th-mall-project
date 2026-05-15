@@ -246,6 +246,8 @@ CREATE TABLE IF NOT EXISTS `order_master` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '订单ID',
   `order_no` varchar(32) NOT NULL COMMENT '订单编号',
   `user_id` bigint NOT NULL COMMENT '用户ID',
+  `recommender_user_id` bigint DEFAULT NULL COMMENT '下单时一级推荐官快照',
+  `level2_recommender_user_id` bigint DEFAULT NULL COMMENT '下单时二级推荐官快照',
   `total_amount` decimal(10,2) NOT NULL COMMENT '订单总金额',
   `pay_amount` decimal(10,2) NOT NULL COMMENT '实付金额',
   `freight_amount` decimal(10,2) DEFAULT 0.00 COMMENT '运费',
@@ -267,6 +269,7 @@ CREATE TABLE IF NOT EXISTS `order_master` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_order_no` (`order_no`),
   KEY `idx_user_id` (`user_id`),
+  KEY `idx_recommender_user_id` (`recommender_user_id`),
   KEY `idx_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='订单主表';
 

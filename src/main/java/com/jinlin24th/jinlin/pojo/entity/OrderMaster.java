@@ -31,6 +31,16 @@ public class OrderMaster {
     private Long userId;
 
     /**
+     * 下单时绑定的一级推荐官快照
+     */
+    private Long recommenderUserId;
+
+    /**
+     * 下单时绑定的二级推荐官快照
+     */
+    private Long level2RecommenderUserId;
+
+    /**
      * 订单总金�?     */
     private BigDecimal totalAmount;
 

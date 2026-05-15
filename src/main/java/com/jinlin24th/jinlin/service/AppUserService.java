@@ -28,4 +28,14 @@ public interface AppUserService extends IService<AppUser> {
      * @return 更新后的用户信息
      */
     AppUserVO updateDistributor(Long id, Integer enabled);
+
+    /**
+     * 获取当前用户已绑定的推荐官。
+     */
+    AppUserVO getRecommender(Long userId);
+
+    /**
+     * C 端绑定推荐官。MVP 规则：用户未绑定时才允许绑定，推荐官必须已开通分销资格。
+     */
+    AppUserVO bindRecommender(Long userId, Long recommenderUserId);
 }

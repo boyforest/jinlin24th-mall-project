@@ -5,6 +5,7 @@ import com.jinlin24th.jinlin.common.mq.OrderCreatedSpringEvent;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.jinlin24th.jinlin.pojo.dto.OrderCreateDTO;
+import com.jinlin24th.jinlin.pojo.entity.AppUser;
 import com.jinlin24th.jinlin.pojo.entity.OrderItem;
 import com.jinlin24th.jinlin.pojo.entity.OrderMaster;
 import com.jinlin24th.jinlin.pojo.entity.Product;
@@ -19,6 +20,7 @@ import com.jinlin24th.jinlin.service.ProductService;
 import com.jinlin24th.jinlin.service.ProductSkuService;
 import com.jinlin24th.jinlin.service.InventoryService;
 import com.jinlin24th.jinlin.service.InventoryLogService;
+import com.jinlin24th.jinlin.service.AppUserService;
 import com.jinlin24th.jinlin.pojo.entity.Inventory;
 import com.jinlin24th.jinlin.pojo.entity.InventoryLog;
 import lombok.extern.slf4j.Slf4j;
@@ -60,6 +62,9 @@ public class OrderServiceImpl implements OrderService {
 
     @Autowired
     private InventoryLogService inventoryLogService;
+
+    @Autowired
+    private AppUserService appUserService;
 
     @Autowired
     private ObjectProvider<OrderTimeoutMessageProducer> orderTimeoutMessageProducerProvider;
@@ -126,9 +131,13 @@ public class OrderServiceImpl implements OrderService {
             .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         // 构建订单主表（master）
+        AppUser level1Recommender = getEnabledDistributor(getUserParentId(userId));
+        AppUser level2Recommender = level1Recommender == null ? null : getEnabledDistributor(level1Recommender.getParentUserId());
         OrderMaster master = new OrderMaster();
         master.setOrderNo(orderNo);
         master.setUserId(userId);
+        master.setRecommenderUserId(level1Recommender == null ? null : level1Recommender.getId());
+        master.setLevel2RecommenderUserId(level2Recommender == null ? null : level2Recommender.getId());
         master.setTotalAmount(totalAmount);
         master.setPayAmount(totalAmount);
         master.setFreightAmount(BigDecimal.ZERO);
@@ -381,6 +390,26 @@ public class OrderServiceImpl implements OrderService {
             return iv;
         }).collect(Collectors.toList()));
         return vo;
+    }
+
+    private Long getUserParentId(Long userId) {
+        if (userId == null) {
+            return null;
+        }
+        AppUser user = appUserService.getById(userId);
+        return user == null ? null : user.getParentUserId();
+    }
+
+    private AppUser getEnabledDistributor(Long userId) {
+        if (userId == null || userId <= 0) {
+            return null;
+        }
+        return appUserService.lambdaQuery()
+            .eq(AppUser::getId, userId)
+            .eq(AppUser::getStatus, 1)
+            .eq(AppUser::getDeleted, 0)
+            .eq(AppUser::getIsDistributor, 1)
+            .one();
     }
 
     private String generateOrderNo() {

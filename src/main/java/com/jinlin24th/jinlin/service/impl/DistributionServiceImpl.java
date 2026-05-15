@@ -110,15 +110,21 @@ public class DistributionServiceImpl extends ServiceImpl<DistributionMapper, Dis
         }
 
         AppUser buyer = appUserService.getById(orderMaster.getUserId());
-        if (buyer == null || buyer.getParentUserId() == null) {
+        if (buyer == null && orderMaster.getRecommenderUserId() == null) {
             return;
         }
 
-        AppUser level1 = getEnabledDistributor(buyer.getParentUserId());
+        Long level1UserId = orderMaster.getRecommenderUserId() != null
+            ? orderMaster.getRecommenderUserId()
+            : buyer.getParentUserId();
+        AppUser level1 = getEnabledDistributor(level1UserId);
         if (level1 == null) {
             return;
         }
-        AppUser level2 = getEnabledDistributor(level1.getParentUserId());
+        Long level2UserId = orderMaster.getLevel2RecommenderUserId() != null
+            ? orderMaster.getLevel2RecommenderUserId()
+            : level1.getParentUserId();
+        AppUser level2 = getEnabledDistributor(level2UserId);
 
         BigDecimal buyerAmount = Optional.ofNullable(orderMaster.getPayAmount()).orElse(orderMaster.getTotalAmount());
         BigDecimal level1Amount = calculateCommission(buyerAmount, config.getLevel1Rate());

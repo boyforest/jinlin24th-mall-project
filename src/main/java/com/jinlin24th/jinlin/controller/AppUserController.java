@@ -7,6 +7,7 @@ import com.jinlin24th.jinlin.common.rate.LoginRateLimitService;
 import com.jinlin24th.jinlin.common.rate.annotation.RedisRateLimit;
 import com.jinlin24th.jinlin.common.result.Result;
 import com.jinlin24th.jinlin.common.util.JwtUtil;
+import com.jinlin24th.jinlin.pojo.dto.BindRecommenderDTO;
 import com.jinlin24th.jinlin.pojo.dto.UserLoginDTO;
 import com.jinlin24th.jinlin.pojo.vo.AppUserVO;
 import com.jinlin24th.jinlin.pojo.vo.UserLoginVO;
@@ -107,5 +108,28 @@ public class AppUserController {
     @GetMapping("/me")
     public Result<AppUserVO> me(@CurrentUserId Long userId) {
         return Result.success(appUserService.getUserInfo(userId));
+    }
+
+    /**
+     * 获取当前用户绑定的推荐官，用于结算页确认佣金归属。
+     */
+    @GetMapping("/recommender")
+    public Result<AppUserVO> recommender(@CurrentUserId Long userId) {
+        return Result.success(appUserService.getRecommender(userId));
+    }
+
+    /**
+     * 绑定推荐官。MVP 版只允许未绑定用户绑定一次，避免订单前频繁切换归属。
+     */
+    @PostMapping("/recommender")
+    public Result<AppUserVO> bindRecommender(@CurrentUserId Long userId, @RequestBody BindRecommenderDTO dto) {
+        AppUserVO recommender = appUserService.bindRecommender(
+            userId,
+            dto == null ? null : dto.getRecommenderUserId()
+        );
+        if (recommender == null) {
+            throw BizException.badRequest("推荐官不存在、未开通，或当前用户已绑定推荐官");
+        }
+        return Result.success(recommender);
     }
 }

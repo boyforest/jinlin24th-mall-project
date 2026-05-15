@@ -45,6 +45,52 @@ export const distributionStatus = {
   text: value => ({ 0: '待结算', 1: '可结算', 2: '已结算', 3: '已退回' }[value] ?? value)
 }
 
+export const couponType = {
+  options: [
+    { label: '满减券', value: 1 },
+    { label: '折扣券', value: 2 },
+    { label: '固定金额券', value: 3 }
+  ],
+  text: value => ({ 1: '满减券', 2: '折扣券', 3: '固定金额券' }[value] ?? value)
+}
+
+export const customerSource = {
+  options: [
+    { label: '小程序注册', value: 1 },
+    { label: '销售录入', value: 2 },
+    { label: '转介绍', value: 3 }
+  ],
+  text: value => ({ 1: '小程序注册', 2: '销售录入', 3: '转介绍' }[value] ?? value)
+}
+
+export const customerLevel = {
+  options: [
+    { label: '普通', value: 1 },
+    { label: '重要', value: 2 },
+    { label: 'VIP', value: 3 }
+  ],
+  text: value => ({ 1: '普通', 2: '重要', 3: 'VIP' }[value] ?? value)
+}
+
+export const followType = {
+  options: [
+    { label: '电话', value: 1 },
+    { label: '微信', value: 2 },
+    { label: '上门', value: 3 },
+    { label: '其他', value: 4 }
+  ],
+  text: value => ({ 1: '电话', 2: '微信', 3: '上门', 4: '其他' }[value] ?? value)
+}
+
+export const inventoryLogType = {
+  options: [
+    { label: '入库', value: 1 },
+    { label: '出库', value: 2 },
+    { label: '盘点调整', value: 3 }
+  ],
+  text: value => ({ 1: '入库', 2: '出库', 3: '盘点调整' }[value] ?? value)
+}
+
 export function formatMoney(value) {
   if (value === null || value === undefined || value === '') return ''
   return `¥${Number(value).toFixed(2)}`

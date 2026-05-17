@@ -24,9 +24,10 @@ public class AdminOrderController {
         @RequestParam(defaultValue = "10") long size,
         @RequestParam(required = false) Integer status,
         @RequestParam(required = false) Long userId,
-        @RequestParam(required = false) String orderNo
+        @RequestParam(required = false) String orderNo,
+        @RequestParam(required = false) String receiverPhone
     ) {
-        return Result.success(orderService.adminPage(page, size, status, userId, orderNo));
+        return Result.success(orderService.adminPage(page, size, status, userId, orderNo, receiverPhone));
     }
 
     @GetMapping("/{id}")
@@ -36,5 +37,20 @@ public class AdminOrderController {
             throw BizException.of(BizCode.ORDER_NOT_FOUND);
         }
         return Result.success(vo);
+    }
+
+    @PostMapping("/{id}/cancel")
+    public Result<OrderVO> cancel(@PathVariable Long id, @RequestParam(required = false) Long adminId) {
+        return Result.success(orderService.adminCancelUnpaid(id, adminId));
+    }
+
+    @PostMapping("/{id}/ship")
+    public Result<OrderVO> ship(@PathVariable Long id, @RequestParam(required = false) Long adminId) {
+        return Result.success(orderService.adminShip(id, adminId));
+    }
+
+    @PostMapping("/{id}/complete")
+    public Result<OrderVO> complete(@PathVariable Long id, @RequestParam(required = false) Long adminId) {
+        return Result.success(orderService.adminComplete(id, adminId));
     }
 }

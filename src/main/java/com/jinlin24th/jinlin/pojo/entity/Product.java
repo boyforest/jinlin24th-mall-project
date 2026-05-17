@@ -23,6 +23,8 @@ public class Product {
     private String images;
     private String videoUrl;
     private String detail;
+    private String effects;
+    private String precautions;
     private Integer sales;
     private Integer status;
     private Integer sort;

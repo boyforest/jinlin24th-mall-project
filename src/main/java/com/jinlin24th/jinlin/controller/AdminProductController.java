@@ -24,9 +24,10 @@ public class AdminProductController {
         @RequestParam(defaultValue = "1") long page,
         @RequestParam(defaultValue = "10") long size,
         @RequestParam(required = false) Integer status,
-        @RequestParam(required = false) Long categoryId
+        @RequestParam(required = false) Long categoryId,
+        @RequestParam(required = false) String keyword
     ) {
-        return Result.success(productService.adminPage(page, size, status, categoryId));
+        return Result.success(productService.adminPage(page, size, status, categoryId, keyword));
     }
 
     @GetMapping("/{id}")

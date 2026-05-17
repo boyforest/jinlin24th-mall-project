@@ -56,7 +56,7 @@
         </view>
       </view>
 
-      <button class="ink-btn-primary" :loading="submitting" @click="submit">提交订单</button>
+      <button class="ink-btn-primary" :loading="submitting" @click="submit">提交并支付</button>
     </view>
   </view>
 </template>
@@ -65,6 +65,7 @@
 import { onLoad } from '@dcloudio/uni-app'
 import { reactive, ref } from 'vue'
 import { createOrder } from '@/api/order'
+import { createOrderPayment, requestMiniAppPayment } from '@/api/payment'
 import { bindRecommender, getRecommender, type AppUserVO } from '@/api/user'
 
 const productId = ref<number>(0)
@@ -129,7 +130,15 @@ async function submit() {
       remark: form.remark,
       items: [{ skuId: skuId.value, quantity: quantity.value }],
     })
-    uni.showToast({ title: '订单已创建', icon: 'success' })
+    try {
+      const payParams = await createOrderPayment(order.id)
+      await requestMiniAppPayment(payParams)
+      uni.showToast({ title: '支付完成', icon: 'success' })
+    } catch (payError: any) {
+      const message = String(payError?.errMsg || payError?.message || '')
+      const isCancel = message.includes('cancel')
+      uni.showToast({ title: isCancel ? '支付已取消' : message || '支付未完成', icon: 'none' })
+    }
     uni.redirectTo({ url: `/pages/order-detail/index?id=${order.id}` })
   } catch (e: any) {
     uni.showToast({ title: e?.message || '提交失败', icon: 'none' })

@@ -22,6 +22,21 @@
             <text class="label">实付</text>
             <text class="amount ink-price">¥{{ money(order.payAmount || order.totalAmount) }}</text>
           </view>
+          <view v-if="order.payTime" class="ink-line"></view>
+          <view v-if="order.payTime" class="row">
+            <text class="label">支付时间</text>
+            <text class="time">{{ formatTime(order.payTime) }}</text>
+          </view>
+          <view v-if="order.deliveryTime" class="ink-line"></view>
+          <view v-if="order.deliveryTime" class="row">
+            <text class="label">发货时间</text>
+            <text class="time">{{ formatTime(order.deliveryTime) }}</text>
+          </view>
+          <view v-if="order.receiveTime" class="ink-line"></view>
+          <view v-if="order.receiveTime" class="row">
+            <text class="label">完成时间</text>
+            <text class="time">{{ formatTime(order.receiveTime) }}</text>
+          </view>
         </view>
 
         <view class="card ink-card">
@@ -37,6 +52,9 @@
           <view class="text">{{ order.receiverName }} {{ order.receiverPhone }}</view>
           <view class="text">{{ order.receiverAddress }}</view>
         </view>
+
+        <button v-if="order.status === 0" class="ink-btn-primary pay-btn" :loading="paying" @click="payNow">继续支付</button>
+        <button v-if="order.status === 20" class="ink-btn-primary pay-btn" :loading="receiving" @click="confirmReceive">确认收货</button>
       </view>
     </view>
   </view>
@@ -45,12 +63,15 @@
 <script setup lang="ts">
 import { onLoad } from '@dcloudio/uni-app'
 import { ref } from 'vue'
-import { getOrder, type OrderVO } from '@/api/order'
+import { getOrder, receiveOrder, type OrderVO } from '@/api/order'
+import { createOrderPayment, requestMiniAppPayment } from '@/api/payment'
 import { money } from '@/utils/auth'
 
 const id = ref<number>(0)
 const order = ref<OrderVO | null>(null)
 const loading = ref(false)
+const paying = ref(false)
+const receiving = ref(false)
 
 async function load() {
   if (!id.value) return
@@ -67,12 +88,56 @@ async function load() {
 function statusText(value?: number) {
   const map: Record<number, string> = {
     0: '待支付',
-    1: '已支付',
-    2: '待发货',
-    3: '已完成',
-    4: '已关闭',
+    10: '待发货',
+    20: '待收货',
+    30: '已完成',
+    40: '已取消',
+    50: '退款中',
+    60: '已退款',
   }
   return value === undefined ? '-' : map[value] || `状态${value}`
+}
+
+async function payNow() {
+  if (!order.value?.id) return
+  paying.value = true
+  try {
+    const payParams = await createOrderPayment(order.value.id)
+    await requestMiniAppPayment(payParams)
+    uni.showToast({ title: '支付完成', icon: 'success' })
+    await load()
+  } catch (e: any) {
+    const message = String(e?.errMsg || e?.message || '')
+    const isCancel = message.includes('cancel')
+    uni.showToast({ title: isCancel ? '支付已取消' : message || '支付未完成', icon: 'none' })
+  } finally {
+    paying.value = false
+  }
+}
+
+function formatTime(value?: string) {
+  return value ? String(value).replace('T', ' ').slice(0, 19) : ''
+}
+
+function confirmReceive() {
+  if (!order.value?.id) return
+  uni.showModal({
+    title: '确认收货',
+    content: '确认已经收到这份养物？',
+    confirmText: '确认',
+    success: async (res) => {
+      if (!res.confirm || !order.value?.id) return
+      receiving.value = true
+      try {
+        order.value = await receiveOrder(order.value.id)
+        uni.showToast({ title: '订单已完成', icon: 'success' })
+      } catch (e: any) {
+        uni.showToast({ title: e?.message || '确认失败', icon: 'none' })
+      } finally {
+        receiving.value = false
+      }
+    },
+  })
 }
 
 onLoad((options) => {
@@ -102,6 +167,10 @@ onLoad((options) => {
 .text {
   color: #6f7b68;
 }
+.time {
+  color: #2d2d2d;
+  font-size: 24rpx;
+}
 .order-no {
   color: #2d2d2d;
   font-family: Georgia, "Times New Roman", serif;
@@ -114,5 +183,8 @@ onLoad((options) => {
   z-index: 1;
   font-size: 30rpx;
   margin-bottom: 14rpx;
+}
+.pay-btn {
+  margin-top: 12rpx;
 }
 </style>

@@ -1,6 +1,7 @@
 package com.jinlin24th.jinlin.service;
 
 import com.jinlin24th.jinlin.pojo.dto.WxPayPrepayDTO;
+import com.jinlin24th.jinlin.pojo.vo.WxPayParamsVO;
 
 import java.math.BigDecimal;
 
@@ -8,6 +9,16 @@ import java.math.BigDecimal;
  * 微信支付服务接口
  */
 public interface WxPayService {
+
+    /**
+     * 为当前小程序用户的业务订单创建微信 JSAPI 支付参数。
+     *
+     * @param userId 当前登录用户ID
+     * @param orderId 业务订单ID
+     * @return 小程序 wx.requestPayment 所需参数
+     * @throws Exception 支付异常
+     */
+    WxPayParamsVO createMiniAppPayParams(Long userId, Long orderId) throws Exception;
 
     /**
      * 统一下单（小程序支付）

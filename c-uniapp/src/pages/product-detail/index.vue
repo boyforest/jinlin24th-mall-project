@@ -9,7 +9,11 @@
 
       <view v-else class="content">
         <view class="gallery ink-card">
-          <image v-if="product?.mainImage" class="cover" :src="product.mainImage" mode="aspectFill" />
+          <swiper v-if="galleryImages.length" class="cover-swiper" circular indicator-dots>
+            <swiper-item v-for="image in galleryImages" :key="image">
+              <image class="cover" :src="image" mode="aspectFill" @click="previewImage(image)" />
+            </swiper-item>
+          </swiper>
           <view v-else class="cover placeholder">JL</view>
           <text class="ink-tag gallery-tag">热销</text>
         </view>
@@ -43,12 +47,23 @@
           </view>
         </view>
 
+        <view v-if="product?.effects || product?.precautions" class="care-panel ink-card">
+          <view v-if="product?.effects" class="care-block">
+            <text class="panel-title ink-title">功效说明</text>
+            <text class="care-text">{{ product.effects }}</text>
+          </view>
+          <view v-if="product?.precautions" class="care-block">
+            <text class="panel-title ink-title">注意事项</text>
+            <text class="care-text">{{ product.precautions }}</text>
+          </view>
+        </view>
+
         <view v-if="product?.detail" class="detail ink-card">
           <view class="panel-head">
             <text class="panel-title ink-title">商品详情</text>
             <text class="panel-sub">一物一味</text>
           </view>
-          <text>{{ product.detail }}</text>
+          <rich-text :nodes="product.detail" />
         </view>
 
         <view class="actions">
@@ -62,7 +77,7 @@
 
 <script setup lang="ts">
 import { onLoad } from '@dcloudio/uni-app'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { getProduct, listProductSkus, type ProductSkuVO, type ProductVO } from '@/api/product'
 import { useCartStore } from '@/stores/cart'
 import { money, requireLogin } from '@/utils/auth'
@@ -74,6 +89,16 @@ const selectedSkuId = ref<number>(0)
 const loading = ref(false)
 const error = ref('')
 const cart = useCartStore()
+const galleryImages = computed(() => {
+  const images = String(product.value?.images || '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean)
+  if (product.value?.mainImage && !images.includes(product.value.mainImage)) {
+    images.unshift(product.value.mainImage)
+  }
+  return images
+})
 
 async function load() {
   if (!id.value) return
@@ -95,6 +120,13 @@ function selectSku(skuId: number) {
   const sku = skus.value.find((item) => item.id === skuId)
   if (!sku || !sku.stock) return
   selectedSkuId.value = skuId
+}
+
+function previewImage(current: string) {
+  uni.previewImage({
+    urls: galleryImages.value,
+    current,
+  })
 }
 
 async function addToCart() {
@@ -138,9 +170,12 @@ onLoad((options) => {
   padding: 18rpx;
   margin-bottom: 28rpx;
 }
-.cover {
+.cover,
+.cover-swiper {
   width: 100%;
   height: 520rpx;
+}
+.cover {
   border-radius: 20rpx;
   background: #f0f7ef;
 }
@@ -198,7 +233,8 @@ onLoad((options) => {
   line-height: 1.7;
 }
 .sku-panel,
-.detail {
+.detail,
+.care-panel {
   margin-top: 28rpx;
   padding: 28rpx;
 }
@@ -257,6 +293,21 @@ onLoad((options) => {
   color: #5f665d;
   font-size: 28rpx;
   line-height: 1.7;
+}
+.care-block {
+  position: relative;
+  z-index: 1;
+  margin-bottom: 22rpx;
+}
+.care-block:last-child {
+  margin-bottom: 0;
+}
+.care-text {
+  display: block;
+  margin-top: 12rpx;
+  color: #51664b;
+  font-size: 27rpx;
+  line-height: 1.75;
 }
 .actions {
   display: grid;

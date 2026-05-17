@@ -91,6 +91,24 @@ export const inventoryLogType = {
   text: value => ({ 1: '入库', 2: '出库', 3: '盘点调整' }[value] ?? value)
 }
 
+export const activityPosition = {
+  options: [
+    { label: '首页横幅', value: 'home_banner' },
+    { label: '首页公告', value: 'home_notice' }
+  ],
+  text: value => ({ home_banner: '首页横幅', home_notice: '首页公告' }[value] ?? value)
+}
+
+export const activityLinkType = {
+  options: [
+    { label: '不跳转', value: 'none' },
+    { label: '商品', value: 'product' },
+    { label: '分类', value: 'category' },
+    { label: '页面', value: 'page' }
+  ],
+  text: value => ({ none: '不跳转', product: '商品', category: '分类', page: '页面' }[value] ?? value)
+}
+
 export function formatMoney(value) {
   if (value === null || value === undefined || value === '') return ''
   return `¥${Number(value).toFixed(2)}`

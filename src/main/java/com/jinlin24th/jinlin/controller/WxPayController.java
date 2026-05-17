@@ -1,7 +1,6 @@
 package com.jinlin24th.jinlin.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.jinlin24th.jinlin.common.config.WxPayConfig;
 import com.jinlin24th.jinlin.common.constant.BizCode;
 import com.jinlin24th.jinlin.common.exception.BizException;
 import com.jinlin24th.jinlin.common.result.Result;
@@ -13,10 +12,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
-import java.security.PrivateKey;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
 
 /**
  * 微信支付控制器
@@ -30,9 +27,6 @@ public class WxPayController {
     @Autowired
     private WxPayService wxPayService;
 
-    @Autowired
-    private WxPayConfig wxPayConfig;
-
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
     /**
@@ -40,42 +34,7 @@ public class WxPayController {
      */
     @PostMapping("/create")
     public Result<Map<String, String>> createOrder(@RequestBody WxPayPrepayDTO prepayDTO) {
-        try {
-            // TODO: 从token中获取userId
-            Long userId = 1L;
-
-            // 调用服务创建订单
-            String prepayId = wxPayService.createOrder(prepayDTO, userId);
-
-            // 生成小程序支付参数
-            String timeStamp = String.valueOf(System.currentTimeMillis() / 1000);
-            String nonceStr = UUID.randomUUID().toString().replace("-", "");
-            String packageValue = "prepay_id=" + prepayId;
-            String signType = "RSA";
-
-            // 构建签名参数
-            String signStr = prepayDTO.getAppid() + "\n" +
-                           timeStamp + "\n" +
-                           nonceStr + "\n" +
-                           packageValue + "\n";
-
-            // 签名
-            PrivateKey privateKey = com.jinlin24th.jinlin.common.util.WxPayUtil.loadPrivateKeyFromPath(wxPayConfig.getPrivateKeyPath());
-            String paySign = com.jinlin24th.jinlin.common.util.WxPayUtil.sign(signStr, "SHA256withRSA", privateKey);
-
-            Map<String, String> result = new HashMap<>();
-            result.put("timeStamp", timeStamp);
-            result.put("nonceStr", nonceStr);
-            result.put("package", packageValue);
-            result.put("signType", signType);
-            result.put("paySign", paySign);
-            result.put("prepayId", prepayId);
-
-            return Result.success(result);
-        } catch (Exception e) {
-            log.error("创建支付订单失败", e);
-            throw BizException.of(BizCode.WECHAT_PAY_ERROR, "创建支付订单失败：" + e.getMessage());
-        }
+        throw BizException.badRequest("请使用 /user/order/{id}/pay 发起当前登录用户的订单支付");
     }
 
     /**

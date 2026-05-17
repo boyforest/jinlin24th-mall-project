@@ -26,6 +26,9 @@ export interface OrderVO {
   receiverPhone?: string
   receiverAddress?: string
   remark?: string
+  payTime?: string
+  deliveryTime?: string
+  receiveTime?: string
   createTime?: string
   items?: Array<{
     productId: number
@@ -39,19 +42,26 @@ export interface OrderVO {
   }>
 }
 
+function buildQuery(params: Record<string, unknown> = {}) {
+  const entries = Object.entries(params)
+    .filter(([, value]) => value !== undefined && value !== null && value !== '')
+    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
+
+  return entries.length ? `?${entries.join('&')}` : ''
+}
+
 export function createOrder(data: OrderCreateDTO) {
   return apiRequest<OrderVO>('/user/order/create', { method: 'POST', data })
 }
 
 export function listOrders(params: { page?: number; size?: number; status?: number } = {}) {
-  const query = new URLSearchParams()
-  if (params.page) query.set('page', String(params.page))
-  if (params.size) query.set('size', String(params.size))
-  if (params.status !== undefined) query.set('status', String(params.status))
-  const qs = query.toString()
-  return apiRequest<PageResult<OrderVO>>(`/user/order/list${qs ? `?${qs}` : ''}`)
+  return apiRequest<PageResult<OrderVO>>(`/user/order/list${buildQuery(params)}`)
 }
 
 export function getOrder(id: number) {
   return apiRequest<OrderVO>(`/user/order/${id}`)
+}
+
+export function receiveOrder(id: number) {
+  return apiRequest<OrderVO>(`/user/order/${id}/receive`, { method: 'POST' })
 }

@@ -91,3 +91,10 @@ id_ed25519*
 ### Logs ###
 logs/
 *.log
+
+### Runtime uploads ###
+uploads/
+
+### Local runtime files ###
+.run/
+dump.rdb

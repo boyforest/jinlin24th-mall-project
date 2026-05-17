@@ -30,6 +30,7 @@ export default function ProductPage() {
       updateApi={updateProduct}
       deleteApi={deleteProduct}
       filters={[
+        { name: 'keyword', label: '关键词' },
         { name: 'categoryId', label: '商品分类', type: 'select', options: categories },
         { name: 'status', label: '状态', type: 'select', options: commonStatus.options }
       ]}
@@ -46,10 +47,12 @@ export default function ProductPage() {
         { name: 'categoryId', label: '商品分类', type: 'select', options: categories, rules: [{ required: true, message: '请选择商品分类' }] },
         { name: 'name', label: '商品名称', rules: [{ required: true, message: '请输入商品名称' }] },
         { name: 'subtitle', label: '副标题' },
-        { name: 'mainImage', label: '主图 URL' },
-        { name: 'images', label: '图片列表' },
+        { name: 'mainImage', label: '主图', type: 'image' },
+        { name: 'images', label: '图片列表', type: 'textarea', placeholder: '多图 URL 用英文逗号分隔' },
         { name: 'videoUrl', label: '视频 URL' },
         { name: 'detail', label: '详情', type: 'textarea' },
+        { name: 'effects', label: '功效说明', type: 'textarea' },
+        { name: 'precautions', label: '注意事项', type: 'textarea' },
         { name: 'price', label: '默认价格', type: 'number', precision: 2 },
         { name: 'status', label: '状态', type: 'select', options: commonStatus.options },
         { name: 'sort', label: '排序', type: 'number' }

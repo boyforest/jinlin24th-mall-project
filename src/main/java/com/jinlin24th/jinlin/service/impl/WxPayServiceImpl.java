@@ -5,15 +5,20 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jinlin24th.jinlin.common.config.WxPayConfig;
 import com.jinlin24th.jinlin.common.util.WxPayUtil;
 import com.jinlin24th.jinlin.common.config.WxPayClient;
+import com.jinlin24th.jinlin.common.exception.BizException;
+import com.jinlin24th.jinlin.mapper.AppUserMapper;
 import com.jinlin24th.jinlin.mapper.PaymentRecordMapper;
 import com.jinlin24th.jinlin.mapper.OrderMasterMapper;
+import com.jinlin24th.jinlin.pojo.entity.AppUser;
 import com.jinlin24th.jinlin.pojo.entity.PaymentRecord;
 import com.jinlin24th.jinlin.pojo.entity.OrderMaster;
 import com.jinlin24th.jinlin.pojo.dto.WxPayPrepayDTO;
+import com.jinlin24th.jinlin.pojo.vo.WxPayParamsVO;
 import com.jinlin24th.jinlin.service.DistributionService;
 import com.jinlin24th.jinlin.service.WxPayService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,12 +49,64 @@ public class WxPayServiceImpl implements WxPayService {
     private PaymentRecordMapper paymentRecordMapper;
 
     @Autowired
+    private AppUserMapper appUserMapper;
+
+    @Autowired
     private OrderMasterMapper orderMasterMapper;
 
     @Autowired
     private DistributionService distributionService;
 
+    @Value("${wx.miniapp.appid:}")
+    private String miniappAppid;
+
     private static final ObjectMapper objectMapper = new ObjectMapper();
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public WxPayParamsVO createMiniAppPayParams(Long userId, Long orderId) throws Exception {
+        if (userId == null || orderId == null) {
+            throw BizException.badRequest("订单参数错误");
+        }
+        if (isBlank(miniappAppid) || miniappAppid.contains("your-")) {
+            throw BizException.badRequest("微信小程序 appid 未配置，无法发起支付");
+        }
+
+        OrderMaster order = orderMasterMapper.selectById(orderId);
+        if (order == null || !userId.equals(order.getUserId())) {
+            throw BizException.badRequest("订单不存在");
+        }
+        if (Integer.valueOf(10).equals(order.getStatus())
+                || Integer.valueOf(20).equals(order.getStatus())
+                || Integer.valueOf(30).equals(order.getStatus())) {
+            throw BizException.badRequest("订单已支付，无需重复支付");
+        }
+        if (!Integer.valueOf(0).equals(order.getStatus())) {
+            throw BizException.badRequest("当前订单状态不可支付");
+        }
+        if (order.getPayAmount() == null || order.getPayAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            throw BizException.badRequest("订单金额异常");
+        }
+
+        AppUser user = appUserMapper.selectById(userId);
+        if (user == null || isBlank(user.getOpenid())) {
+            throw BizException.badRequest("用户 openid 缺失，请重新登录");
+        }
+        if (user.getOpenid().startsWith("mock_")) {
+            throw BizException.badRequest("当前为开发模拟 openid，请配置真实小程序 appid/secret 后重新登录再支付");
+        }
+
+        WxPayPrepayDTO dto = new WxPayPrepayDTO();
+        dto.setAppid(miniappAppid);
+        dto.setOutTradeNo(order.getOrderNo());
+        dto.setDescription("金霖二十四养订单");
+        dto.setTotalAmount(order.getPayAmount());
+        dto.setOpenid(user.getOpenid());
+        dto.setOrderType("MINIAPP");
+
+        String prepayId = createOrder(dto, userId);
+        return buildMiniAppPayParams(miniappAppid, prepayId);
+    }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -98,10 +155,17 @@ public class WxPayServiceImpl implements WxPayService {
         String prepayId = jsonNode.get("prepay_id").asText();
         log.info("微信支付下单成功，prepayId：{}", prepayId);
 
-        // 4. 保存支付记录
-        PaymentRecord paymentRecord = new PaymentRecord();
-        paymentRecord.setPaymentNo(generatePaymentNo());
-        paymentRecord.setOrderNo(prepayDTO.getOutTradeNo());
+        // 4. 保存或刷新支付记录：payment_record.order_no 是唯一键，重复拉起支付时更新 prepayId。
+        PaymentRecord paymentRecord = paymentRecordMapper.selectByOrderNo(prepayDTO.getOutTradeNo());
+        if (paymentRecord != null && Integer.valueOf(1).equals(paymentRecord.getStatus())) {
+            throw BizException.badRequest("订单已支付，无需重复支付");
+        }
+        if (paymentRecord == null) {
+            paymentRecord = new PaymentRecord();
+            paymentRecord.setPaymentNo(generatePaymentNo());
+            paymentRecord.setOrderNo(prepayDTO.getOutTradeNo());
+            paymentRecord.setCreateTime(LocalDateTime.now());
+        }
         paymentRecord.setUserId(userId);
         paymentRecord.setTotalAmount(prepayDTO.getTotalAmount());
         paymentRecord.setPayAmount(prepayDTO.getTotalAmount());
@@ -110,10 +174,13 @@ public class WxPayServiceImpl implements WxPayService {
         paymentRecord.setPrepayId(prepayId);
         paymentRecord.setStatus(0); // 待支付
         paymentRecord.setRefundStatus(0); // 未退款
-        paymentRecord.setCreateTime(LocalDateTime.now());
         paymentRecord.setUpdateTime(LocalDateTime.now());
 
-        paymentRecordMapper.insert(paymentRecord);
+        if (paymentRecord.getId() == null) {
+            paymentRecordMapper.insert(paymentRecord);
+        } else {
+            paymentRecordMapper.updateById(paymentRecord);
+        }
 
         return prepayId;
     }
@@ -365,5 +432,32 @@ public class WxPayServiceImpl implements WxPayService {
     private String generatePaymentNo() {
         return "PAY" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS")) +
                UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+    }
+
+    private WxPayParamsVO buildMiniAppPayParams(String appid, String prepayId) throws Exception {
+        String timeStamp = String.valueOf(System.currentTimeMillis() / 1000);
+        String nonceStr = UUID.randomUUID().toString().replace("-", "");
+        String packageValue = "prepay_id=" + prepayId;
+        String signType = "RSA";
+        String signStr = appid + "\n" + timeStamp + "\n" + nonceStr + "\n" + packageValue + "\n";
+        String paySign = WxPayUtil.sign(
+            signStr,
+            "SHA256withRSA",
+            WxPayUtil.loadPrivateKeyFromPath(wxPayConfig.getPrivateKeyPath())
+        );
+
+        WxPayParamsVO vo = new WxPayParamsVO();
+        vo.setAppId(appid);
+        vo.setTimeStamp(timeStamp);
+        vo.setNonceStr(nonceStr);
+        vo.setPackageValue(packageValue);
+        vo.setSignType(signType);
+        vo.setPaySign(paySign);
+        vo.setPrepayId(prepayId);
+        return vo;
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 }

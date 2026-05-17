@@ -4,6 +4,7 @@ import com.jinlin24th.jinlin.common.mq.OrderCreatedEvent;
 import com.jinlin24th.jinlin.common.mq.OrderCreatedSpringEvent;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.jinlin24th.jinlin.common.exception.BizException;
 import com.jinlin24th.jinlin.pojo.dto.OrderCreateDTO;
 import com.jinlin24th.jinlin.pojo.entity.AppUser;
 import com.jinlin24th.jinlin.pojo.entity.OrderItem;
@@ -41,6 +42,12 @@ import java.util.stream.Collectors;
 @Service
 @Slf4j
 public class OrderServiceImpl implements OrderService {
+
+    private static final int STATUS_PENDING_PAY = 0;
+    private static final int STATUS_PENDING_SHIP = 10;
+    private static final int STATUS_PENDING_RECEIVE = 20;
+    private static final int STATUS_COMPLETED = 30;
+    private static final int STATUS_CANCELLED = 40;
 
     @Autowired
     private OrderMasterService orderMasterService;
@@ -144,7 +151,7 @@ public class OrderServiceImpl implements OrderService {
         master.setDiscountAmount(BigDecimal.ZERO);
         master.setPointsUsed(0);
         master.setPointsGained(0);
-        master.setStatus(0);
+        master.setStatus(STATUS_PENDING_PAY);
         master.setPayType(null);
         master.setPayTime(null);
         master.setDeliveryTime(null);
@@ -205,16 +212,16 @@ public class OrderServiceImpl implements OrderService {
         OrderMaster master = orderMasterService.lambdaQuery()
             .eq(OrderMaster::getOrderNo, orderNo)
             .one();
-        if (master == null || !Integer.valueOf(0).equals(master.getStatus())) {
+        if (master == null || !Integer.valueOf(STATUS_PENDING_PAY).equals(master.getStatus())) {
             log.info("订单无需超时取消: orderNo={}, status={}", orderNo, master == null ? null : master.getStatus());
             return false;
         }
 
         boolean updated = orderMasterService.lambdaUpdate()
-            .set(OrderMaster::getStatus, 40)
+            .set(OrderMaster::getStatus, STATUS_CANCELLED)
             .set(OrderMaster::getUpdateTime, LocalDateTime.now())
             .eq(OrderMaster::getOrderNo, orderNo)
-            .eq(OrderMaster::getStatus, 0)
+            .eq(OrderMaster::getStatus, STATUS_PENDING_PAY)
             .update();
         if (!updated) {
             log.info("订单状态已变化，跳过超时取消: orderNo={}", orderNo);
@@ -226,6 +233,98 @@ public class OrderServiceImpl implements OrderService {
             .list();
         items.forEach(item -> restoreInventory(orderNo, item, reason));
         return true;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public OrderVO adminCancelUnpaid(Long id, Long adminId) {
+        OrderMaster master = requireOrder(id);
+        if (!Integer.valueOf(STATUS_PENDING_PAY).equals(master.getStatus())) {
+            throw BizException.badRequest("只有待付款订单可以取消；已支付订单请走退款售后流程");
+        }
+        boolean cancelled = cancelUnpaidOrder(master.getOrderNo(), "后台取消待付款订单");
+        if (!cancelled) {
+            throw BizException.badRequest("订单状态已变化，请刷新后重试");
+        }
+        if (adminId != null) {
+            orderMasterService.lambdaUpdate()
+                .set(OrderMaster::getAdminId, adminId)
+                .eq(OrderMaster::getId, id)
+                .update();
+        }
+        return get(id);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public OrderVO adminShip(Long id, Long adminId) {
+        OrderMaster master = requireOrder(id);
+        if (!Integer.valueOf(STATUS_PENDING_SHIP).equals(master.getStatus())) {
+            throw BizException.badRequest("只有待发货订单可以发货");
+        }
+        boolean updated = orderMasterService.lambdaUpdate()
+            .set(OrderMaster::getStatus, STATUS_PENDING_RECEIVE)
+            .set(OrderMaster::getDeliveryTime, LocalDateTime.now())
+            .set(adminId != null, OrderMaster::getAdminId, adminId)
+            .set(OrderMaster::getUpdateTime, LocalDateTime.now())
+            .eq(OrderMaster::getId, id)
+            .eq(OrderMaster::getStatus, STATUS_PENDING_SHIP)
+            .update();
+        if (!updated) {
+            throw BizException.badRequest("订单状态已变化，请刷新后重试");
+        }
+        return get(id);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public OrderVO adminComplete(Long id, Long adminId) {
+        OrderMaster master = requireOrder(id);
+        if (!Integer.valueOf(STATUS_PENDING_RECEIVE).equals(master.getStatus())) {
+            throw BizException.badRequest("只有待收货订单可以完成");
+        }
+        boolean updated = orderMasterService.lambdaUpdate()
+            .set(OrderMaster::getStatus, STATUS_COMPLETED)
+            .set(OrderMaster::getReceiveTime, LocalDateTime.now())
+            .set(adminId != null, OrderMaster::getAdminId, adminId)
+            .set(OrderMaster::getUpdateTime, LocalDateTime.now())
+            .eq(OrderMaster::getId, id)
+            .eq(OrderMaster::getStatus, STATUS_PENDING_RECEIVE)
+            .update();
+        if (!updated) {
+            throw BizException.badRequest("订单状态已变化，请刷新后重试");
+        }
+        return get(id);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public OrderVO confirmReceive(Long userId, Long id) {
+        if (userId == null || id == null) {
+            throw BizException.badRequest("订单参数错误");
+        }
+        OrderMaster master = orderMasterService.lambdaQuery()
+            .eq(OrderMaster::getId, id)
+            .eq(OrderMaster::getUserId, userId)
+            .one();
+        if (master == null) {
+            throw BizException.badRequest("订单不存在");
+        }
+        if (!Integer.valueOf(STATUS_PENDING_RECEIVE).equals(master.getStatus())) {
+            throw BizException.badRequest("只有待收货订单可以确认收货");
+        }
+        boolean updated = orderMasterService.lambdaUpdate()
+            .set(OrderMaster::getStatus, STATUS_COMPLETED)
+            .set(OrderMaster::getReceiveTime, LocalDateTime.now())
+            .set(OrderMaster::getUpdateTime, LocalDateTime.now())
+            .eq(OrderMaster::getId, id)
+            .eq(OrderMaster::getUserId, userId)
+            .eq(OrderMaster::getStatus, STATUS_PENDING_RECEIVE)
+            .update();
+        if (!updated) {
+            throw BizException.badRequest("订单状态已变化，请刷新后重试");
+        }
+        return getForUser(userId, id);
     }
 
     /**
@@ -327,13 +426,14 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    public IPage<OrderVO> adminPage(long page, long size, Integer status, Long userId, String orderNo) {
+    public IPage<OrderVO> adminPage(long page, long size, Integer status, Long userId, String orderNo, String receiverPhone) {
         // 管理端分页：支持按状态/用户/订单号筛选
         Page<OrderMaster> p = new Page<>(page, size);
         IPage<OrderMaster> entityPage = orderMasterService.lambdaQuery()
             .eq(status != null, OrderMaster::getStatus, status)
             .eq(userId != null, OrderMaster::getUserId, userId)
             .like(orderNo != null && !orderNo.isBlank(), OrderMaster::getOrderNo, orderNo)
+            .like(receiverPhone != null && !receiverPhone.isBlank(), OrderMaster::getReceiverPhone, receiverPhone)
             .orderByDesc(OrderMaster::getId)
             .page(p);
         Page<OrderVO> voPage = new Page<>(entityPage.getCurrent(), entityPage.getSize(), entityPage.getTotal());
@@ -390,6 +490,17 @@ public class OrderServiceImpl implements OrderService {
             return iv;
         }).collect(Collectors.toList()));
         return vo;
+    }
+
+    private OrderMaster requireOrder(Long id) {
+        if (id == null) {
+            throw BizException.badRequest("订单参数错误");
+        }
+        OrderMaster master = orderMasterService.getById(id);
+        if (master == null) {
+            throw BizException.badRequest("订单不存在");
+        }
+        return master;
     }
 
     private Long getUserParentId(Long userId) {

@@ -8,6 +8,7 @@ import {
   GiftOutlined,
   GoldOutlined,
   HistoryOutlined,
+  NotificationOutlined,
   OrderedListOutlined,
   ShoppingOutlined,
   TagsOutlined,
@@ -27,6 +28,7 @@ const InventoryPage = lazy(() => import('../pages/InventoryPage.jsx'))
 const InventoryLogPage = lazy(() => import('../pages/InventoryLogPage.jsx'))
 const CustomerPage = lazy(() => import('../pages/CustomerPage.jsx'))
 const FollowRecordPage = lazy(() => import('../pages/FollowRecordPage.jsx'))
+const MarketingActivityPage = lazy(() => import('../pages/MarketingActivityPage.jsx'))
 
 /**
  * 后台业务路由元数据。
@@ -81,6 +83,12 @@ export const adminRoutes = [
     label: '优惠券',
     icon: <TagsOutlined />,
     element: <CouponPage />
+  },
+  {
+    path: '/marketing-activities',
+    label: '活动运营',
+    icon: <NotificationOutlined />,
+    element: <MarketingActivityPage />
   },
   {
     path: '/warehouses',

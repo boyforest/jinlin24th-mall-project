@@ -6,20 +6,19 @@ import java.io.Serializable;
 import java.time.LocalDateTime;
 
 @Data
-public class ProductVO implements Serializable {
+public class MarketingActivityVO implements Serializable {
     private Long id;
-    private Long categoryId;
-    private String name;
+    private String title;
     private String subtitle;
-    private String mainImage;
-    private String images;
-    private String videoUrl;
-    private String detail;
-    private String effects;
-    private String precautions;
-    private Integer sales;
+    private String imageUrl;
+    private String content;
+    private String position;
+    private String linkType;
+    private String linkValue;
     private Integer status;
     private Integer sort;
+    private LocalDateTime startTime;
+    private LocalDateTime endTime;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
 }

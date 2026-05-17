@@ -17,9 +17,29 @@ public interface OrderService {
      */
     boolean cancelUnpaidOrder(String orderNo, String reason);
 
+    /**
+     * 管理端取消待付款订单，并恢复库存。
+     */
+    OrderVO adminCancelUnpaid(Long id, Long adminId);
+
+    /**
+     * 管理端发货：待发货 -> 待收货。
+     */
+    OrderVO adminShip(Long id, Long adminId);
+
+    /**
+     * 管理端完成订单：待收货 -> 已完成。
+     */
+    OrderVO adminComplete(Long id, Long adminId);
+
+    /**
+     * C 端确认收货：待收货 -> 已完成。
+     */
+    OrderVO confirmReceive(Long userId, Long id);
+
     IPage<OrderVO> userPage(Long userId, long page, long size, Integer status);
 
-    IPage<OrderVO> adminPage(long page, long size, Integer status, Long userId, String orderNo);
+    IPage<OrderVO> adminPage(long page, long size, Integer status, Long userId, String orderNo, String receiverPhone);
 
     /**
      * C 端：获取用户自己的订单详情（带归属校验）

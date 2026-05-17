@@ -10,7 +10,7 @@ import com.jinlin24th.jinlin.pojo.vo.ProductVO;
 import java.util.List;
 
 public interface ProductService extends IService<Product> {
-    IPage<ProductVO> adminPage(long page, long size, Integer status, Long categoryId);
+    IPage<ProductVO> adminPage(long page, long size, Integer status, Long categoryId, String keyword);
 
     ProductVO getVO(Long id);
 
@@ -22,7 +22,7 @@ public interface ProductService extends IService<Product> {
 
     Boolean delete(Long id);
 
-    IPage<ProductVO> userPage(long page, long size, Long categoryId);
+    IPage<ProductVO> userPage(long page, long size, Long categoryId, String keyword);
 
     List<ProductSkuVO> userSkus(Long productId);
 }

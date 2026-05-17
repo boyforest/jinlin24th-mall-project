@@ -51,6 +51,14 @@ export function getRealName() {
 }
 
 /**
+ * 获取当前管理员 ID。
+ */
+export function getAdminId() {
+  const value = localStorage.getItem(ADMIN_ID_KEY)
+  return value ? Number(value) : undefined
+}
+
+/**
  * 获取当前管理员角色编码。
  */
 export function getRoles() {

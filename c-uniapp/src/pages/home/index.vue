@@ -25,8 +25,32 @@
 
       <view class="ink-search search-bar">
         <text class="ink-search-icon">茶</text>
-        <text class="search-placeholder">寻一味节气养生</text>
+        <input
+          v-model="searchKeyword"
+          class="search-input"
+          confirm-type="search"
+          placeholder="寻一味节气养生"
+          @confirm="submitSearch"
+        />
+        <text v-if="searchKeyword" class="search-clear" @click="clearSearch">清</text>
       </view>
+
+      <view v-if="notices.length" class="notice-strip" @click="openActivity(notices[0])">
+        <text class="notice-mark">告</text>
+        <text class="notice-text">{{ notices[0].title }}</text>
+      </view>
+
+      <swiper v-if="banners.length" class="activity-swiper" circular autoplay interval="4200">
+        <swiper-item v-for="activity in banners" :key="activity.id">
+          <view class="activity-card" @click="openActivity(activity)">
+            <image v-if="activity.imageUrl" class="activity-image" :src="activity.imageUrl" mode="aspectFill" />
+            <view class="activity-copy">
+              <text class="activity-title ink-title">{{ activity.title }}</text>
+              <text v-if="activity.subtitle" class="activity-sub">{{ activity.subtitle }}</text>
+            </view>
+          </view>
+        </swiper-item>
+      </swiper>
 
       <view class="market">
         <scroll-view class="category-side" scroll-y>
@@ -141,6 +165,7 @@ import { onPullDownRefresh, onReachBottom, onShow } from '@dcloudio/uni-app'
 import { computed, ref } from 'vue'
 import { listProducts, listProductSkus, type ProductSkuVO, type ProductVO } from '@/api/product'
 import { listCategories, type ProductCategoryVO } from '@/api/category'
+import { listMarketingActivities, type MarketingActivityVO } from '@/api/marketing'
 import type { CartVO } from '@/api/cart'
 import { useCartStore } from '@/stores/cart'
 import { money, requireLogin } from '@/utils/auth'
@@ -159,6 +184,9 @@ const loadingMore = ref(false)
 const finished = ref(false)
 const error = ref('')
 const cartOpen = ref(false)
+const searchKeyword = ref('')
+const banners = ref<MarketingActivityVO[]>([])
+const notices = ref<MarketingActivityVO[]>([])
 const cart = useCartStore()
 const currentTerm = computed(() => getCurrentSolarTerm())
 const currentTermDate = computed(() => formatSolarTermDate(currentTerm.value))
@@ -187,6 +215,7 @@ async function loadList(reset = false) {
       page: page.value,
       size: pageSize,
       categoryId: selectedCategoryId.value || undefined,
+      keyword: searchKeyword.value.trim() || undefined,
     })
     const records = await attachDefaultSkus(pageData?.records || [])
     items.value = reset ? records : [...items.value, ...records]
@@ -229,6 +258,44 @@ function selectCategory(categoryId: number) {
   if (selectedCategoryId.value === categoryId) return
   selectedCategoryId.value = categoryId
   loadList(true)
+}
+
+function submitSearch() {
+  loadList(true)
+}
+
+function clearSearch() {
+  searchKeyword.value = ''
+  loadList(true)
+}
+
+async function loadActivities() {
+  try {
+    const [bannerData, noticeData] = await Promise.all([
+      listMarketingActivities('home_banner'),
+      listMarketingActivities('home_notice'),
+    ])
+    banners.value = bannerData || []
+    notices.value = noticeData || []
+  } catch {
+    banners.value = []
+    notices.value = []
+  }
+}
+
+function openActivity(activity: MarketingActivityVO) {
+  if (activity.linkType === 'product' && activity.linkValue) {
+    uni.navigateTo({ url: `/pages/product-detail/index?id=${activity.linkValue}` })
+    return
+  }
+  if (activity.linkType === 'category' && activity.linkValue) {
+    selectedCategoryId.value = Number(activity.linkValue)
+    loadList(true)
+    return
+  }
+  if (activity.linkType === 'page' && activity.linkValue) {
+    uni.navigateTo({ url: activity.linkValue })
+  }
 }
 
 function goDetail(id: number) {
@@ -274,6 +341,7 @@ function goCheckout() {
 
 onShow(() => {
   if (items.value.length === 0) loadList(true)
+  loadActivities()
   cart.refresh('/pages/home/index').catch(() => {})
 })
 
@@ -409,9 +477,90 @@ onReachBottom(loadMore)
 .search-bar {
   margin-bottom: 24rpx;
 }
-.search-placeholder {
+.search-input {
+  flex: 1;
+  min-width: 0;
   color: #6f7b68;
   font-size: 26rpx;
+}
+.search-clear {
+  flex: 0 0 auto;
+  color: #5f8f4b;
+  font-size: 24rpx;
+  font-weight: 700;
+}
+.notice-strip {
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+  min-height: 68rpx;
+  padding: 0 22rpx;
+  margin-bottom: 22rpx;
+  border-radius: 16rpx;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1rpx solid rgba(111, 159, 88, 0.18);
+  box-shadow: 0 8rpx 24rpx rgba(79, 123, 66, 0.08);
+}
+.notice-mark {
+  flex: 0 0 auto;
+  width: 38rpx;
+  height: 38rpx;
+  line-height: 38rpx;
+  text-align: center;
+  border-radius: 50%;
+  background: rgba(111, 159, 88, 0.13);
+  color: #4f7b42;
+  font-family: "Songti SC", "STSong", serif;
+  font-size: 22rpx;
+  font-weight: 700;
+}
+.notice-text {
+  min-width: 0;
+  flex: 1;
+  color: #314d35;
+  font-size: 26rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.activity-swiper {
+  height: 176rpx;
+  margin-bottom: 24rpx;
+}
+.activity-card {
+  position: relative;
+  height: 176rpx;
+  overflow: hidden;
+  border-radius: 22rpx;
+  background:
+    linear-gradient(135deg, rgba(233, 245, 226, 0.96), rgba(255, 255, 255, 0.9)),
+    #f1f7ed;
+  border: 1rpx solid rgba(111, 159, 88, 0.16);
+}
+.activity-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.36;
+}
+.activity-copy {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: 100%;
+  padding: 0 30rpx;
+}
+.activity-title {
+  color: #23482f;
+  font-size: 34rpx;
+}
+.activity-sub {
+  margin-top: 8rpx;
+  color: #6d7c67;
+  font-size: 24rpx;
 }
 .market {
   display: flex;

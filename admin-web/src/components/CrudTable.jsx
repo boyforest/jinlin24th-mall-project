@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { App, Button, Form, Input, InputNumber, Modal, Select, Space, Table } from 'antd'
-import { DeleteOutlined, EditOutlined, EyeOutlined, PlusOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons'
+import { App, Button, Form, Image, Input, InputNumber, Modal, Select, Space, Table, Upload } from 'antd'
+import { DeleteOutlined, EditOutlined, EyeOutlined, PlusOutlined, ReloadOutlined, SearchOutlined, UploadOutlined } from '@ant-design/icons'
+import { uploadImage } from '../api/upload'
 
 /**
  * 通用 CRUD 表格组件。
@@ -239,7 +240,35 @@ function renderControl(field, allowAll) {
   if (field.type === 'textarea') {
     return <Input.TextArea rows={4} placeholder={field.placeholder} />
   }
+  if (field.type === 'image') {
+    return <ImageUpload placeholder={field.placeholder} />
+  }
   return <Input placeholder={field.placeholder} style={{ minWidth: field.width || 180 }} />
+}
+
+function ImageUpload({ value, onChange, placeholder }) {
+  return (
+    <Space direction="vertical" style={{ width: '100%' }}>
+      <Space.Compact style={{ width: '100%' }}>
+        <Input value={value} onChange={event => onChange?.(event.target.value)} placeholder={placeholder || '图片 URL'} />
+        <Upload
+          showUploadList={false}
+          customRequest={async ({ file, onSuccess, onError }) => {
+            try {
+              const data = await uploadImage(file)
+              onChange?.(data?.url)
+              onSuccess?.(data)
+            } catch (error) {
+              onError?.(error)
+            }
+          }}
+        >
+          <Button icon={<UploadOutlined />}>上传</Button>
+        </Upload>
+      </Space.Compact>
+      {value ? <Image width={96} height={64} src={value} style={{ objectFit: 'cover', borderRadius: 6 }} /> : null}
+    </Space>
+  )
 }
 
 function cleanObject(object) {

@@ -24,9 +24,10 @@ public class UserProductController {
     public Result<IPage<ProductVO>> list(
         @RequestParam(defaultValue = "1") long page,
         @RequestParam(defaultValue = "10") long size,
-        @RequestParam(required = false) Long categoryId
+        @RequestParam(required = false) Long categoryId,
+        @RequestParam(required = false) String keyword
     ) {
-        return Result.success(productService.userPage(page, size, categoryId));
+        return Result.success(productService.userPage(page, size, categoryId, keyword));
     }
 
     @GetMapping("/{id}")

@@ -83,6 +83,8 @@ CREATE TABLE IF NOT EXISTS `product` (
   `images` text COMMENT '图片列表，逗号分隔',
   `video_url` varchar(255) DEFAULT NULL COMMENT '视频URL',
   `detail` text COMMENT '商品详情（富文本HTML）',
+  `effects` varchar(500) DEFAULT NULL COMMENT '功效说明',
+  `precautions` varchar(500) DEFAULT NULL COMMENT '注意事项',
   `sales` int DEFAULT 0 COMMENT '销量（虚拟销量+真实销量）',
   `status` tinyint DEFAULT 1 COMMENT '1-上架，0-下架',
   `sort` int DEFAULT 0 COMMENT '排序',
@@ -93,6 +95,27 @@ CREATE TABLE IF NOT EXISTS `product` (
   KEY `idx_category_id` (`category_id`),
   KEY `idx_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='商品表';
+
+-- 5.1 运营活动/公告位表
+CREATE TABLE IF NOT EXISTS `marketing_activity` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '活动ID',
+  `title` varchar(128) NOT NULL COMMENT '标题',
+  `subtitle` varchar(255) DEFAULT NULL COMMENT '副标题',
+  `image_url` varchar(255) DEFAULT NULL COMMENT '活动图',
+  `content` varchar(500) DEFAULT NULL COMMENT '活动内容',
+  `position` varchar(64) NOT NULL DEFAULT 'home_banner' COMMENT '投放位置：home_banner/home_notice',
+  `link_type` varchar(32) DEFAULT 'none' COMMENT '跳转类型：none/product/category/page',
+  `link_value` varchar(255) DEFAULT NULL COMMENT '跳转值',
+  `status` tinyint NOT NULL DEFAULT 1 COMMENT '状态：0-禁用，1-启用',
+  `sort` int DEFAULT 0 COMMENT '排序',
+  `start_time` datetime DEFAULT NULL COMMENT '开始时间',
+  `end_time` datetime DEFAULT NULL COMMENT '结束时间',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_position_status` (`position`, `status`),
+  KEY `idx_time` (`start_time`, `end_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='运营活动/公告位表';
 
 -- 6. 商品SKU表
 CREATE TABLE IF NOT EXISTS `product_sku` (

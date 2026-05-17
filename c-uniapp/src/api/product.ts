@@ -16,6 +16,8 @@ export interface ProductVO {
   images?: string
   subtitle?: string
   detail?: string
+  effects?: string
+  precautions?: string
   sales?: number
   status?: number
 }
@@ -31,13 +33,16 @@ export interface ProductSkuVO {
   status?: number
 }
 
-export function listProducts(params: { page?: number; size?: number; categoryId?: number } = {}) {
-  const query = new URLSearchParams()
-  if (params.page) query.set('page', String(params.page))
-  if (params.size) query.set('size', String(params.size))
-  if (params.categoryId) query.set('categoryId', String(params.categoryId))
-  const qs = query.toString()
-  return apiRequest<PageResult<ProductVO>>(`/user/product/list${qs ? `?${qs}` : ''}`, { auth: false })
+function buildQuery(params: Record<string, unknown> = {}) {
+  const entries = Object.entries(params)
+    .filter(([, value]) => value !== undefined && value !== null && value !== '')
+    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
+
+  return entries.length ? `?${entries.join('&')}` : ''
+}
+
+export function listProducts(params: { page?: number; size?: number; categoryId?: number; keyword?: string } = {}) {
+  return apiRequest<PageResult<ProductVO>>(`/user/product/list${buildQuery(params)}`, { auth: false })
 }
 
 export function getProduct(id: number) {

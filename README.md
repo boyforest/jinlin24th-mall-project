@@ -124,6 +124,24 @@ http://localhost:5173
 
 Vite 会把 `/admin/**` 请求代理到 `http://localhost:7878`。
 
+## 快速启动脚本
+
+根目录提供了三个本地开发脚本，适合不用 IDEA 时快速检查前后端联通状态：
+
+```bash
+./scripts/dev-up.sh
+./scripts/dev-status.sh
+./scripts/dev-down.sh
+```
+
+说明：
+
+- `dev-up.sh`：尝试启动后端 `7878` 和管理端 `5173`
+- `dev-status.sh`：查看两个端口当前是谁在监听
+- `dev-down.sh`：只关闭脚本自己拉起的进程，不会主动杀掉 IDEA 已经启动的 Java 进程
+
+如果 `7878` 已经被 IDEA 占用，脚本会直接提示当前进程，而不是重复拉起第二份后端。
+
 5. 启动或构建小程序端：
 
 ```bash

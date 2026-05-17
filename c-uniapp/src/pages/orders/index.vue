@@ -9,8 +9,10 @@
       <view class="tabs">
         <view class="tab" :class="{ active: status === undefined }" @click="selectStatus(undefined)">全部</view>
         <view class="tab" :class="{ active: status === 0 }" @click="selectStatus(0)">待支付</view>
-        <view class="tab" :class="{ active: status === 1 }" @click="selectStatus(1)">已支付</view>
-        <view class="tab" :class="{ active: status === 4 }" @click="selectStatus(4)">已关闭</view>
+        <view class="tab" :class="{ active: status === 10 }" @click="selectStatus(10)">待发货</view>
+        <view class="tab" :class="{ active: status === 20 }" @click="selectStatus(20)">待收货</view>
+        <view class="tab" :class="{ active: status === 30 }" @click="selectStatus(30)">已完成</view>
+        <view class="tab" :class="{ active: status === 40 }" @click="selectStatus(40)">已取消</view>
       </view>
 
       <view v-if="loading" class="ink-loading">
@@ -72,10 +74,12 @@ function selectStatus(next?: number) {
 function statusText(value?: number) {
   const map: Record<number, string> = {
     0: '待支付',
-    1: '已支付',
-    2: '待发货',
-    3: '已完成',
-    4: '已关闭',
+    10: '待发货',
+    20: '待收货',
+    30: '已完成',
+    40: '已取消',
+    50: '退款中',
+    60: '已退款',
   }
   return value === undefined ? '-' : map[value] || `状态${value}`
 }
@@ -105,9 +109,11 @@ onShow(load)
 .tabs {
   display: flex;
   gap: 12rpx;
+  overflow-x: auto;
   margin-bottom: 28rpx;
 }
 .tab {
+  flex: 0 0 auto;
   padding: 12rpx 24rpx;
   border: 1rpx solid rgba(111, 159, 88, 0.24);
   border-radius: 16rpx;

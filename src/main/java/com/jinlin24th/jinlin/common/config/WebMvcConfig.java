@@ -7,10 +7,12 @@ import com.jinlin24th.jinlin.common.log.OperationLogInterceptor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
+import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 
@@ -21,23 +23,35 @@ public class WebMvcConfig implements WebMvcConfigurer {
     private final AdminJwtInterceptor adminJwtInterceptor;
     private final OperationLogInterceptor operationLogInterceptor;
     private final String corsAllowedOrigins;
+    private final String uploadDir;
 
     public WebMvcConfig(
         JwtInterceptor jwtInterceptor,
         AdminJwtInterceptor adminJwtInterceptor,
         OperationLogInterceptor operationLogInterceptor,
-        @Value("${app.cors.allowed-origins:*}") String corsAllowedOrigins
+        @Value("${app.cors.allowed-origins:*}") String corsAllowedOrigins,
+        @Value("${app.upload.dir:uploads}") String uploadDir
     ) {
         this.jwtInterceptor = jwtInterceptor;
         this.adminJwtInterceptor = adminJwtInterceptor;
         this.operationLogInterceptor = operationLogInterceptor;
         this.corsAllowedOrigins = corsAllowedOrigins;
+        this.uploadDir = uploadDir;
     }
 
     @Override
     public void addArgumentResolvers(List<HandlerMethodArgumentResolver> resolvers) {
         // 支持在 Controller 方法参数中使用 @CurrentUserId
         resolvers.add(new CurrentUserIdArgumentResolver());
+    }
+
+    @Override
+    public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        String location = Path.of(uploadDir).toAbsolutePath().normalize().toUri().toString();
+        if (!location.endsWith("/")) {
+            location += "/";
+        }
+        registry.addResourceHandler("/uploads/**").addResourceLocations(location);
     }
 
     @Override
@@ -48,7 +62,8 @@ public class WebMvcConfig implements WebMvcConfigurer {
             .excludePathPatterns(
                 "/user/appUser/login",
                 "/user/product/**",
-                "/user/product/category/**"
+                "/user/product/category/**",
+                "/user/marketing/**"
             );
 
         registry.addInterceptor(adminJwtInterceptor)

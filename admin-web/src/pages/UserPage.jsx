@@ -52,9 +52,11 @@ export default function UserPage() {
         { title: '昵称', dataIndex: 'nickname', width: 160 },
         { title: '手机号', dataIndex: 'phone', width: 140 },
         { title: '会员等级', dataIndex: 'memberLevelName', width: 120 },
+        { title: '上级推荐官', dataIndex: 'parentUserId', width: 110, render: value => value || '-' },
         { title: '分销商', dataIndex: 'isDistributor', width: 100, render: value => <Tag color={value === 1 ? 'green' : 'default'}>{distributorStatus.text(value)}</Tag> },
         { title: '积分', dataIndex: 'points', width: 90 },
         { title: '累计消费', dataIndex: 'totalAmount', width: 120, render: formatMoney },
+        { title: '开通分销时间', dataIndex: 'distributorEnabledTime', width: 180, render: formatDateTime },
         { title: '创建时间', dataIndex: 'createTime', width: 180, render: formatDateTime }
       ]}
       extraActions={(record, reload) => (

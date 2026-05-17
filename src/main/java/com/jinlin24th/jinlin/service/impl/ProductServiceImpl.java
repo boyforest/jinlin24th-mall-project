@@ -30,11 +30,17 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
     private ProductCacheService productCacheService;
 
     @Override
-    public IPage<ProductVO> adminPage(long page, long size, Integer status, Long categoryId) {
+    public IPage<ProductVO> adminPage(long page, long size, Integer status, Long categoryId, String keyword) {
         Page<Product> p = new Page<>(page, size);
         IPage<Product> entityPage = lambdaQuery()
             .eq(status != null, Product::getStatus, status)
             .eq(categoryId != null, Product::getCategoryId, categoryId)
+            .and(keyword != null && !keyword.isBlank(), w -> w
+                .like(Product::getName, keyword)
+                .or()
+                .like(Product::getSubtitle, keyword)
+                .or()
+                .like(Product::getEffects, keyword))
             .orderByDesc(Product::getId)
             .page(p);
         Page<ProductVO> voPage = new Page<>(entityPage.getCurrent(), entityPage.getSize(), entityPage.getTotal());
@@ -152,6 +158,12 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
         if (dto.getDetail() != null) {
             product.setDetail(dto.getDetail());
         }
+        if (dto.getEffects() != null) {
+            product.setEffects(dto.getEffects());
+        }
+        if (dto.getPrecautions() != null) {
+            product.setPrecautions(dto.getPrecautions());
+        }
         if (dto.getStatus() != null) {
             product.setStatus(dto.getStatus());
         }
@@ -189,12 +201,18 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
     }
 
     @Override
-    public IPage<ProductVO> userPage(long page, long size, Long categoryId) {
+    public IPage<ProductVO> userPage(long page, long size, Long categoryId, String keyword) {
         Page<Product> p = new Page<>(page, size);
         IPage<Product> entityPage = lambdaQuery()
             .eq(Product::getStatus, 1)
             .eq(Product::getDeleted, 0)
             .eq(categoryId != null, Product::getCategoryId, categoryId)
+            .and(keyword != null && !keyword.isBlank(), w -> w
+                .like(Product::getName, keyword)
+                .or()
+                .like(Product::getSubtitle, keyword)
+                .or()
+                .like(Product::getEffects, keyword))
             .orderByDesc(Product::getSort)
             .orderByDesc(Product::getId)
             .page(p);

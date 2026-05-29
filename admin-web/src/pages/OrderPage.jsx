@@ -1,9 +1,10 @@
 import React from 'react'
-import { App, Button } from 'antd'
+import { App, Button, Tag } from 'antd'
 import CrudTable from '../components/CrudTable.jsx'
 import { cancelOrder, completeOrder, getOrder, listOrders, shipOrder } from '../api/order'
 import { getAdminId } from '../utils/auth'
 import { formatDateTime, formatMoney, orderStatus } from '../utils/format'
+import { orderStatusColor, renderIdentity } from '../utils/adminUi.jsx'
 
 /**
  * 订单管理页面。
@@ -67,6 +68,7 @@ export default function OrderPage() {
       detailApi={getOrder}
       filters={[
         { name: 'orderNo', label: '订单号' },
+        { name: 'userKeyword', label: '用户搜索', placeholder: '昵称或手机号' },
         { name: 'receiverPhone', label: '手机号' },
         { name: 'userId', label: '用户ID', type: 'number' },
         { name: 'status', label: '状态', type: 'select', options: orderStatus.options }
@@ -74,15 +76,33 @@ export default function OrderPage() {
       columns={[
         { title: 'ID', dataIndex: 'id', width: 80 },
         { title: '订单号', dataIndex: 'orderNo', width: 210 },
-        { title: '用户ID', dataIndex: 'userId', width: 90 },
-        { title: '推荐官', dataIndex: 'recommenderUserId', width: 100 },
+        { title: '下单用户', dataIndex: 'userNickname', width: 180, render: (_, record) => renderIdentity(record.userNickname, record.userPhone, record.userId) },
+        { title: '一级推荐官', dataIndex: 'recommenderNickname', width: 180, render: (_, record) => renderIdentity(record.recommenderNickname, record.recommenderPhone, record.recommenderUserId) },
         { title: '实付金额', dataIndex: 'payAmount', width: 110, render: formatMoney },
-        { title: '状态', dataIndex: 'status', width: 100, render: orderStatus.text },
+        { title: '状态', dataIndex: 'status', width: 100, render: value => <Tag color={orderStatusColor(value)}>{orderStatus.text(value)}</Tag> },
         { title: '收货人', dataIndex: 'receiverName', width: 110 },
         { title: '电话', dataIndex: 'receiverPhone', width: 140 },
         { title: '发货时间', dataIndex: 'deliveryTime', width: 180, render: formatDateTime },
         { title: '完成时间', dataIndex: 'receiveTime', width: 180, render: formatDateTime },
         { title: '创建时间', dataIndex: 'createTime', width: 180, render: formatDateTime }
+      ]}
+      detailFields={[
+        { label: '订单ID', dataIndex: 'id' },
+        { label: '订单号', dataIndex: 'orderNo' },
+        { label: '下单用户', dataIndex: detail => renderIdentity(detail?.userNickname, detail?.userPhone, detail?.userId) },
+        { label: '一级推荐官', dataIndex: detail => renderIdentity(detail?.recommenderNickname, detail?.recommenderPhone, detail?.recommenderUserId) },
+        { label: '二级推荐官', dataIndex: detail => renderIdentity(detail?.level2RecommenderNickname, detail?.level2RecommenderPhone, detail?.level2RecommenderUserId) },
+        { label: '订单总额', dataIndex: 'totalAmount', type: 'money' },
+        { label: '实付金额', dataIndex: 'payAmount', type: 'money' },
+        { label: '订单状态', dataIndex: 'status', type: 'orderStatus' },
+        { label: '收货人', dataIndex: 'receiverName' },
+        { label: '联系电话', dataIndex: 'receiverPhone' },
+        { label: '收货地址', dataIndex: 'receiverAddress' },
+        { label: '备注', dataIndex: 'remark' },
+        { label: '支付时间', dataIndex: 'payTime', type: 'datetime' },
+        { label: '发货时间', dataIndex: 'deliveryTime', type: 'datetime' },
+        { label: '完成时间', dataIndex: 'receiveTime', type: 'datetime' },
+        { label: '创建时间', dataIndex: 'createTime', type: 'datetime' }
       ]}
       extraActions={renderActions}
     />

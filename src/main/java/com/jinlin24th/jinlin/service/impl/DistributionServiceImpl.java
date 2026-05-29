@@ -23,6 +23,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -45,20 +46,39 @@ public class DistributionServiceImpl extends ServiceImpl<DistributionMapper, Dis
     }
 
     @Override
-    public IPage<DistributionVO> adminPage(long page, long size, Integer status) {
-        // 管理端分页：按状态筛选分销记录
+    public IPage<DistributionVO> adminPage(long page, long size, Integer status, String orderNo, String keyword) {
+        // 管理端分页：按状态、订单号、买家/分销员昵称手机号筛选
+        List<Long> matchedUserIds = resolveUserIdsByKeyword(keyword);
+        if (keyword != null && !keyword.isBlank() && matchedUserIds.isEmpty()) {
+            return new Page<>(page, size, 0);
+        }
         Page<Distribution> p = new Page<>(page, size);
         IPage<Distribution> entityPage = lambdaQuery()
             .eq(status != null, Distribution::getStatus, status)
+            .like(orderNo != null && !orderNo.isBlank(), Distribution::getOrderNo, orderNo)
+            .and(matchedUserIds != null && !matchedUserIds.isEmpty(), wrapper -> wrapper
+                .in(Distribution::getBuyerUserId, matchedUserIds)
+                .or()
+                .in(Distribution::getLevel1UserId, matchedUserIds)
+                .or()
+                .in(Distribution::getLevel2UserId, matchedUserIds))
             .orderByDesc(Distribution::getId)
             .page(p);
+        Map<Long, AppUser> userMap = loadRelatedUsers(entityPage.getRecords());
         Page<DistributionVO> voPage = new Page<>(entityPage.getCurrent(), entityPage.getSize(), entityPage.getTotal());
-        voPage.setRecords(entityPage.getRecords().stream().map(e -> {
-            DistributionVO vo = new DistributionVO();
-            BeanUtils.copyProperties(e, vo);
-            return vo;
-        }).collect(Collectors.toList()));
+        voPage.setRecords(entityPage.getRecords().stream()
+            .map(e -> toVO(e, userMap))
+            .collect(Collectors.toList()));
         return voPage;
+    }
+
+    @Override
+    public DistributionVO getDetail(Long id) {
+        Distribution distribution = getById(id);
+        if (distribution == null) {
+            return null;
+        }
+        return toVO(distribution, loadRelatedUsers(List.of(distribution)));
     }
 
     @Override
@@ -170,9 +190,23 @@ public class DistributionServiceImpl extends ServiceImpl<DistributionMapper, Dis
      * 导出佣金记录 CSV，补充买家/上级昵称手机号，方便财务线下打款。
      */
     @Override
-    public void exportCsv(HttpServletResponse response, Integer status) throws IOException {
+    public void exportCsv(HttpServletResponse response, Integer status, String orderNo, String keyword) throws IOException {
+        List<Long> resolvedUserIds = resolveUserIdsByKeyword(keyword);
+        final List<Long> matchedUserIds;
+        if (keyword != null && !keyword.isBlank() && resolvedUserIds.isEmpty()) {
+            matchedUserIds = List.of(-1L);
+        } else {
+            matchedUserIds = resolvedUserIds;
+        }
         List<Distribution> records = lambdaQuery()
             .eq(status != null, Distribution::getStatus, status)
+            .like(orderNo != null && !orderNo.isBlank(), Distribution::getOrderNo, orderNo)
+            .and(matchedUserIds != null && !matchedUserIds.isEmpty(), wrapper -> wrapper
+                .in(Distribution::getBuyerUserId, matchedUserIds)
+                .or()
+                .in(Distribution::getLevel1UserId, matchedUserIds)
+                .or()
+                .in(Distribution::getLevel2UserId, matchedUserIds))
             .orderByDesc(Distribution::getId)
             .list();
         Map<Long, AppUser> userMap = loadRelatedUsers(records);
@@ -226,6 +260,37 @@ public class DistributionServiceImpl extends ServiceImpl<DistributionMapper, Dis
         }
         return appUserService.listByIds(userIds).stream()
             .collect(Collectors.toMap(AppUser::getId, Function.identity(), (a, b) -> a));
+    }
+
+    private List<Long> resolveUserIdsByKeyword(String keyword) {
+        if (keyword == null || keyword.isBlank()) {
+            return null;
+        }
+        return appUserService.lambdaQuery()
+            .select(AppUser::getId)
+            .and(wrapper -> wrapper.like(AppUser::getNickname, keyword).or().like(AppUser::getPhone, keyword))
+            .list()
+            .stream()
+            .map(AppUser::getId)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toList());
+    }
+
+    private DistributionVO toVO(Distribution entity, Map<Long, AppUser> userMap) {
+        DistributionVO vo = new DistributionVO();
+        BeanUtils.copyProperties(entity, vo);
+        AppUser buyer = userMap.get(entity.getBuyerUserId());
+        AppUser level1 = userMap.get(entity.getLevel1UserId());
+        AppUser level2 = userMap.get(entity.getLevel2UserId());
+        vo.setBuyerNickname(buyer == null ? null : buyer.getNickname());
+        vo.setBuyerPhone(buyer == null ? null : buyer.getPhone());
+        vo.setLevel1Nickname(level1 == null ? null : level1.getNickname());
+        vo.setLevel1Phone(level1 == null ? null : level1.getPhone());
+        vo.setLevel2Nickname(level2 == null ? null : level2.getNickname());
+        vo.setLevel2Phone(level2 == null ? null : level2.getPhone());
+        vo.setTotalCommissionAmount(Optional.ofNullable(entity.getLevel1Amount()).orElse(BigDecimal.ZERO)
+            .add(Optional.ofNullable(entity.getLevel2Amount()).orElse(BigDecimal.ZERO)));
+        return vo;
     }
 
     /**

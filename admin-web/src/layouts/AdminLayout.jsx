@@ -3,6 +3,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { Breadcrumb, Button, Layout, Menu, Modal, Typography } from 'antd'
 import { LogoutOutlined, MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons'
 import { adminRoutes } from '../router/routes.jsx'
+import { adminMenuGroups } from '../utils/adminUi.jsx'
 import { clearAuth, getUsername } from '../utils/auth'
 
 const { Header, Sider, Content } = Layout
@@ -16,20 +17,39 @@ export default function AdminLayout() {
   const navigate = useNavigate()
 
   const selectedKeys = useMemo(() => {
-    const matched = adminRoutes.find(route => location.pathname.startsWith(route.path))
+    const matched = adminRoutes
+      .slice()
+      .sort((a, b) => b.path.length - a.path.length)
+      .find(route => location.pathname === route.path || location.pathname.startsWith(`${route.path}/`))
     return [matched?.path || '/dashboard']
   }, [location.pathname])
 
   const breadcrumbItems = useMemo(() => {
     const matched = adminRoutes.find(route => route.path === selectedKeys[0])
-    return [{ title: '管理后台' }, { title: matched?.label || '首页' }]
+    const group = adminMenuGroups.find(item => item.key === matched?.group)
+    return [{ title: '管理后台' }, ...(group ? [{ title: group.label }] : []), { title: matched?.label || '首页' }]
   }, [selectedKeys])
 
-  const menuItems = adminRoutes.map(route => ({
-    key: route.path,
-    icon: route.icon,
-    label: route.label
-  }))
+  const openKeys = useMemo(() => {
+    const matched = adminRoutes.find(route => route.path === selectedKeys[0])
+    return matched?.group ? [matched.group] : ['overview']
+  }, [selectedKeys])
+
+  const menuItems = useMemo(() => (
+    adminMenuGroups.map(group => ({
+      key: group.key,
+      label: group.label,
+      type: 'group',
+      children: group.children
+        .map(path => adminRoutes.find(route => route.path === path))
+        .filter(Boolean)
+        .map(route => ({
+          key: route.path,
+          icon: route.icon,
+          label: route.label
+        }))
+    }))
+  ), [])
 
   /**
    * 退出登录前统一确认，替代原生 confirm。
@@ -62,6 +82,7 @@ export default function AdminLayout() {
           theme="dark"
           mode="inline"
           selectedKeys={selectedKeys}
+          defaultOpenKeys={openKeys}
           items={menuItems}
           onClick={({ key }) => navigate(key)}
         />

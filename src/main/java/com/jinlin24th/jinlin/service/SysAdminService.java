@@ -3,6 +3,7 @@ package com.jinlin24th.jinlin.service;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.jinlin24th.jinlin.pojo.dto.AdminLoginDTO;
 import com.jinlin24th.jinlin.pojo.entity.SysAdmin;
+import com.jinlin24th.jinlin.pojo.vo.AdminOptionVO;
 import com.jinlin24th.jinlin.pojo.vo.AdminLoginVO;
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -31,4 +32,9 @@ public interface SysAdminService extends IService<SysAdmin> {
      * 查询管理员权限编码列表。
      */
     List<String> getPermissionCodes(Long adminId);
+
+    /**
+     * 查询后台可选管理员，供销售/跟进人选择器使用。
+     */
+    List<AdminOptionVO> listOptions(String keyword);
 }

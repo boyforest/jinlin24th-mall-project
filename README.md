@@ -204,7 +204,65 @@ app:
     enabled: false
 ```
 
-需要联调消息能力时，启用 `mq` profile 并配置 `rocketmq.name-server`。
+需要联调消息能力时，先准备 RocketMQ NameServer 和 Broker。仓库已经提供了一份基于官方 Docker 镜像的本地编排文件：
+
+```bash
+./scripts/mq-up.sh
+./scripts/mq-status.sh
+./scripts/mq-down.sh
+```
+
+上面的脚本依赖本机已安装 Docker Desktop。如果本机还没有 `docker` 命令，需要先安装 Docker。
+
+RocketMQ 的 Docker Compose 参考了 Apache RocketMQ 官方文档的单机部署方式：
+- [Run RocketMQ with Docker Compose](https://rocketmq.apache.org/docs/quickStart/03quickstartWithDockercompose/)
+
+Spring Boot 侧启用方式：
+
+```bash
+SPRING_PROFILES_ACTIVE=dev,mq \
+ROCKETMQ_ENABLED=true \
+ROCKETMQ_NAME_SERVER=localhost:9876 \
+./mvnw spring-boot:run
+```
+
+如果你用 IDEA 启动，请在 Run Configuration 里补上环境变量：
+
+```text
+SPRING_PROFILES_ACTIVE=dev,mq
+ROCKETMQ_ENABLED=true
+ROCKETMQ_NAME_SERVER=localhost:9876
+```
+
+当前项目里 RocketMQ 的实际落地点：
+
+- 下单后发送订单超时取消延迟消息，消费者会自动关闭超时未支付订单并恢复库存
+- 后台 `POST/PUT/DELETE` 请求异步写入操作日志
+
+## Docker Compose 部署
+
+项目已提供一键部署编排：
+
+```bash
+cp .env.example .env
+docker compose up -d --build
+```
+
+部署会启动 MySQL、Redis、后端和管理后台 Nginx。宝塔服务器详细操作见：
+
+```text
+docs/docker-deploy.md
+```
+- 短信验证码和下单成功短信会进入 MQ，但目前消费者还是“模拟发送短信日志”，还没接真实短信平台
+- 订单创建事件已接入 MQ 骨架，目前消费端主要用于日志和后续扩展
+
+建议的验证顺序：
+
+1. 启动 Redis、MySQL、RocketMQ
+2. 按上面的环境变量方式启动 Spring Boot
+3. 创建一个待支付订单，确认 30 分钟后会自动取消
+4. 在管理端新增或修改商品，确认 `sys_operation_log` 有异步落库记录
+5. 调用验证码接口，确认后端日志里出现短信消息消费记录
 
 ## 开源安全说明
 

@@ -5,13 +5,18 @@ import com.jinlin24th.jinlin.common.rate.LoginRateLimitService;
 import com.jinlin24th.jinlin.common.result.Result;
 import com.jinlin24th.jinlin.pojo.dto.AdminLoginDTO;
 import com.jinlin24th.jinlin.pojo.vo.AdminLoginVO;
+import com.jinlin24th.jinlin.pojo.vo.AdminOptionVO;
 import com.jinlin24th.jinlin.service.SysAdminService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.util.StringUtils;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 /**
  * 管理端认证控制器。
@@ -47,5 +52,10 @@ public class AdminAuthController {
         String username = dto.getUsername().trim();
         loginRateLimitService.checkAdminLogin(request, username);
         return Result.success(sysAdminService.login(dto, request));
+    }
+
+    @GetMapping("/admins/options")
+    public Result<List<AdminOptionVO>> adminOptions(@RequestParam(required = false) String keyword) {
+        return Result.success(sysAdminService.listOptions(keyword));
     }
 }

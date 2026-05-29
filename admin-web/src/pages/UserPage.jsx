@@ -3,6 +3,7 @@ import { App, Button, Space, Tag } from 'antd'
 import CrudTable from '../components/CrudTable.jsx'
 import { getUser, listUsers, updateDistributor, updateUserStatus } from '../api/user'
 import { commonStatus, distributorStatus, formatDateTime, formatMoney } from '../utils/format'
+import { renderIdentity } from '../utils/adminUi.jsx'
 
 /**
  * 用户管理页面，包含分销资格开关。
@@ -44,6 +45,7 @@ export default function UserPage() {
       listApi={listUsers}
       detailApi={getUser}
       filters={[
+        { name: 'keyword', label: '用户搜索', placeholder: '昵称或手机号' },
         { name: 'status', label: '状态', type: 'select', options: commonStatus.options },
         { name: 'isDistributor', label: '分销商', type: 'select', options: distributorStatus.options }
       ]}
@@ -52,12 +54,25 @@ export default function UserPage() {
         { title: '昵称', dataIndex: 'nickname', width: 160 },
         { title: '手机号', dataIndex: 'phone', width: 140 },
         { title: '会员等级', dataIndex: 'memberLevelName', width: 120 },
-        { title: '上级推荐官', dataIndex: 'parentUserId', width: 110, render: value => value || '-' },
+        { title: '上级推荐官', dataIndex: 'parentUserNickname', width: 180, render: (_, record) => renderIdentity(record.parentUserNickname, record.parentUserPhone, record.parentUserId) },
         { title: '分销商', dataIndex: 'isDistributor', width: 100, render: value => <Tag color={value === 1 ? 'green' : 'default'}>{distributorStatus.text(value)}</Tag> },
         { title: '积分', dataIndex: 'points', width: 90 },
         { title: '累计消费', dataIndex: 'totalAmount', width: 120, render: formatMoney },
         { title: '开通分销时间', dataIndex: 'distributorEnabledTime', width: 180, render: formatDateTime },
         { title: '创建时间', dataIndex: 'createTime', width: 180, render: formatDateTime }
+      ]}
+      detailFields={[
+        { label: '用户ID', dataIndex: 'id' },
+        { label: '昵称', dataIndex: 'nickname' },
+        { label: '手机号', dataIndex: 'phone' },
+        { label: '会员等级', dataIndex: 'memberLevelName' },
+        { label: '上级推荐官', dataIndex: detail => renderIdentity(detail?.parentUserNickname, detail?.parentUserPhone, detail?.parentUserId) },
+        { label: '分销资格', dataIndex: 'isDistributor', type: 'distributorStatus' },
+        { label: '积分', dataIndex: 'points' },
+        { label: '累计消费', dataIndex: 'totalAmount', type: 'money' },
+        { label: '开通分销时间', dataIndex: 'distributorEnabledTime', type: 'datetime' },
+        { label: '关闭分销时间', dataIndex: 'distributorDisabledTime', type: 'datetime' },
+        { label: '创建时间', dataIndex: 'createTime', type: 'datetime' }
       ]}
       extraActions={(record, reload) => (
         <Space size="small">

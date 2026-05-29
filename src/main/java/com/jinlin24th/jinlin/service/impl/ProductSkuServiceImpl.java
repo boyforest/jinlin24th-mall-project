@@ -11,6 +11,7 @@ import com.jinlin24th.jinlin.pojo.vo.ProductSkuVO;
 import com.jinlin24th.jinlin.service.ProductSkuService;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import java.util.stream.Collectors;
 
 @Service
@@ -24,11 +25,13 @@ public class ProductSkuServiceImpl extends ServiceImpl<ProductSkuMapper, Product
     }
 
     @Override
-    public IPage<ProductSkuVO> adminPage(long page, long size, Long productId, Integer status) {
+    public IPage<ProductSkuVO> adminPage(long page, long size, Long productId, Integer status, String keyword) {
         Page<ProductSku> p = new Page<>(page, size);
+        String normalizedKeyword = StringUtils.hasText(keyword) ? keyword.trim() : null;
         IPage<ProductSku> entityPage = lambdaQuery()
             .eq(productId != null, ProductSku::getProductId, productId)
             .eq(status != null, ProductSku::getStatus, status)
+            .like(StringUtils.hasText(normalizedKeyword), ProductSku::getSkuName, normalizedKeyword)
             .orderByDesc(ProductSku::getId)
             .page(p);
         Page<ProductSkuVO> voPage = new Page<>(entityPage.getCurrent(), entityPage.getSize(), entityPage.getTotal());

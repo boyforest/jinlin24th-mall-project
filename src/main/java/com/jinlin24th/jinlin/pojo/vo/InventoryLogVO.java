@@ -9,7 +9,9 @@ import java.time.LocalDateTime;
 public class InventoryLogVO implements Serializable {
     private Long id;
     private Long warehouseId;
+    private String warehouseName;
     private Long skuId;
+    private String skuName;
     private Integer type;
     private Integer quantity;
     private Integer beforeStock;

@@ -39,7 +39,7 @@ public interface OrderService {
 
     IPage<OrderVO> userPage(Long userId, long page, long size, Integer status);
 
-    IPage<OrderVO> adminPage(long page, long size, Integer status, Long userId, String orderNo, String receiverPhone);
+    IPage<OrderVO> adminPage(long page, long size, Integer status, Long userId, String userKeyword, String orderNo, String receiverPhone);
 
     /**
      * C 端：获取用户自己的订单详情（带归属校验）

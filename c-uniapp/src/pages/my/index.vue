@@ -31,6 +31,28 @@
         </view>
       </view>
 
+      <view v-if="profile" class="card ink-card">
+        <view class="section-title ink-title">分销官状态</view>
+        <view class="row">
+          <text class="label">当前身份</text>
+          <text class="value">{{ profile?.isDistributor === 1 ? '已开通分销官' : '普通用户' }}</text>
+        </view>
+        <view class="ink-line"></view>
+        <view class="row">
+          <text class="label">我的推荐官</text>
+          <text class="value">{{ profile?.parentUserNickname || (profile?.parentUserId ? `推荐官 ${profile.parentUserId}` : '暂未绑定') }}</text>
+        </view>
+        <view class="ink-line"></view>
+        <view class="row">
+          <text class="label">推荐官电话</text>
+          <text class="value">{{ profile?.parentUserPhone || '-' }}</text>
+        </view>
+        <view v-if="profile?.isDistributor === 1" class="share-box">
+          <text class="share-tip">把你的专属邀请链接分享给好友，好友首次登录后会自动绑定到你名下。</text>
+          <button class="ink-btn-primary share-btn" open-type="share">立即分享邀请</button>
+        </view>
+      </view>
+
       <button v-if="!profile" class="ink-btn-primary action-btn" @click="goLogin">微信登录</button>
       <template v-else>
         <button class="ink-btn-secondary action-btn" @click="refresh">刷新资料</button>
@@ -42,6 +64,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { onShareAppMessage } from '@dcloudio/uni-app'
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
@@ -64,6 +87,14 @@ function logout() {
   auth.logout()
   uni.showToast({ title: '已退出', icon: 'success' })
 }
+
+onShareAppMessage(() => {
+  const userId = profile.value?.id
+  return {
+    title: '邀请你一起体验金霖二十四养',
+    path: userId ? `/pages/home/index?inviterUserId=${userId}` : '/pages/home/index',
+  }
+})
 </script>
 
 <style scoped>
@@ -106,21 +137,49 @@ function logout() {
   padding: 26rpx;
   margin-bottom: 28rpx;
 }
+.section-title {
+  position: relative;
+  z-index: 1;
+  display: block;
+  margin-bottom: 12rpx;
+  font-size: 32rpx;
+}
 .row {
   position: relative;
   z-index: 1;
   display: flex;
   justify-content: space-between;
   padding: 18rpx 0;
+  gap: 20rpx;
 }
 .label {
   color: #6f7b68;
+  flex: 0 0 auto;
 }
 .value {
   color: #2d2d2d;
+  flex: 1;
+  text-align: right;
+  word-break: break-all;
 }
 .action-btn {
   margin-bottom: 18rpx;
+}
+.share-box {
+  position: relative;
+  z-index: 1;
+  margin-top: 18rpx;
+  padding-top: 18rpx;
+}
+.share-tip {
+  display: block;
+  color: #6f7b68;
+  font-size: 24rpx;
+  line-height: 1.6;
+  margin-bottom: 16rpx;
+}
+.share-btn {
+  width: 100%;
 }
 .logout-btn {
   height: 80rpx;

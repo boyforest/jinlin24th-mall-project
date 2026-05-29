@@ -22,9 +22,10 @@ public class AdminUserController {
             @RequestParam(defaultValue = "1") long page,
             @RequestParam(defaultValue = "10") long size,
             @RequestParam(required = false) Integer status,
-            @RequestParam(required = false) Integer isDistributor
+            @RequestParam(required = false) Integer isDistributor,
+            @RequestParam(required = false) String keyword
     ) {
-        return Result.success(appUserService.adminPage(page, size, status, isDistributor));
+        return Result.success(appUserService.adminPage(page, size, status, isDistributor, keyword));
     }
     @GetMapping("/{id}")
     public Result<AppUserVO> get(@PathVariable Long id) {

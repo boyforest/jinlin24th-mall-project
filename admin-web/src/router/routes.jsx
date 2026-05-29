@@ -38,84 +38,98 @@ const MarketingActivityPage = lazy(() => import('../pages/MarketingActivityPage.
 export const adminRoutes = [
   {
     path: '/dashboard',
+    group: 'overview',
     label: '首页',
     icon: <DashboardOutlined />,
     element: <DashboardPage />
   },
   {
     path: '/products',
+    group: 'goods',
     label: '商品管理',
     icon: <ShoppingOutlined />,
     element: <ProductPage />
   },
   {
     path: '/skus',
+    group: 'goods',
     label: '规格管理',
     icon: <TagsOutlined />,
     element: <SkuPage />
   },
   {
     path: '/categories',
+    group: 'goods',
     label: '分类管理',
     icon: <GoldOutlined />,
     element: <CategoryPage />
   },
   {
     path: '/orders',
+    group: 'trade',
     label: '订单管理',
     icon: <OrderedListOutlined />,
     element: <OrderPage />
   },
   {
     path: '/users',
+    group: 'growth',
     label: '用户管理',
     icon: <TeamOutlined />,
     element: <UserPage />
   },
   {
     path: '/distribution',
+    group: 'growth',
     label: '分销管理',
     icon: <GiftOutlined />,
     element: <DistributionPage />
   },
   {
     path: '/coupons',
+    group: 'trade',
     label: '优惠券',
     icon: <TagsOutlined />,
     element: <CouponPage />
   },
   {
     path: '/marketing-activities',
+    group: 'trade',
     label: '活动运营',
     icon: <NotificationOutlined />,
     element: <MarketingActivityPage />
   },
   {
     path: '/warehouses',
+    group: 'warehouse',
     label: '仓库管理',
     icon: <BankOutlined />,
     element: <WarehousePage />
   },
   {
     path: '/inventory',
+    group: 'warehouse',
     label: '库存管理',
     icon: <DatabaseOutlined />,
     element: <InventoryPage />
   },
   {
     path: '/inventory-logs',
+    group: 'warehouse',
     label: '库存流水',
     icon: <HistoryOutlined />,
     element: <InventoryLogPage />
   },
   {
     path: '/customers',
+    group: 'growth',
     label: '客户管理',
     icon: <ContactsOutlined />,
     element: <CustomerPage />
   },
   {
     path: '/follow-records',
+    group: 'growth',
     label: '跟进记录',
     icon: <CommentOutlined />,
     element: <FollowRecordPage />

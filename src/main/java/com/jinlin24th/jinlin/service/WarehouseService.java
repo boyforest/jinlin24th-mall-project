@@ -6,7 +6,7 @@ import com.jinlin24th.jinlin.pojo.entity.Warehouse;
 import com.jinlin24th.jinlin.pojo.vo.WarehouseVO;
 
 public interface WarehouseService extends IService<Warehouse> {
-    IPage<WarehouseVO> adminPage(long page, long size, Integer status);
+    IPage<WarehouseVO> adminPage(long page, long size, Integer status, String keyword);
 
     Warehouse getRequired(Long id);
 
@@ -16,5 +16,4 @@ public interface WarehouseService extends IService<Warehouse> {
 
     Boolean delete(Long id);
 }
-
 

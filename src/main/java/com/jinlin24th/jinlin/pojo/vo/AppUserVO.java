@@ -16,6 +16,9 @@ public class AppUserVO implements Serializable {
     private Integer points;
     private java.math.BigDecimal totalAmount;
     private Long parentUserId;
+    private String parentUserNickname;
+    private String parentUserPhone;
+    private Integer status;
     private Integer isDistributor;
     private LocalDateTime distributorEnabledTime;
     private LocalDateTime distributorDisabledTime;

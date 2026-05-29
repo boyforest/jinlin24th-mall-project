@@ -9,6 +9,7 @@ import com.jinlin24th.jinlin.pojo.vo.WarehouseVO;
 import com.jinlin24th.jinlin.service.WarehouseService;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import java.util.stream.Collectors;
 
 @Service
@@ -16,10 +17,20 @@ public class WarehouseServiceImpl extends ServiceImpl<WarehouseMapper, Warehouse
     implements WarehouseService {
 
     @Override
-    public IPage<WarehouseVO> adminPage(long page, long size, Integer status) {
+    public IPage<WarehouseVO> adminPage(long page, long size, Integer status, String keyword) {
         Page<Warehouse> p = new Page<>(page, size);
+        String normalizedKeyword = StringUtils.hasText(keyword) ? keyword.trim() : null;
         IPage<Warehouse> entityPage = lambdaQuery()
             .eq(status != null, Warehouse::getStatus, status)
+            .and(StringUtils.hasText(normalizedKeyword), w -> w
+                .like(Warehouse::getName, normalizedKeyword)
+                .or()
+                .like(Warehouse::getAddress, normalizedKeyword)
+                .or()
+                .like(Warehouse::getContact, normalizedKeyword)
+                .or()
+                .like(Warehouse::getPhone, normalizedKeyword)
+            )
             .orderByDesc(Warehouse::getId)
             .page(p);
         Page<WarehouseVO> voPage = new Page<>(entityPage.getCurrent(), entityPage.getSize(), entityPage.getTotal());
@@ -54,4 +65,3 @@ public class WarehouseServiceImpl extends ServiceImpl<WarehouseMapper, Warehouse
         return removeById(id);
     }
 }
-

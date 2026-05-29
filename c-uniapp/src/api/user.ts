@@ -25,6 +25,8 @@ export interface AppUserVO {
   points?: number
   totalAmount?: number
   parentUserId?: number | null
+  parentUserNickname?: string
+  parentUserPhone?: string
   isDistributor?: number
   distributorEnabledTime?: string
   distributorDisabledTime?: string

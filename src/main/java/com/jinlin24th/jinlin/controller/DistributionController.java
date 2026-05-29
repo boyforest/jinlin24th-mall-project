@@ -30,14 +30,16 @@ public class DistributionController {
     public Result<com.baomidou.mybatisplus.core.metadata.IPage<DistributionVO>> list(
         @RequestParam(defaultValue = "1") long page,
         @RequestParam(defaultValue = "10") long size,
-        @RequestParam(required = false) Integer status
+        @RequestParam(required = false) Integer status,
+        @RequestParam(required = false) String orderNo,
+        @RequestParam(required = false) String keyword
     ) {
-        return Result.success(distributionService.adminPage(page, size, status));
+        return Result.success(distributionService.adminPage(page, size, status, orderNo, keyword));
     }
 
     @GetMapping("/{id}")
-    public Result<Distribution> getById(@PathVariable Long id) {
-        Distribution distribution = distributionService.getRequired(id);
+    public Result<DistributionVO> getById(@PathVariable Long id) {
+        DistributionVO distribution = distributionService.getDetail(id);
         if (distribution == null) {
             throw BizException.of(BizCode.DISTRIBUTION_NOT_FOUND);
         }
@@ -69,7 +71,12 @@ public class DistributionController {
      * 示例：GET /admin/distribution/export?status=1
      */
     @GetMapping("/export")
-    public void export(@RequestParam(required = false) Integer status, HttpServletResponse response) throws IOException {
-        distributionService.exportCsv(response, status);
+    public void export(
+        @RequestParam(required = false) Integer status,
+        @RequestParam(required = false) String orderNo,
+        @RequestParam(required = false) String keyword,
+        HttpServletResponse response
+    ) throws IOException {
+        distributionService.exportCsv(response, status, orderNo, keyword);
     }
 }

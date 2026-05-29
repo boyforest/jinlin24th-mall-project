@@ -24,9 +24,10 @@ public class AdminProductSkuController {
         @RequestParam(defaultValue = "1") long page,
         @RequestParam(defaultValue = "10") long size,
         @RequestParam(required = false) Long productId,
-        @RequestParam(required = false) Integer status
+        @RequestParam(required = false) Integer status,
+        @RequestParam(required = false) String keyword
     ) {
-        return Result.success(productSkuService.adminPage(page, size, productId, status));
+        return Result.success(productSkuService.adminPage(page, size, productId, status, keyword));
     }
 
     @GetMapping("/{id}")

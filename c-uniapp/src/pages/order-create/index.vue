@@ -216,17 +216,24 @@ onLoad((options) => {
 .textarea {
   position: relative;
   z-index: 1;
+  display: block;
   width: 100%;
   box-sizing: border-box;
   background: rgba(247, 248, 250, 0.82);
   border: 1rpx solid rgba(134, 193, 102, 0.2);
   border-radius: 16rpx;
-  padding: 18rpx;
   margin-bottom: 14rpx;
   font-size: 28rpx;
 }
+.input {
+  height: 84rpx;
+  padding: 0 18rpx;
+  line-height: 84rpx;
+}
 .textarea {
+  padding: 18rpx;
   min-height: 120rpx;
+  line-height: 1.5;
 }
 .recommender-box {
   position: relative;

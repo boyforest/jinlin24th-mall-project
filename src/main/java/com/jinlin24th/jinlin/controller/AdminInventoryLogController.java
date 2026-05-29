@@ -4,7 +4,6 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.jinlin24th.jinlin.common.constant.BizCode;
 import com.jinlin24th.jinlin.common.exception.BizException;
 import com.jinlin24th.jinlin.common.result.Result;
-import com.jinlin24th.jinlin.pojo.entity.InventoryLog;
 import com.jinlin24th.jinlin.pojo.vo.InventoryLogVO;
 import com.jinlin24th.jinlin.service.InventoryLogService;
 import lombok.extern.slf4j.Slf4j;
@@ -31,8 +30,8 @@ public class AdminInventoryLogController {
     }
 
     @GetMapping("/{id}")
-    public Result<InventoryLog> get(@PathVariable Long id) {
-        InventoryLog log = inventoryLogService.getRequired(id);
+    public Result<InventoryLogVO> get(@PathVariable Long id) {
+        InventoryLogVO log = inventoryLogService.getVO(id);
         if (log == null) {
             throw BizException.of(BizCode.INVENTORY_LOG_NOT_FOUND);
         }

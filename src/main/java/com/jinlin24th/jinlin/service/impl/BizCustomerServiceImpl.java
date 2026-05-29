@@ -6,32 +6,49 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.jinlin24th.jinlin.pojo.dto.CustomerDTO;
 import com.jinlin24th.jinlin.pojo.entity.BizCustomer;
 import com.jinlin24th.jinlin.mapper.BizCustomerMapper;
+import com.jinlin24th.jinlin.pojo.entity.SysAdmin;
 import com.jinlin24th.jinlin.pojo.vo.CustomerVO;
 import com.jinlin24th.jinlin.service.BizCustomerService;
+import com.jinlin24th.jinlin.service.SysAdminService;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.util.Collections;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
 public class BizCustomerServiceImpl extends ServiceImpl<BizCustomerMapper, BizCustomer>
     implements BizCustomerService {
 
+    private final SysAdminService sysAdminService;
+
+    public BizCustomerServiceImpl(SysAdminService sysAdminService) {
+        this.sysAdminService = sysAdminService;
+    }
+
     @Override
-    public IPage<CustomerVO> adminPage(long page, long size, Integer status, Long adminId) {
+    public IPage<CustomerVO> adminPage(long page, long size, Integer status, Long adminId, String keyword) {
         Page<BizCustomer> p = new Page<>(page, size);
+        String normalizedKeyword = StringUtils.hasText(keyword) ? keyword.trim() : null;
         IPage<BizCustomer> entityPage = lambdaQuery()
             .eq(status != null, BizCustomer::getStatus, status)
             .eq(adminId != null, BizCustomer::getAdminId, adminId)
+            .and(StringUtils.hasText(normalizedKeyword), w -> w
+                .like(BizCustomer::getName, normalizedKeyword)
+                .or()
+                .like(BizCustomer::getContactName, normalizedKeyword)
+                .or()
+                .like(BizCustomer::getContactPhone, normalizedKeyword)
+            )
             .orderByDesc(BizCustomer::getId)
             .page(p);
         Page<CustomerVO> voPage = new Page<>(entityPage.getCurrent(), entityPage.getSize(), entityPage.getTotal());
-        voPage.setRecords(entityPage.getRecords().stream().map(e -> {
-            CustomerVO vo = new CustomerVO();
-            BeanUtils.copyProperties(e, vo);
-            return vo;
-        }).collect(Collectors.toList()));
+        voPage.setRecords(toVOList(entityPage.getRecords()));
         return voPage;
     }
 
@@ -41,9 +58,7 @@ public class BizCustomerServiceImpl extends ServiceImpl<BizCustomerMapper, BizCu
         if (customer == null) {
             return null;
         }
-        CustomerVO vo = new CustomerVO();
-        BeanUtils.copyProperties(customer, vo);
-        return vo;
+        return toVOList(Collections.singletonList(customer)).get(0);
     }
 
     @Override
@@ -54,9 +69,7 @@ public class BizCustomerServiceImpl extends ServiceImpl<BizCustomerMapper, BizCu
         customer.setTotalAmount(BigDecimal.ZERO);
         customer.setOrderCount(0);
         save(customer);
-        CustomerVO vo = new CustomerVO();
-        BeanUtils.copyProperties(customer, vo);
-        return vo;
+        return toVOList(Collections.singletonList(customer)).get(0);
     }
 
     @Override
@@ -93,15 +106,35 @@ public class BizCustomerServiceImpl extends ServiceImpl<BizCustomerMapper, BizCu
             customer.setStatus(dto.getStatus());
         }
         updateById(customer);
-        CustomerVO vo = new CustomerVO();
-        BeanUtils.copyProperties(customer, vo);
-        return vo;
+        return toVOList(Collections.singletonList(customer)).get(0);
     }
 
     @Override
     public Boolean delete(Long id) {
         return removeById(id);
     }
+
+    private java.util.List<CustomerVO> toVOList(java.util.List<BizCustomer> records) {
+        Set<Long> adminIds = records.stream().map(BizCustomer::getAdminId).filter(Objects::nonNull).collect(Collectors.toSet());
+        Map<Long, String> adminNames = adminIds.isEmpty()
+            ? Collections.emptyMap()
+            : sysAdminService.listByIds(adminIds).stream().collect(Collectors.toMap(SysAdmin::getId, this::adminDisplayName, (a, b) -> a));
+
+        return records.stream().map(e -> {
+            CustomerVO vo = new CustomerVO();
+            BeanUtils.copyProperties(e, vo);
+            vo.setAdminName(adminNames.get(e.getAdminId()));
+            return vo;
+        }).collect(Collectors.toList());
+    }
+
+    private String adminDisplayName(SysAdmin admin) {
+        if (admin == null) {
+            return null;
+        }
+        if (StringUtils.hasText(admin.getRealName())) {
+            return admin.getRealName();
+        }
+        return admin.getUsername();
+    }
 }
-
-

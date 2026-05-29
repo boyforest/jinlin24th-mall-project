@@ -1,7 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react'
-import { App, Button, Form, Image, Input, InputNumber, Modal, Select, Space, Table, Upload } from 'antd'
+import React, { useEffect, useState } from 'react'
+import { App, Button, DatePicker, Descriptions, Empty, Form, Image, Input, InputNumber, Modal, Select, Space, Table, Typography, Upload } from 'antd'
 import { DeleteOutlined, EditOutlined, EyeOutlined, PlusOutlined, ReloadOutlined, SearchOutlined, UploadOutlined } from '@ant-design/icons'
+import dayjs from 'dayjs'
 import { uploadImage } from '../api/upload'
+import { buildDescriptions } from '../utils/adminUi.jsx'
 
 /**
  * 通用 CRUD 表格组件。
@@ -21,7 +23,10 @@ export default function CrudTable({
   deleteApi,
   actions,
   extraActions,
-  toolbarExtra
+  toolbarExtra,
+  detailFields = [],
+  tableProps = {},
+  headerExtra
 }) {
   const { message, modal } = App.useApp()
   const [filterForm] = Form.useForm()
@@ -33,9 +38,9 @@ export default function CrudTable({
   const [detail, setDetail] = useState(null)
   const [saving, setSaving] = useState(false)
 
-  const tableColumns = useMemo(() => {
-    const base = columns.map(column => ({ ...column }))
-    const actionColumn = {
+  const tableColumns = [
+    ...columns.map(column => ({ ...column })),
+    {
       title: '操作',
       key: 'actions',
       fixed: 'right',
@@ -49,8 +54,7 @@ export default function CrudTable({
         </Space>
       )
     }
-    return [...base, actionColumn]
-  }, [columns, detailApi, updateApi, deleteApi, extraActions])
+  ]
 
   useEffect(() => {
     loadData(1, pagination.pageSize)
@@ -107,11 +111,11 @@ export default function CrudTable({
 
   function openEdit(record) {
     setEditing(record)
-    editForm.setFieldsValue(record)
+    editForm.setFieldsValue(formatFormValues(record, formFields))
   }
 
   async function save() {
-    const values = await editForm.validateFields()
+    const values = normalizeFormValues(await editForm.validateFields(), formFields)
     setSaving(true)
     try {
       if (editing?.[rowKey]) {
@@ -146,6 +150,13 @@ export default function CrudTable({
 
   return (
     <section className="page-card">
+      <div className="page-card-head">
+        <div>
+          <Typography.Title level={4} style={{ margin: 0 }}>{title}</Typography.Title>
+          <Typography.Text type="secondary">围绕当前业务场景整理过的信息与操作入口。</Typography.Text>
+        </div>
+        {headerExtra ? <div>{headerExtra}</div> : null}
+      </div>
       <div className="page-toolbar">
         <Form className="filter-form" form={filterForm} layout="inline" onFinish={search}>
           {filters.map(field => <FilterItem key={field.name} field={field} />)}
@@ -158,7 +169,7 @@ export default function CrudTable({
           </Form.Item>
         </Form>
         <Space>
-          {toolbarExtra?.({ reload })}
+          {toolbarExtra?.({ reload, filterValues: cleanObject(filterForm.getFieldsValue()) })}
           {createApi && <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新增</Button>}
         </Space>
       </div>
@@ -177,6 +188,7 @@ export default function CrudTable({
           showTotal: total => `共 ${total} 条`
         }}
         onChange={next => loadData(next.current, next.pageSize)}
+        {...tableProps}
       />
 
       <Modal
@@ -200,8 +212,18 @@ export default function CrudTable({
         footer={null}
         onCancel={() => setDetail(null)}
         width={720}
+        destroyOnHidden
       >
-        <pre className="detail-json">{JSON.stringify(detail, null, 2)}</pre>
+        {detailFields.length > 0 ? (
+          <Descriptions
+            column={1}
+            bordered
+            size="middle"
+            items={buildDescriptions(detail, detailFields)}
+          />
+        ) : (
+          <Empty description="暂未配置详情字段展示" />
+        )}
       </Modal>
     </section>
   )
@@ -234,6 +256,23 @@ function renderControl(field, allowAll) {
       />
     )
   }
+  if (field.type === 'remoteSelect') {
+    return (
+      <RemoteSelect
+        allowClear={allowAll}
+        field={field}
+      />
+    )
+  }
+  if (field.type === 'datetime') {
+    return (
+      <DatePicker
+        showTime
+        placeholder={field.placeholder || '请选择时间'}
+        style={{ minWidth: field.width || 220 }}
+      />
+    )
+  }
   if (field.type === 'number') {
     return <InputNumber min={0} precision={field.precision} placeholder={field.placeholder} style={{ minWidth: field.width || 160 }} />
   }
@@ -244,6 +283,44 @@ function renderControl(field, allowAll) {
     return <ImageUpload placeholder={field.placeholder} />
   }
   return <Input placeholder={field.placeholder} style={{ minWidth: field.width || 180 }} />
+}
+
+function RemoteSelect({ allowClear, field, value, onChange }) {
+  const [options, setOptions] = useState([])
+  const [fetching, setFetching] = useState(false)
+
+  useEffect(() => {
+    loadOptions()
+  }, [])
+
+  async function loadOptions(keyword) {
+    if (!field.fetchOptions) {
+      return
+    }
+    setFetching(true)
+    try {
+      const nextOptions = await field.fetchOptions(keyword)
+      setOptions(nextOptions || [])
+    } finally {
+      setFetching(false)
+    }
+  }
+
+  return (
+    <Select
+      showSearch
+      allowClear={allowClear}
+      filterOption={false}
+      loading={fetching}
+      onSearch={loadOptions}
+      onFocus={() => loadOptions()}
+      options={options}
+      placeholder={field.placeholder || '搜索选择'}
+      style={{ minWidth: field.width || 200 }}
+      value={value}
+      onChange={onChange}
+    />
+  )
 }
 
 function ImageUpload({ value, onChange, placeholder }) {
@@ -275,4 +352,20 @@ function cleanObject(object) {
   return Object.fromEntries(
     Object.entries(object || {}).filter(([, value]) => value !== undefined && value !== null && value !== '')
   )
+}
+
+function formatFormValues(record, fields) {
+  const values = { ...record }
+  fields.filter(field => field.type === 'datetime').forEach(field => {
+    values[field.name] = record?.[field.name] ? dayjs(record[field.name]) : null
+  })
+  return values
+}
+
+function normalizeFormValues(values, fields) {
+  const next = { ...values }
+  fields.filter(field => field.type === 'datetime').forEach(field => {
+    next[field.name] = values?.[field.name] ? values[field.name].format('YYYY-MM-DDTHH:mm:ss') : undefined
+  })
+  return next
 }

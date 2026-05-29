@@ -24,7 +24,7 @@ public class BizCustomerController {
             @RequestParam(defaultValue = "10") long size,
             @RequestParam(required = false) Integer status
     ) {
-        return Result.success(bizCustomerService.adminPage(page, size, status, null));
+        return Result.success(bizCustomerService.adminPage(page, size, status, null, null));
     }
 
     @GetMapping("/get/{id}")
@@ -36,5 +36,4 @@ public class BizCustomerController {
         return Result.success(bizCustomer);
     }
 }
-
 

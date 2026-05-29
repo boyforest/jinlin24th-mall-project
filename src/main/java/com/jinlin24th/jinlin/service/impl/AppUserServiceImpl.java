@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -38,15 +39,9 @@ public class AppUserServiceImpl extends ServiceImpl<AppUserMapper, AppUser> impl
         if (user == null) {
             return null;
         }
-        String memberLevelName = null;
-        Long memberLevelId = user.getMemberLevelId();
-        if (memberLevelId != null && memberLevelId > 0) {
-            MemberLevel level = memberLevelMapper.selectById(memberLevelId);
-            if (level != null) {
-                memberLevelName = level.getName();
-            }
-        }
-        return toVO(user, memberLevelName);
+        Map<Long, String> levelNameById = loadLevelNameMap(List.of(user));
+        Map<Long, AppUser> parentMap = loadParentUserMap(List.of(user));
+        return toVO(user, levelNameById.get(user.getMemberLevelId()), parentMap.get(user.getParentUserId()));
     }
 
     @Override
@@ -133,7 +128,7 @@ public class AppUserServiceImpl extends ServiceImpl<AppUserMapper, AppUser> impl
             .eq(AppUser::getStatus, 1)
             .eq(AppUser::getDeleted, 0)
             .one();
-        return recommender == null ? null : toVO(recommender, null);
+        return recommender == null ? null : toVO(recommender, null, null);
     }
 
     @Override
@@ -178,17 +173,21 @@ public class AppUserServiceImpl extends ServiceImpl<AppUserMapper, AppUser> impl
                 .collect(Collectors.toMap(MemberLevel::getId, MemberLevel::getName, (a, b) -> a));
 
         return users.stream()
-            .map(u -> toVO(u, levelNameById.get(u.getMemberLevelId())))
+            .map(u -> toVO(u, levelNameById.get(u.getMemberLevelId()), null))
             .collect(Collectors.toList());
     }
 
     @Override
-    public IPage<AppUserVO> adminPage(long page, long size, Integer status, Integer isDistributor) {
-        // 管理端分页：支持按 status / isDistributor 筛选
+    public IPage<AppUserVO> adminPage(long page, long size, Integer status, Integer isDistributor, String keyword) {
+        // 管理端分页：支持按 status / isDistributor / 昵称手机号模糊筛选
         Page<AppUser> p = new Page<>(page, size);
         IPage<AppUser> entityPage = lambdaQuery()
             .eq(status != null, AppUser::getStatus, status)
             .eq(isDistributor != null, AppUser::getIsDistributor, isDistributor)
+            .and(keyword != null && !keyword.isBlank(), wrapper -> wrapper
+                .like(AppUser::getNickname, keyword)
+                .or()
+                .like(AppUser::getPhone, keyword))
             .orderByDesc(AppUser::getId)
             .page(p);
 
@@ -197,21 +196,12 @@ public class AppUserServiceImpl extends ServiceImpl<AppUserMapper, AppUser> impl
             return new Page<>(entityPage.getCurrent(), entityPage.getSize(), entityPage.getTotal());
         }
 
-        Set<Long> memberLevelIds = records.stream()
-            .map(AppUser::getMemberLevelId)
-            .filter(Objects::nonNull)
-            .filter(id -> id > 0)
-            .collect(Collectors.toSet());
-
-        Map<Long, String> levelNameById = memberLevelIds.isEmpty()
-            ? Collections.emptyMap()
-            : memberLevelMapper.selectBatchIds(memberLevelIds).stream()
-                .filter(Objects::nonNull)
-                .collect(Collectors.toMap(MemberLevel::getId, MemberLevel::getName, (a, b) -> a));
+        Map<Long, String> levelNameById = loadLevelNameMap(records);
+        Map<Long, AppUser> parentMap = loadParentUserMap(records);
 
         Page<AppUserVO> voPage = new Page<>(entityPage.getCurrent(), entityPage.getSize(), entityPage.getTotal());
         voPage.setRecords(records.stream()
-            .map(u -> toVO(u, levelNameById.get(u.getMemberLevelId())))
+            .map(u -> toVO(u, levelNameById.get(u.getMemberLevelId()), parentMap.get(u.getParentUserId())))
             .collect(Collectors.toList()));
         return voPage;
     }
@@ -234,7 +224,35 @@ public class AppUserServiceImpl extends ServiceImpl<AppUserMapper, AppUser> impl
         return inviter == null ? null : inviter.getId();
     }
 
-    private AppUserVO toVO(AppUser user, String memberLevelName) {
+    private Map<Long, String> loadLevelNameMap(List<AppUser> users) {
+        Set<Long> memberLevelIds = users.stream()
+            .map(AppUser::getMemberLevelId)
+            .filter(Objects::nonNull)
+            .filter(id -> id > 0)
+            .collect(Collectors.toSet());
+
+        return memberLevelIds.isEmpty()
+            ? Collections.emptyMap()
+            : memberLevelMapper.selectBatchIds(memberLevelIds).stream()
+                .filter(Objects::nonNull)
+                .collect(Collectors.toMap(MemberLevel::getId, MemberLevel::getName, (a, b) -> a));
+    }
+
+    private Map<Long, AppUser> loadParentUserMap(List<AppUser> users) {
+        Set<Long> parentIds = users.stream()
+            .map(AppUser::getParentUserId)
+            .filter(Objects::nonNull)
+            .filter(id -> id > 0)
+            .collect(Collectors.toSet());
+        if (parentIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        return listByIds(new ArrayList<>(parentIds)).stream()
+            .filter(Objects::nonNull)
+            .collect(Collectors.toMap(AppUser::getId, parent -> parent, (a, b) -> a));
+    }
+
+    private AppUserVO toVO(AppUser user, String memberLevelName, AppUser parentUser) {
         // 统一 VO 转换，避免 Controller/Service 到处手写映射
         AppUserVO vo = new AppUserVO();
         vo.setId(user.getId());
@@ -247,6 +265,9 @@ public class AppUserServiceImpl extends ServiceImpl<AppUserMapper, AppUser> impl
         vo.setPoints(user.getPoints());
         vo.setTotalAmount(user.getTotalAmount());
         vo.setParentUserId(user.getParentUserId());
+        vo.setParentUserNickname(parentUser == null ? null : parentUser.getNickname());
+        vo.setParentUserPhone(parentUser == null ? null : parentUser.getPhone());
+        vo.setStatus(user.getStatus());
         vo.setIsDistributor(user.getIsDistributor());
         vo.setDistributorEnabledTime(user.getDistributorEnabledTime());
         vo.setDistributorDisabledTime(user.getDistributorDisabledTime());

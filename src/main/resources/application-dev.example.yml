@@ -34,3 +34,7 @@ jwt:
 admin:
   username: admin
   password: change-me
+
+app:
+  mq:
+    enabled: false

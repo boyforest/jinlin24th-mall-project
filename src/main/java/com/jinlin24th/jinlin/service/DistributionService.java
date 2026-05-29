@@ -11,7 +11,9 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
 public interface DistributionService extends IService<Distribution> {
-    IPage<DistributionVO> adminPage(long page, long size, Integer status);
+    IPage<DistributionVO> adminPage(long page, long size, Integer status, String orderNo, String keyword);
+
+    DistributionVO getDetail(Long id);
 
     Distribution getRequired(Long id);
 
@@ -34,5 +36,5 @@ public interface DistributionService extends IService<Distribution> {
     /**
      * 导出佣金记录 CSV。
      */
-    void exportCsv(HttpServletResponse response, Integer status) throws IOException;
+    void exportCsv(HttpServletResponse response, Integer status, String orderNo, String keyword) throws IOException;
 }

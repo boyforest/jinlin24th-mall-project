@@ -16,6 +16,7 @@ import com.jinlin24th.jinlin.pojo.entity.SysPermission;
 import com.jinlin24th.jinlin.pojo.entity.SysRole;
 import com.jinlin24th.jinlin.pojo.entity.SysRolePermission;
 import com.jinlin24th.jinlin.pojo.vo.AdminLoginVO;
+import com.jinlin24th.jinlin.pojo.vo.AdminOptionVO;
 import com.jinlin24th.jinlin.service.SysAdminService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
@@ -196,6 +197,35 @@ public class SysAdminServiceImpl extends ServiceImpl<SysAdminMapper, SysAdmin> i
             .map(SysPermission::getPermissionCode)
             .filter(StringUtils::hasText)
             .distinct()
+            .toList();
+    }
+
+    @Override
+    public List<AdminOptionVO> listOptions(String keyword) {
+        String normalizedKeyword = StringUtils.hasText(keyword) ? keyword.trim() : null;
+        return lambdaQuery()
+            .eq(SysAdmin::getDeleted, 0)
+            .and(StringUtils.hasText(normalizedKeyword), w -> w
+                .like(SysAdmin::getRealName, normalizedKeyword)
+                .or()
+                .like(SysAdmin::getUsername, normalizedKeyword)
+                .or()
+                .like(SysAdmin::getPhone, normalizedKeyword)
+            )
+            .orderByDesc(SysAdmin::getStatus)
+            .orderByDesc(SysAdmin::getId)
+            .last("limit 50")
+            .list()
+            .stream()
+            .map(admin -> {
+                AdminOptionVO vo = new AdminOptionVO();
+                vo.setId(admin.getId());
+                vo.setUsername(admin.getUsername());
+                vo.setRealName(admin.getRealName());
+                vo.setPhone(admin.getPhone());
+                vo.setStatus(admin.getStatus());
+                return vo;
+            })
             .toList();
     }
 

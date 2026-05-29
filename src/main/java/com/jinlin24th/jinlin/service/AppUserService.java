@@ -18,7 +18,7 @@ public interface AppUserService extends IService<AppUser> {
 
     List<AppUserVO> getUserList();
 
-    IPage<AppUserVO> adminPage(long page, long size, Integer status, Integer isDistributor);
+    IPage<AppUserVO> adminPage(long page, long size, Integer status, Integer isDistributor, String keyword);
 
     /**
      * 管理端开启/关闭用户分销资格。

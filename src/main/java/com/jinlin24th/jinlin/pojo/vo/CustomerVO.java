@@ -15,6 +15,7 @@ public class CustomerVO implements Serializable {
     private Integer source;
     private Integer level;
     private Long adminId;
+    private String adminName;
     private BigDecimal totalAmount;
     private Integer orderCount;
     private String tags;
@@ -23,4 +24,3 @@ public class CustomerVO implements Serializable {
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
 }
-

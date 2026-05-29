@@ -7,7 +7,7 @@ import com.jinlin24th.jinlin.pojo.entity.BizCustomer;
 import com.jinlin24th.jinlin.pojo.vo.CustomerVO;
 
 public interface BizCustomerService extends IService<BizCustomer> {
-    IPage<CustomerVO> adminPage(long page, long size, Integer status, Long adminId);
+    IPage<CustomerVO> adminPage(long page, long size, Integer status, Long adminId, String keyword);
 
     CustomerVO getVO(Long id);
 
@@ -17,5 +17,4 @@ public interface BizCustomerService extends IService<BizCustomer> {
 
     Boolean delete(Long id);
 }
-
 

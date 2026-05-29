@@ -12,8 +12,14 @@ public class OrderVO implements Serializable {
     private Long id;
     private String orderNo;
     private Long userId;
+    private String userNickname;
+    private String userPhone;
     private Long recommenderUserId;
+    private String recommenderNickname;
+    private String recommenderPhone;
     private Long level2RecommenderUserId;
+    private String level2RecommenderNickname;
+    private String level2RecommenderPhone;
     private BigDecimal totalAmount;
     private BigDecimal payAmount;
     private BigDecimal freightAmount;

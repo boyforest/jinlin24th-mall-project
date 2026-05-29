@@ -8,7 +8,6 @@ import com.jinlin24th.jinlin.pojo.vo.InventoryLogVO;
 public interface InventoryLogService extends IService<InventoryLog> {
     IPage<InventoryLogVO> adminPage(long page, long size, Long warehouseId, Long skuId, Integer type);
 
-    InventoryLog getRequired(Long id);
+    InventoryLogVO getVO(Long id);
 }
-
 

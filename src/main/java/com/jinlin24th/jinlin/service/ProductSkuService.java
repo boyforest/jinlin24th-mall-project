@@ -7,7 +7,7 @@ import com.jinlin24th.jinlin.pojo.entity.ProductSku;
 import com.jinlin24th.jinlin.pojo.vo.ProductSkuVO;
 
 public interface ProductSkuService extends IService<ProductSku> {
-    IPage<ProductSkuVO> adminPage(long page, long size, Long productId, Integer status);
+    IPage<ProductSkuVO> adminPage(long page, long size, Long productId, Integer status, String keyword);
 
     ProductSkuVO getVO(Long id);
 
@@ -17,5 +17,4 @@ public interface ProductSkuService extends IService<ProductSku> {
 
     Boolean delete(Long id);
 }
-
 

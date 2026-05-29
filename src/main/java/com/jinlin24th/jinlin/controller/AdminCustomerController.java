@@ -24,9 +24,10 @@ public class AdminCustomerController {
         @RequestParam(defaultValue = "1") long page,
         @RequestParam(defaultValue = "10") long size,
         @RequestParam(required = false) Integer status,
-        @RequestParam(required = false) Long adminId
+        @RequestParam(required = false) Long adminId,
+        @RequestParam(required = false) String keyword
     ) {
-        return Result.success(bizCustomerService.adminPage(page, size, status, adminId));
+        return Result.success(bizCustomerService.adminPage(page, size, status, adminId, keyword));
     }
 
     @GetMapping("/{id}")

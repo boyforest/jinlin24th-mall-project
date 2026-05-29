@@ -30,8 +30,8 @@ public class AdminInventoryController {
     }
 
     @GetMapping("/{id}")
-    public Result<Inventory> get(@PathVariable Long id) {
-        Inventory inventory = inventoryService.getRequired(id);
+    public Result<InventoryVO> get(@PathVariable Long id) {
+        InventoryVO inventory = inventoryService.getVO(id);
         if (inventory == null) {
             throw BizException.of(BizCode.INVENTORY_NOT_FOUND);
         }

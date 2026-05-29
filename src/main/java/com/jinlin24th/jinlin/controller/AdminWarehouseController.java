@@ -23,9 +23,10 @@ public class AdminWarehouseController {
     public Result<IPage<WarehouseVO>> list(
         @RequestParam(defaultValue = "1") long page,
         @RequestParam(defaultValue = "10") long size,
-        @RequestParam(required = false) Integer status
+        @RequestParam(required = false) Integer status,
+        @RequestParam(required = false) String keyword
     ) {
-        return Result.success(warehouseService.adminPage(page, size, status));
+        return Result.success(warehouseService.adminPage(page, size, status, keyword));
     }
 
     @GetMapping("/{id}")

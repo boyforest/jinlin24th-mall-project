@@ -42,8 +42,23 @@ export default function MarketingActivityPage() {
         { name: 'linkValue', label: '跳转值', placeholder: '商品ID / 分类ID / 页面路径' },
         { name: 'status', label: '状态', type: 'select', options: commonStatus.options },
         { name: 'sort', label: '排序', type: 'number' },
-        { name: 'startTime', label: '开始时间', placeholder: '2026-05-17T09:00:00' },
-        { name: 'endTime', label: '结束时间', placeholder: '2026-05-31T23:59:59' }
+        { name: 'startTime', label: '开始时间', type: 'datetime' },
+        { name: 'endTime', label: '结束时间', type: 'datetime' }
+      ]}
+      detailFields={[
+        { label: '活动ID', dataIndex: 'id' },
+        { label: '标题', dataIndex: 'title' },
+        { label: '副标题', dataIndex: 'subtitle' },
+        { label: '位置', dataIndex: 'position', renderDetail: activityPosition.text },
+        { label: '跳转类型', dataIndex: 'linkType', renderDetail: activityLinkType.text },
+        { label: '跳转值', dataIndex: 'linkValue' },
+        { label: '状态', dataIndex: 'status', type: 'status' },
+        { label: '排序', dataIndex: 'sort' },
+        { label: '开始时间', dataIndex: 'startTime', type: 'datetime' },
+        { label: '结束时间', dataIndex: 'endTime', type: 'datetime' },
+        { label: '内容', dataIndex: 'content' },
+        { label: '创建时间', dataIndex: 'createTime', type: 'datetime' },
+        { label: '更新时间', dataIndex: 'updateTime', type: 'datetime' }
       ]}
     />
   )

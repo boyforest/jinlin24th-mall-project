@@ -1,4 +1,5 @@
 import { apiRequest } from '@/api/client'
+import { API_BASE_URL } from '@/config/app'
 
 export interface PageResult<T> {
   records: T[]
@@ -41,12 +42,40 @@ function buildQuery(params: Record<string, unknown> = {}) {
   return entries.length ? `?${entries.join('&')}` : ''
 }
 
+function normalizeAssetUrl(url?: string) {
+  if (!url) return url
+  if (url.startsWith('/uploads/')) {
+    return `${API_BASE_URL}${url}`
+  }
+  return url.replace(/^https?:\/\/localhost:7878/i, API_BASE_URL)
+}
+
+function normalizeCsvUrls(value?: string) {
+  if (!value) return value
+  return value
+    .split(',')
+    .map(item => normalizeAssetUrl(item.trim()) || '')
+    .filter(Boolean)
+    .join(',')
+}
+
+function normalizeProduct<T extends ProductVO>(product: T): T {
+  return {
+    ...product,
+    mainImage: normalizeAssetUrl(product.mainImage),
+    images: normalizeCsvUrls(product.images),
+  }
+}
+
 export function listProducts(params: { page?: number; size?: number; categoryId?: number; keyword?: string } = {}) {
-  return apiRequest<PageResult<ProductVO>>(`/user/product/list${buildQuery(params)}`, { auth: false })
+  return apiRequest<PageResult<ProductVO>>(`/user/product/list${buildQuery(params)}`, { auth: false }).then((data) => ({
+    ...data,
+    records: (data?.records || []).map(normalizeProduct),
+  }))
 }
 
 export function getProduct(id: number) {
-  return apiRequest<ProductVO>(`/user/product/${id}`, { auth: false })
+  return apiRequest<ProductVO>(`/user/product/${id}`, { auth: false }).then(normalizeProduct)
 }
 
 export function listProductSkus(id: number) {

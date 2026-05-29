@@ -24,10 +24,11 @@ public class AdminOrderController {
         @RequestParam(defaultValue = "10") long size,
         @RequestParam(required = false) Integer status,
         @RequestParam(required = false) Long userId,
+        @RequestParam(required = false) String userKeyword,
         @RequestParam(required = false) String orderNo,
         @RequestParam(required = false) String receiverPhone
     ) {
-        return Result.success(orderService.adminPage(page, size, status, userId, orderNo, receiverPhone));
+        return Result.success(orderService.adminPage(page, size, status, userId, userKeyword, orderNo, receiverPhone));
     }
 
     @GetMapping("/{id}")

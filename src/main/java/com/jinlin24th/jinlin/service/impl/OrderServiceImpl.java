@@ -1,48 +1,39 @@
 package com.jinlin24th.jinlin.service.impl;
 
-import com.jinlin24th.jinlin.common.mq.OrderCreatedEvent;
-import com.jinlin24th.jinlin.common.mq.OrderCreatedSpringEvent;
+import cn.hutool.core.util.IdUtil;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.jinlin24th.jinlin.common.exception.BizException;
-import com.jinlin24th.jinlin.pojo.dto.OrderCreateDTO;
-import com.jinlin24th.jinlin.pojo.entity.AppUser;
-import com.jinlin24th.jinlin.pojo.entity.OrderItem;
-import com.jinlin24th.jinlin.pojo.entity.OrderMaster;
-import com.jinlin24th.jinlin.pojo.entity.Product;
-import com.jinlin24th.jinlin.pojo.entity.ProductSku;
-import com.jinlin24th.jinlin.pojo.vo.OrderVO;
+import com.jinlin24th.jinlin.common.mq.OrderCreatedEvent;
+import com.jinlin24th.jinlin.common.mq.OrderCreatedSpringEvent;
 import com.jinlin24th.jinlin.common.mq.producer.OrderTimeoutMessageProducer;
 import com.jinlin24th.jinlin.common.mq.producer.SmsMessageProducer;
-import com.jinlin24th.jinlin.service.OrderItemService;
-import com.jinlin24th.jinlin.service.OrderMasterService;
-import com.jinlin24th.jinlin.service.OrderService;
-import com.jinlin24th.jinlin.service.ProductService;
-import com.jinlin24th.jinlin.service.ProductSkuService;
-import com.jinlin24th.jinlin.service.InventoryService;
-import com.jinlin24th.jinlin.service.InventoryLogService;
-import com.jinlin24th.jinlin.service.AppUserService;
-import com.jinlin24th.jinlin.pojo.entity.Inventory;
-import com.jinlin24th.jinlin.pojo.entity.InventoryLog;
+import com.jinlin24th.jinlin.pojo.dto.OrderCreateDTO;
+import com.jinlin24th.jinlin.pojo.entity.*;
+import com.jinlin24th.jinlin.pojo.vo.OrderVO;
+import com.jinlin24th.jinlin.service.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
-import java.util.Random;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
 @Slf4j
 public class OrderServiceImpl implements OrderService {
 
+   // 订单状态（给状态吗提供名字定义，方便查阅）
     private static final int STATUS_PENDING_PAY = 0;
     private static final int STATUS_PENDING_SHIP = 10;
     private static final int STATUS_PENDING_RECEIVE = 20;
@@ -81,6 +72,7 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional
+    //@Transactional(rollbackFor = Exception.class)
     public OrderVO create(Long userId, OrderCreateDTO dto) {
         // 下单（简化版）：
         // 1) 校验入参
@@ -113,6 +105,10 @@ public class OrderServiceImpl implements OrderService {
 
             // 价格以 SKU 的 memberPrice 优先（简化实现：未根据会员等级折扣动态计算）
             BigDecimal price = sku.getMemberPrice() != null ? sku.getMemberPrice() : sku.getPrice();
+            //乘法 → .multiply()
+            //加法 → .add()
+            //减法 → .subtract()
+            //除法 → .divide()
             BigDecimal totalPrice = price.multiply(BigDecimal.valueOf(i.getQuantity()));
 
             OrderItem item = new OrderItem();
@@ -416,33 +412,34 @@ public class OrderServiceImpl implements OrderService {
             .orderByDesc(OrderMaster::getId)
             .page(p);
         Page<OrderVO> voPage = new Page<>(entityPage.getCurrent(), entityPage.getSize(), entityPage.getTotal());
-        voPage.setRecords(entityPage.getRecords().stream().map(m -> {
-            OrderVO vo = new OrderVO();
-            BeanUtils.copyProperties(m, vo);
-            vo.setItems(null);
-            return vo;
-        }).collect(Collectors.toList()));
+        Map<Long, AppUser> userMap = loadOrderUsers(entityPage.getRecords());
+        voPage.setRecords(entityPage.getRecords().stream()
+            .map(m -> toVO(m, null, userMap, false))
+            .collect(Collectors.toList()));
         return voPage;
     }
 
     @Override
-    public IPage<OrderVO> adminPage(long page, long size, Integer status, Long userId, String orderNo, String receiverPhone) {
-        // 管理端分页：支持按状态/用户/订单号筛选
+    public IPage<OrderVO> adminPage(long page, long size, Integer status, Long userId, String userKeyword, String orderNo, String receiverPhone) {
+        // 管理端分页：支持按状态/用户/订单号/用户昵称手机号筛选
+        List<Long> matchedUserIds = resolveUserIdsByKeyword(userKeyword);
+        if (userKeyword != null && !userKeyword.isBlank() && matchedUserIds.isEmpty()) {
+            return new Page<>(page, size, 0);
+        }
         Page<OrderMaster> p = new Page<>(page, size);
         IPage<OrderMaster> entityPage = orderMasterService.lambdaQuery()
             .eq(status != null, OrderMaster::getStatus, status)
             .eq(userId != null, OrderMaster::getUserId, userId)
+            .in(matchedUserIds != null && !matchedUserIds.isEmpty(), OrderMaster::getUserId, matchedUserIds)
             .like(orderNo != null && !orderNo.isBlank(), OrderMaster::getOrderNo, orderNo)
             .like(receiverPhone != null && !receiverPhone.isBlank(), OrderMaster::getReceiverPhone, receiverPhone)
             .orderByDesc(OrderMaster::getId)
             .page(p);
         Page<OrderVO> voPage = new Page<>(entityPage.getCurrent(), entityPage.getSize(), entityPage.getTotal());
-        voPage.setRecords(entityPage.getRecords().stream().map(m -> {
-            OrderVO vo = new OrderVO();
-            BeanUtils.copyProperties(m, vo);
-            vo.setItems(null);
-            return vo;
-        }).collect(Collectors.toList()));
+        Map<Long, AppUser> userMap = loadOrderUsers(entityPage.getRecords());
+        voPage.setRecords(entityPage.getRecords().stream()
+            .map(m -> toVO(m, null, userMap, false))
+            .collect(Collectors.toList()));
         return voPage;
     }
 
@@ -481,15 +478,60 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private OrderVO toVO(OrderMaster master, List<OrderItem> items) {
-        // 组装 VO：master + items
+        Map<Long, AppUser> userMap = loadOrderUsers(List.of(master));
+        return toVO(master, items, userMap, true);
+    }
+
+    private OrderVO toVO(OrderMaster master, List<OrderItem> items, Map<Long, AppUser> userMap, boolean withItems) {
+        // 组装 VO：master + items + 买家/推荐官信息
         OrderVO vo = new OrderVO();
         BeanUtils.copyProperties(master, vo);
-        vo.setItems(items.stream().map(i -> {
-            OrderVO.Item iv = new OrderVO.Item();
-            BeanUtils.copyProperties(i, iv);
-            return iv;
-        }).collect(Collectors.toList()));
+        AppUser buyer = userMap.get(master.getUserId());
+        AppUser recommender = userMap.get(master.getRecommenderUserId());
+        AppUser level2Recommender = userMap.get(master.getLevel2RecommenderUserId());
+        vo.setUserNickname(buyer == null ? null : buyer.getNickname());
+        vo.setUserPhone(buyer == null ? null : buyer.getPhone());
+        vo.setRecommenderNickname(recommender == null ? null : recommender.getNickname());
+        vo.setRecommenderPhone(recommender == null ? null : recommender.getPhone());
+        vo.setLevel2RecommenderNickname(level2Recommender == null ? null : level2Recommender.getNickname());
+        vo.setLevel2RecommenderPhone(level2Recommender == null ? null : level2Recommender.getPhone());
+        if (withItems && items != null) {
+            vo.setItems(items.stream().map(i -> {
+                OrderVO.Item iv = new OrderVO.Item();
+                BeanUtils.copyProperties(i, iv);
+                return iv;
+            }).collect(Collectors.toList()));
+        } else {
+            vo.setItems(null);
+        }
         return vo;
+    }
+
+    private List<Long> resolveUserIdsByKeyword(String userKeyword) {
+        if (userKeyword == null || userKeyword.isBlank()) {
+            return null;
+        }
+        return appUserService.lambdaQuery()
+            .select(AppUser::getId)
+            .and(wrapper -> wrapper.like(AppUser::getNickname, userKeyword).or().like(AppUser::getPhone, userKeyword))
+            .list()
+            .stream()
+            .map(AppUser::getId)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toList());
+    }
+
+    private Map<Long, AppUser> loadOrderUsers(List<OrderMaster> orders) {
+        Set<Long> userIds = orders.stream()
+            .flatMap(order -> List.of(order.getUserId(), order.getRecommenderUserId(), order.getLevel2RecommenderUserId()).stream())
+            .filter(Objects::nonNull)
+            .collect(Collectors.toSet());
+        if (userIds.isEmpty()) {
+            return Map.of();
+        }
+        return appUserService.listByIds(new ArrayList<>(userIds)).stream()
+            .filter(Objects::nonNull)
+            .collect(Collectors.toMap(AppUser::getId, user -> user, (a, b) -> a));
     }
 
     private OrderMaster requireOrder(Long id) {
@@ -524,10 +566,9 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private String generateOrderNo() {
-        // 订单号（简化）：JL + 当前毫秒 + 4位随机数
-        // 说明：学习项目可用；生产建议用雪花算法/数据库唯一约束等保证全局唯一
-        long now = System.currentTimeMillis();
-        int suffix = new Random().nextInt(9000) + 1000;
-        return "JL" + now + suffix;
+        //原订单号生成依赖时间戳 + 随机数，唯一性保障不够工程化；
+        //改为雪花 ID 后，订单号更稳定，也更适合作为核心业务编号。
+        long snowId = IdUtil.getSnowflakeNextId();
+        return "JL" + snowId;
     }
 }

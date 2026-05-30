@@ -5,6 +5,9 @@
 -- 字符集：utf8mb4
 -- =============================================
 
+-- 重要：强制客户端和服务端都用 utf8mb4，否则 Docker 初始化时会用 latin1 读文件导致乱码
+SET NAMES utf8mb4;
+
 -- 创建并使用数据库
 CREATE DATABASE IF NOT EXISTS `jinlin24th`
   DEFAULT CHARACTER SET utf8mb4

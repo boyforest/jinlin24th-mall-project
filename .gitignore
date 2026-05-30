@@ -98,3 +98,8 @@ uploads/
 ### Local runtime files ###
 .run/
 dump.rdb
+
+### Coursework & scratch ###
+*.docx
+*.pages
+docs/project_learning_plan.md

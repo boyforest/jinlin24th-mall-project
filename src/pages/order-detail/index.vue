@@ -66,6 +66,7 @@ import { ref } from 'vue'
 import { getOrder, receiveOrder, type OrderVO } from '@/api/order'
 import { createOrderPayment, requestMiniAppPayment } from '@/api/payment'
 import { money } from '@/utils/auth'
+import { statusText } from '@/constants/orderStatus'
 
 const id = ref<number>(0)
 const order = ref<OrderVO | null>(null)
@@ -83,19 +84,6 @@ async function load() {
   } finally {
     loading.value = false
   }
-}
-
-function statusText(value?: number) {
-  const map: Record<number, string> = {
-    0: '待支付',
-    10: '待发货',
-    20: '待收货',
-    30: '已完成',
-    40: '已取消',
-    50: '退款中',
-    60: '已退款',
-  }
-  return value === undefined ? '-' : map[value] || `状态${value}`
 }
 
 async function payNow() {

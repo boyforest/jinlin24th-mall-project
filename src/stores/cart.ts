@@ -52,10 +52,19 @@ export const useCartStore = defineStore('cart', {
       item.checked = checked
     },
     async setAllChecked(checked: number) {
-      await Promise.all(this.items.map((item) => updateCart(item.id, { quantity: item.quantity, checked })))
-      this.items.forEach((item) => {
-        item.checked = checked
-      })
+      const results = await Promise.allSettled(
+        this.items.map((item) => updateCart(item.id, { quantity: item.quantity, checked }))
+      )
+      const failed = results.filter((r) => r.status === 'rejected')
+      if (failed.length > 0) {
+        // 部分更新失败，重新拉取购物车以对齐服务端状态
+        console.warn(`全选更新中 ${failed.length}/${this.items.length} 项失败，重新同步购物车`)
+        await this.refresh()
+      } else {
+        this.items.forEach((item) => {
+          item.checked = checked
+        })
+      }
     },
     async remove(id: number) {
       await deleteCart(id)

@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { login, me, type AppUserVO } from '@/api/user'
 import { clearInviterUserId, getInviterUserId, getToken, getUserId, setToken, setUserId } from '@/utils/storage'
+import { STORAGE_KEYS } from '@/config/app'
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
@@ -49,8 +50,9 @@ export const useAuthStore = defineStore('auth', {
       this.token = ''
       this.userId = 0
       this.profile = null
-      uni.removeStorageSync('jl_user_token')
-      uni.removeStorageSync('jl_user_id')
+      uni.removeStorageSync(STORAGE_KEYS.token)
+      uni.removeStorageSync(STORAGE_KEYS.userId)
+      clearInviterUserId()
     },
   },
 })

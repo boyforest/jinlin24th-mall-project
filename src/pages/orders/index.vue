@@ -48,6 +48,7 @@ import { onShow } from '@dcloudio/uni-app'
 import { ref } from 'vue'
 import { listOrders, type OrderVO } from '@/api/order'
 import { money, requireLogin } from '@/utils/auth'
+import { statusText } from '@/constants/orderStatus'
 
 const orders = ref<OrderVO[]>([])
 const loading = ref(false)
@@ -69,19 +70,6 @@ async function load() {
 function selectStatus(next?: number) {
   status.value = next
   load()
-}
-
-function statusText(value?: number) {
-  const map: Record<number, string> = {
-    0: '待支付',
-    10: '待发货',
-    20: '待收货',
-    30: '已完成',
-    40: '已取消',
-    50: '退款中',
-    60: '已退款',
-  }
-  return value === undefined ? '-' : map[value] || `状态${value}`
 }
 
 function goDetail(id: number) {

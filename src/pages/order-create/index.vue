@@ -8,10 +8,10 @@
 
       <view class="card ink-card">
         <view class="title ink-title">收货信息</view>
-        <input v-model="form.receiverName" class="input" placeholder="收货人" />
-        <input v-model="form.receiverPhone" class="input" placeholder="手机号" type="number" />
-        <textarea v-model="form.receiverAddress" class="textarea" placeholder="详细地址" />
-        <textarea v-model="form.remark" class="textarea" placeholder="备注（选填）" />
+        <input v-model="form.receiverName" class="input" placeholder="收货人" maxlength="20" />
+        <input v-model="form.receiverPhone" class="input" placeholder="手机号" type="number" maxlength="11" />
+        <textarea v-model="form.receiverAddress" class="textarea" placeholder="详细地址" maxlength="200" />
+        <textarea v-model="form.remark" class="textarea" placeholder="备注（选填）" maxlength="500" />
       </view>
 
       <view class="card ink-card">
@@ -121,6 +121,10 @@ async function submit() {
     uni.showToast({ title: '请填写收货信息', icon: 'none' })
     return
   }
+  if (!/^1[3-9]\d{9}$/.test(form.receiverPhone)) {
+    uni.showToast({ title: '请填写有效的手机号', icon: 'none' })
+    return
+  }
   submitting.value = true
   try {
     const order = await createOrder({
@@ -134,12 +138,16 @@ async function submit() {
       const payParams = await createOrderPayment(order.id)
       await requestMiniAppPayment(payParams)
       uni.showToast({ title: '支付完成', icon: 'success' })
+      uni.redirectTo({ url: `/pages/order-detail/index?id=${order.id}` })
     } catch (payError: any) {
       const message = String(payError?.errMsg || payError?.message || '')
       const isCancel = message.includes('cancel')
       uni.showToast({ title: isCancel ? '支付已取消' : message || '支付未完成', icon: 'none' })
+      // 延迟跳转，让用户看清失败原因；仍跳到订单详情方便继续支付
+      setTimeout(() => {
+        uni.redirectTo({ url: `/pages/order-detail/index?id=${order.id}` })
+      }, 1500)
     }
-    uni.redirectTo({ url: `/pages/order-detail/index?id=${order.id}` })
   } catch (e: any) {
     uni.showToast({ title: e?.message || '提交失败', icon: 'none' })
   } finally {

@@ -102,7 +102,7 @@ public class SysAdminServiceImpl extends ServiceImpl<SysAdminMapper, SysAdmin> i
         List<String> permissions = getPermissionCodes(admin.getId());
 
         String jti = jwtUtil.generateJti();
-        String token = jwtUtil.generateAdminToken(username, jti);
+        String token = jwtUtil.generateAdminToken(admin.getId(), username, jti);
         authSessionService.onLoginAdmin(username, jti);
 
         AdminLoginVO vo = new AdminLoginVO();

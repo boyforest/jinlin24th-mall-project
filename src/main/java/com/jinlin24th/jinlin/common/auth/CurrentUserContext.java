@@ -9,9 +9,12 @@ package com.jinlin24th.jinlin.common.auth;
 public class CurrentUserContext {
 
     private static final ThreadLocal<Long> USER_ID_HOLDER = new ThreadLocal<>();
+    private static final ThreadLocal<Long> ADMIN_ID_HOLDER = new ThreadLocal<>();
 
     private CurrentUserContext() {
     }
+
+    // ── 用户 ──
 
     public static void setUserId(Long userId) {
         USER_ID_HOLDER.set(userId);
@@ -21,7 +24,20 @@ public class CurrentUserContext {
         return USER_ID_HOLDER.get();
     }
 
+    // ── 管理员 ──
+
+    public static void setAdminId(Long adminId) {
+        ADMIN_ID_HOLDER.set(adminId);
+    }
+
+    public static Long getAdminId() {
+        return ADMIN_ID_HOLDER.get();
+    }
+
+    // ── 清理 ──
+
     public static void clear() {
         USER_ID_HOLDER.remove();
+        ADMIN_ID_HOLDER.remove();
     }
 }

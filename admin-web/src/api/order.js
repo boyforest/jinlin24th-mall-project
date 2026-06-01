@@ -8,14 +8,14 @@ export function getOrder(id) {
   return request.get(`/admin/order/${id}`)
 }
 
-export function cancelOrder(id, adminId) {
-  return request.post(`/admin/order/${id}/cancel`, null, { params: { adminId } })
+export function cancelOrder(id) {
+  return request.post(`/admin/order/${id}/cancel`)
 }
 
-export function shipOrder(id, adminId) {
-  return request.post(`/admin/order/${id}/ship`, null, { params: { adminId } })
+export function shipOrder(id) {
+  return request.post(`/admin/order/${id}/ship`)
 }
 
-export function completeOrder(id, adminId) {
-  return request.post(`/admin/order/${id}/complete`, null, { params: { adminId } })
+export function completeOrder(id) {
+  return request.post(`/admin/order/${id}/complete`)
 }

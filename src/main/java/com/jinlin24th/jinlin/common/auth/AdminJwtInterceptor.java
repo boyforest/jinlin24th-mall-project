@@ -36,8 +36,13 @@ public class AdminJwtInterceptor implements HandlerInterceptor {
         }
 
         String adminName = jwtUtil.getSubjectFromToken(token);
+        Long adminId = jwtUtil.getAdminIdFromToken(token);
         String jti = jwtUtil.getJtiFromToken(token);
         authSessionService.validateAdmin(adminName, jti);
+
+        // 写入 ThreadLocal，供 @CurrentAdminId 注解使用
+        CurrentUserContext.setAdminId(adminId);
+
         return true;
     }
 

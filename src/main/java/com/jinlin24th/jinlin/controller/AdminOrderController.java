@@ -1,6 +1,7 @@
 package com.jinlin24th.jinlin.controller;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.jinlin24th.jinlin.common.auth.CurrentAdminId;
 import com.jinlin24th.jinlin.common.constant.BizCode;
 import com.jinlin24th.jinlin.common.exception.BizException;
 import com.jinlin24th.jinlin.common.result.Result;
@@ -41,17 +42,17 @@ public class AdminOrderController {
     }
 
     @PostMapping("/{id}/cancel")
-    public Result<OrderVO> cancel(@PathVariable Long id, @RequestParam(required = false) Long adminId) {
+    public Result<OrderVO> cancel(@PathVariable Long id, @CurrentAdminId Long adminId) {
         return Result.success(orderService.adminCancelUnpaid(id, adminId));
     }
 
     @PostMapping("/{id}/ship")
-    public Result<OrderVO> ship(@PathVariable Long id, @RequestParam(required = false) Long adminId) {
+    public Result<OrderVO> ship(@PathVariable Long id, @CurrentAdminId Long adminId) {
         return Result.success(orderService.adminShip(id, adminId));
     }
 
     @PostMapping("/{id}/complete")
-    public Result<OrderVO> complete(@PathVariable Long id, @RequestParam(required = false) Long adminId) {
+    public Result<OrderVO> complete(@PathVariable Long id, @CurrentAdminId Long adminId) {
         return Result.success(orderService.adminComplete(id, adminId));
     }
 }

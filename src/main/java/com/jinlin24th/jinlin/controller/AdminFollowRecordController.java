@@ -3,6 +3,7 @@ package com.jinlin24th.jinlin.controller;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.jinlin24th.jinlin.common.constant.BizCode;
 import com.jinlin24th.jinlin.common.exception.BizException;
+import com.jinlin24th.jinlin.common.auth.CurrentAdminId;
 import com.jinlin24th.jinlin.common.result.Result;
 import com.jinlin24th.jinlin.pojo.dto.FollowRecordDTO;
 import com.jinlin24th.jinlin.pojo.vo.FollowRecordVO;
@@ -38,7 +39,7 @@ public class AdminFollowRecordController {
     }
 
     @PostMapping
-    public Result<FollowRecordVO> create(@RequestBody FollowRecordDTO dto, @RequestParam Long adminId) {
+    public Result<FollowRecordVO> create(@RequestBody FollowRecordDTO dto, @CurrentAdminId Long adminId) {
         FollowRecordVO vo = followRecordService.create(adminId, dto);
         return Result.success(vo);
     }

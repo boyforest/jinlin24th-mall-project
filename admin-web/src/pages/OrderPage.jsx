@@ -2,7 +2,6 @@ import React from 'react'
 import { App, Button, Tag } from 'antd'
 import CrudTable from '../components/CrudTable.jsx'
 import { cancelOrder, completeOrder, getOrder, listOrders, shipOrder } from '../api/order'
-import { getAdminId } from '../utils/auth'
 import { formatDateTime, formatMoney, orderStatus } from '../utils/format'
 import { orderStatusColor, renderIdentity } from '../utils/adminUi.jsx'
 
@@ -18,7 +17,7 @@ export default function OrderPage() {
       okText: '确认',
       cancelText: '取消',
       onOk: async () => {
-        await action(record.id, getAdminId())
+        await action(record.id)
         message.success(successText)
         reload()
       }

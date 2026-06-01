@@ -136,7 +136,10 @@ public class JwtUtil {
         return buildToken(userId.toString(), claims, jti);
     }
 
-    public String generateAdminToken(String adminName, String jti) {
+    public String generateAdminToken(Long adminId, String adminName, String jti) {
+        if (adminId == null) {
+            throw new IllegalArgumentException("adminId 不能为空");
+        }
         if (adminName == null || adminName.isBlank()) {
             throw new IllegalArgumentException("adminName 不能为空");
         }
@@ -146,6 +149,7 @@ public class JwtUtil {
 
         Map<String, Object> claims = new HashMap<>();
         claims.put("tokenType", TOKEN_TYPE_ADMIN);
+        claims.put("adminId", adminId);
         return buildToken(adminName.trim(), claims, jti);
     }
 
@@ -188,6 +192,21 @@ public class JwtUtil {
     public String getTokenType(String token) {
         Claims claims = parseClaims(token);
         return claims.get("tokenType", String.class);
+    }
+
+    /**
+     * 从管理员 Token 中获取管理员ID
+     */
+    public Long getAdminIdFromToken(String token) {
+        Claims claims = parseClaims(token);
+        Object adminId = claims.get("adminId");
+        if (adminId instanceof Integer) {
+            return ((Integer) adminId).longValue();
+        }
+        if (adminId instanceof Long) {
+            return (Long) adminId;
+        }
+        throw new IllegalArgumentException("token 中未包含 adminId 或类型不支持");
     }
 
     public String getSubjectFromToken(String token) {

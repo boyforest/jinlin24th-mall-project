@@ -1,5 +1,6 @@
 package com.jinlin24th.jinlin.common.config;
 
+import com.jinlin24th.jinlin.common.auth.CurrentAdminIdArgumentResolver;
 import com.jinlin24th.jinlin.common.auth.CurrentUserIdArgumentResolver;
 import com.jinlin24th.jinlin.common.auth.AdminJwtInterceptor;
 import com.jinlin24th.jinlin.common.auth.JwtInterceptor;
@@ -41,8 +42,9 @@ public class WebMvcConfig implements WebMvcConfigurer {
 
     @Override
     public void addArgumentResolvers(List<HandlerMethodArgumentResolver> resolvers) {
-        // 支持在 Controller 方法参数中使用 @CurrentUserId
+        // 支持在 Controller 方法参数中使用 @CurrentUserId / @CurrentAdminId
         resolvers.add(new CurrentUserIdArgumentResolver());
+        resolvers.add(new CurrentAdminIdArgumentResolver());
     }
 
     @Override

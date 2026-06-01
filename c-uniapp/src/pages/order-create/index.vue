@@ -8,10 +8,10 @@
 
       <view class="card ink-card">
         <view class="title ink-title">收货信息</view>
-        <input v-model="form.receiverName" class="input" placeholder="收货人" />
-        <input v-model="form.receiverPhone" class="input" placeholder="手机号" type="number" />
-        <textarea v-model="form.receiverAddress" class="textarea" placeholder="详细地址" />
-        <textarea v-model="form.remark" class="textarea" placeholder="备注（选填）" />
+        <input v-model="form.receiverName" class="input" placeholder="收货人" maxlength="20" />
+        <input v-model="form.receiverPhone" class="input" placeholder="手机号" type="number" maxlength="11" />
+        <textarea v-model="form.receiverAddress" class="textarea" placeholder="详细地址" maxlength="200" />
+        <textarea v-model="form.remark" class="textarea" placeholder="备注（选填）" maxlength="500" />
       </view>
 
       <view class="card ink-card">
@@ -119,6 +119,10 @@ async function submit() {
   }
   if (!form.receiverName || !form.receiverPhone || !form.receiverAddress) {
     uni.showToast({ title: '请填写收货信息', icon: 'none' })
+    return
+  }
+  if (!/^1[3-9]\d{9}$/.test(form.receiverPhone)) {
+    uni.showToast({ title: '请填写有效的手机号', icon: 'none' })
     return
   }
   submitting.value = true

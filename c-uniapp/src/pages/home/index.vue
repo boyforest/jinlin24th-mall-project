@@ -30,6 +30,7 @@
           class="search-input"
           confirm-type="search"
           placeholder="寻一味节气养生"
+          maxlength="50"
           @confirm="submitSearch"
         />
         <text v-if="searchKeyword" class="search-clear" @click="clearSearch">清</text>
@@ -317,7 +318,8 @@ async function quickAdd(item: ProductWithSku) {
 }
 
 async function changeCartQty(item: CartVO, delta: number) {
-  const next = Number(item.quantity || 1) + delta
+  const max = item.stock != null ? item.stock : 9999
+  const next = Math.min(max, Math.max(1, Number(item.quantity || 1) + delta))
   if (next <= 0) {
     await cart.remove(item.id)
     return

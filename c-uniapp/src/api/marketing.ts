@@ -1,4 +1,5 @@
 import { apiRequest } from '@/api/client'
+import { buildQuery } from '@/utils/query'
 
 export interface MarketingActivityVO {
   id: number
@@ -11,14 +12,6 @@ export interface MarketingActivityVO {
   linkValue?: string
   status?: number
   sort?: number
-}
-
-function buildQuery(params: Record<string, unknown> = {}) {
-  const entries = Object.entries(params)
-    .filter(([, value]) => value !== undefined && value !== null && value !== '')
-    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
-
-  return entries.length ? `?${entries.join('&')}` : ''
 }
 
 export function listMarketingActivities(position?: string) {

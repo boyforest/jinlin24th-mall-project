@@ -77,7 +77,8 @@ async function load() {
 }
 
 async function changeQty(item: CartVO, delta: number) {
-  const next = Math.max(1, item.quantity + delta)
+  const max = item.stock != null ? item.stock : 9999
+  const next = Math.min(max, Math.max(1, item.quantity + delta))
   if (next === item.quantity) return
   try {
     await updateCart(item.id, { quantity: next, checked: item.checked })

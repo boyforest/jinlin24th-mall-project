@@ -1,4 +1,5 @@
 import { apiRequest } from '@/api/client'
+import { buildQuery } from '@/utils/query'
 import { API_BASE_URL } from '@/config/app'
 
 export interface PageResult<T> {
@@ -32,14 +33,6 @@ export interface ProductSkuVO {
   stock?: number
   skuImage?: string
   status?: number
-}
-
-function buildQuery(params: Record<string, unknown> = {}) {
-  const entries = Object.entries(params)
-    .filter(([, value]) => value !== undefined && value !== null && value !== '')
-    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
-
-  return entries.length ? `?${entries.join('&')}` : ''
 }
 
 function normalizeAssetUrl(url?: string) {

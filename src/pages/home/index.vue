@@ -356,7 +356,7 @@ onReachBottom(loadMore)
 }
 .hero {
   min-height: 1040rpx;
-  padding: 48rpx 34rpx 52rpx;
+  padding: 52rpx 34rpx 60rpx;
   border-radius: 30rpx;
   background:
     radial-gradient(circle at 18% 7%, rgba(255, 255, 255, 0.95), transparent 34%),
@@ -403,14 +403,14 @@ onReachBottom(loadMore)
   align-items: center;
 }
 .brand-row {
-  opacity: 0.82;
+  opacity: 0.92;
 }
 .official-logo {
-  width: 520rpx;
-  opacity: 0.72;
+  width: 540rpx;
+  opacity: 0.88;
 }
 .solar-term {
-  margin-top: 160rpx;
+  margin-top: 148rpx;
 }
 .lunar-date {
   color: rgba(45, 45, 45, 0.8);
@@ -435,6 +435,7 @@ onReachBottom(loadMore)
   font-size: 132rpx;
   font-weight: 700;
   line-height: 0.92;
+  text-shadow: 0 2rpx 8rpx rgba(79, 123, 66, 0.12);
 }
 .term-en {
   margin: 24rpx 0 20rpx;
@@ -566,35 +567,37 @@ onReachBottom(loadMore)
 .market {
   display: flex;
   align-items: flex-start;
-  gap: 18rpx;
+  gap: 22rpx;
 }
 .category-side {
-  width: 120rpx;
+  width: 142rpx;
   height: 920rpx;
   flex: none;
 }
 .category-item {
   position: relative;
-  min-height: 92rpx;
-  padding: 18rpx 8rpx;
-  margin-bottom: 14rpx;
-  border-radius: 18rpx;
+  min-height: 96rpx;
+  padding: 20rpx 10rpx;
+  margin-bottom: 16rpx;
+  border-radius: 20rpx;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #5f665d;
-  font-family: "Songti SC", "STSong", serif;
-  font-size: 25rpx;
+  font-family: "STKaiti", "KaiTi", "Songti SC", "STSong", serif;
+  font-size: 26rpx;
   text-align: center;
-  background: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.78);
   border: 1rpx solid rgba(111, 159, 88, 0.14);
 }
 .category-item.active {
-  color: #263322;
+  color: #1e2d1a;
   font-weight: 700;
+  border-color: rgba(111, 159, 88, 0.42);
   background:
-    radial-gradient(circle at 20% 14%, rgba(255, 255, 255, 0.8), transparent 34%),
-    linear-gradient(135deg, rgba(111, 159, 88, 0.28), rgba(207, 226, 200, 0.54));
+    radial-gradient(circle at 20% 14%, rgba(255, 255, 255, 0.88), transparent 34%),
+    linear-gradient(135deg, rgba(111, 159, 88, 0.32), rgba(200, 224, 190, 0.56));
+  box-shadow: 0 4rpx 16rpx rgba(111, 159, 88, 0.12);
 }
 .category-badge {
   position: absolute;
@@ -644,21 +647,21 @@ onReachBottom(loadMore)
 .goods-list {
   display: flex;
   flex-direction: column;
-  gap: 18rpx;
+  gap: 24rpx;
   padding-bottom: 28rpx;
 }
 .goods-card {
   display: flex;
   align-items: center;
   min-height: 210rpx;
-  padding: 16rpx;
+  padding: 18rpx;
 }
 .goods-cover {
   position: relative;
   z-index: 1;
-  width: 156rpx;
-  height: 156rpx;
-  border-radius: 12rpx;
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: 18rpx;
   background: #eef6eb;
   flex: none;
 }
@@ -689,8 +692,8 @@ onReachBottom(loadMore)
 }
 .goods-price {
   display: block;
-  margin-top: 10rpx;
-  font-size: 30rpx;
+  margin-top: 12rpx;
+  font-size: 32rpx;
 }
 .add-btn {
   position: relative;
@@ -825,64 +828,71 @@ onReachBottom(loadMore)
   position: fixed;
   left: 28rpx;
   right: 28rpx;
-  bottom: 24rpx;
+  bottom: 28rpx;
   z-index: 30;
-  height: 104rpx;
-  padding: 14rpx 16rpx;
+  height: 108rpx;
+  padding: 12rpx 18rpx;
   border-radius: 999rpx;
   display: flex;
   align-items: center;
-  background: rgba(43, 56, 38, 0.96);
-  box-shadow: 0 14rpx 34rpx rgba(43, 56, 38, 0.24);
+  background: linear-gradient(135deg, rgba(36, 50, 32, 0.97), rgba(52, 68, 46, 0.94));
+  box-shadow: 0 12rpx 40rpx rgba(43, 56, 38, 0.3), 0 0 0 2rpx rgba(111, 159, 88, 0.15);
+  backdrop-filter: blur(8rpx);
 }
 .basket-mark {
   position: relative;
-  width: 76rpx;
-  height: 76rpx;
+  width: 82rpx;
+  height: 82rpx;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #eef6eb;
-  color: #5f8f4b;
+  background: radial-gradient(circle at 40% 36%, #f4faf0, #e2f0d8);
+  color: #4f7b42;
   font-family: "Songti SC", "STSong", serif;
+  font-size: 26rpx;
+  box-shadow: 0 0 16rpx rgba(111, 159, 88, 0.18);
 }
 .basket-count {
   position: absolute;
-  right: -4rpx;
-  top: -8rpx;
-  min-width: 30rpx;
-  height: 30rpx;
+  right: -6rpx;
+  top: -6rpx;
+  min-width: 32rpx;
+  height: 32rpx;
   padding: 0 6rpx;
   border-radius: 999rpx;
-  background: #b0493f;
+  background: #b64f45;
   color: #fff;
   font-size: 18rpx;
-  line-height: 30rpx;
+  line-height: 32rpx;
   text-align: center;
+  box-shadow: 0 2rpx 6rpx rgba(182, 79, 69, 0.4);
 }
 .basket-copy {
   flex: 1;
-  padding-left: 18rpx;
+  padding-left: 20rpx;
 }
 .basket-title {
   display: block;
-  color: #fff;
+  color: #fefefe;
   font-size: 28rpx;
+  letter-spacing: 2rpx;
 }
 .basket-sub {
   display: block;
   margin-top: 4rpx;
-  color: rgba(255, 255, 255, 0.68);
+  color: rgba(255, 255, 255, 0.72);
   font-size: 22rpx;
 }
 .checkout-btn {
-  width: 166rpx;
-  height: 68rpx;
+  width: 170rpx;
+  height: 72rpx;
   border-radius: 999rpx;
-  line-height: 68rpx;
-  color: #263322;
-  background: #d8ebce;
+  line-height: 72rpx;
+  color: #2d2416;
+  background: linear-gradient(135deg, #e8d5a3, #f0deb8);
   font-size: 26rpx;
+  font-weight: 500;
+  box-shadow: 0 4rpx 16rpx rgba(200, 170, 120, 0.3);
 }
 </style>

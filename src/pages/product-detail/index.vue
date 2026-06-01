@@ -11,7 +11,7 @@
         <view class="gallery ink-card">
           <swiper v-if="galleryImages.length" class="cover-swiper" circular indicator-dots>
             <swiper-item v-for="image in galleryImages" :key="image">
-              <image class="cover" :src="image" mode="aspectFill" @click="previewImage(image)" />
+              <image class="cover" :src="image" mode="aspectFill" lazy-load @click="previewImage(image)" />
             </swiper-item>
           </swiper>
           <view v-else class="cover placeholder">JL</view>

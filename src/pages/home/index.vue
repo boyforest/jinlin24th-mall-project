@@ -98,14 +98,13 @@
           <view v-else-if="error" class="hint error">{{ error }}</view>
           <view v-else-if="items.length === 0" class="ink-empty ink-card">
             <view class="ink-empty-art"></view>
-            <text class="ink-empty-title">暂无养物</text>
-            <text class="ink-empty-sub">换个分类再看看</text>
+            <text class="ink-empty-title">{{ searchKeyword ? '未寻到此味' : '暂无养物' }}</text>
+            <text class="ink-empty-sub">{{ searchKeyword ? '换一味草木，再寻节气' : '换个分类再看看' }}</text>
           </view>
 
           <view v-else class="goods-list">
             <view v-for="item in items" :key="item.id" class="goods-card ink-card" @click="goDetail(item.id)">
-              <image v-if="item.mainImage" class="goods-cover" :src="item.mainImage" mode="aspectFill" />
-              <view v-else class="goods-cover placeholder">JL</view>
+              <image v-if="item.mainImage" class="goods-cover" :src="item.mainImage" mode="aspectFill" lazy-load />
               <view class="goods-meta">
                 <text class="goods-name ink-title">{{ item.name }}</text>
                 <text class="goods-sub">{{ item.subtitle || '顺时滋补，草本新养' }}</text>
@@ -131,7 +130,7 @@
         <view v-if="cart.items.length === 0" class="drawer-empty">暂无养物</view>
         <view v-for="item in cart.items" :key="item.id" class="drawer-item">
           <text class="check" :class="{ checked: item.checked !== 0 }" @click="cart.setChecked(item, item.checked === 0 ? 1 : 0)">✓</text>
-          <image v-if="item.productMainImage" class="drawer-cover" :src="item.productMainImage" mode="aspectFill" />
+          <image v-if="item.productMainImage" class="drawer-cover" :src="item.productMainImage" mode="aspectFill" lazy-load />
           <view class="drawer-meta">
             <text class="drawer-name">{{ item.productName }}</text>
             <text class="drawer-spec">{{ item.skuName }}</text>
@@ -662,14 +661,6 @@ onReachBottom(loadMore)
   border-radius: 12rpx;
   background: #eef6eb;
   flex: none;
-}
-.goods-cover.placeholder {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #5f8f4b;
-  font-family: Georgia, "Times New Roman", serif;
-  font-weight: 700;
 }
 .goods-meta {
   position: relative;

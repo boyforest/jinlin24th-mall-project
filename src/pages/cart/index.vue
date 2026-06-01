@@ -22,7 +22,7 @@
 
       <view v-else class="list">
         <view v-for="item in items" :key="item.id" class="cart-card ink-card">
-          <image v-if="item.productMainImage" class="cover" :src="item.productMainImage" mode="aspectFill" />
+          <image v-if="item.productMainImage" class="cover" :src="item.productMainImage" mode="aspectFill" lazy-load />
           <view v-else class="cover placeholder">JL</view>
           <view class="meta">
             <text class="name ink-title">{{ item.productName }}</text>

@@ -208,6 +208,26 @@ button::after {
   opacity: 0.92;
 }
 
+/* 操作文字链接按压反馈 */
+.refresh:active,
+.delete:active,
+.remove:active,
+.drawer-action:active,
+.search-clear:active {
+  opacity: 0.55;
+}
+
+/* 步进器按钮按压 */
+.step:active {
+  background: rgba(111, 159, 88, 0.12);
+  transform: scale(0.9);
+}
+
+/* 分类项过渡动画 */
+.category-item {
+  transition: all 0.2s ease;
+}
+
 .ink-search {
   display: flex;
   align-items: center;

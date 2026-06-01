@@ -134,12 +134,16 @@ async function submit() {
       const payParams = await createOrderPayment(order.id)
       await requestMiniAppPayment(payParams)
       uni.showToast({ title: '支付完成', icon: 'success' })
+      uni.redirectTo({ url: `/pages/order-detail/index?id=${order.id}` })
     } catch (payError: any) {
       const message = String(payError?.errMsg || payError?.message || '')
       const isCancel = message.includes('cancel')
       uni.showToast({ title: isCancel ? '支付已取消' : message || '支付未完成', icon: 'none' })
+      // 延迟跳转，让用户看清失败原因；仍跳到订单详情方便继续支付
+      setTimeout(() => {
+        uni.redirectTo({ url: `/pages/order-detail/index?id=${order.id}` })
+      }, 1500)
     }
-    uni.redirectTo({ url: `/pages/order-detail/index?id=${order.id}` })
   } catch (e: any) {
     uni.showToast({ title: e?.message || '提交失败', icon: 'none' })
   } finally {

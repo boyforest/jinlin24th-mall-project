@@ -75,17 +75,29 @@ public interface WxPayService {
 
     /**
      * 处理支付结果通知
-     * @param notifyData 通知数据
+     * @param wechatpayTimestamp 回调Header: Wechatpay-Timestamp
+     * @param wechatpayNonce     回调Header: Wechatpay-Nonce
+     * @param wechatpaySignature 回调Header: Wechatpay-Signature
+     * @param wechatpaySerial    回调Header: Wechatpay-Serial
+     * @param notifyData 通知Body原文
      * @return 是否处理成功
      * @throws Exception 处理异常
      */
-    boolean handlePaymentNotify(String notifyData) throws Exception;
+    boolean handlePaymentNotify(String wechatpayTimestamp, String wechatpayNonce,
+                                String wechatpaySignature, String wechatpaySerial,
+                                String notifyData) throws Exception;
 
     /**
      * 处理退款结果通知
-     * @param notifyData 通知数据
+     * @param wechatpayTimestamp 回调Header: Wechatpay-Timestamp
+     * @param wechatpayNonce     回调Header: Wechatpay-Nonce
+     * @param wechatpaySignature 回调Header: Wechatpay-Signature
+     * @param wechatpaySerial    回调Header: Wechatpay-Serial
+     * @param notifyData 通知Body原文
      * @return 是否处理成功
      * @throws Exception 处理异常
      */
-    boolean handleRefundNotify(String notifyData) throws Exception;
+    boolean handleRefundNotify(String wechatpayTimestamp, String wechatpayNonce,
+                               String wechatpaySignature, String wechatpaySerial,
+                               String notifyData) throws Exception;
 }

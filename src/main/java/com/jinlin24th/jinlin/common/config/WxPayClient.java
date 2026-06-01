@@ -69,6 +69,20 @@ public class WxPayClient {
         return com.jinlin24th.jinlin.common.util.WxPayUtil.encrypt(this.wechatPayPublicKey, plainText);
     }
 
+    /**
+     * 获取微信支付平台公钥，用于验签回调通知
+     */
+    public java.security.PublicKey getWechatPayPublicKey() {
+        return this.wechatPayPublicKey;
+    }
+
+    /**
+     * 获取微信支付平台证书序列号，用于验签回调通知
+     */
+    public String getWechatPayPublicKeyId() {
+        return this.wechatPayPublicKeyId;
+    }
+
     private String sendRequest(String method, String uri, String reqBody) {
         Request.Builder reqBuilder = new Request.Builder().url(HOST + uri);
         reqBuilder.addHeader("Accept", "application/json");

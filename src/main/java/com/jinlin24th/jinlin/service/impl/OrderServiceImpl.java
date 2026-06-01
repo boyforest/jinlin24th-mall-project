@@ -382,11 +382,40 @@ public class OrderServiceImpl implements OrderService {
 
         int beforeStock = inventory.getStock() == null ? 0 : inventory.getStock();
         int afterStock = beforeStock + item.getQuantity();
-        inventoryService.lambdaUpdate()
+        boolean updated = inventoryService.lambdaUpdate()
             .set(Inventory::getStock, afterStock)
             .set(Inventory::getUpdateTime, LocalDateTime.now())
             .eq(Inventory::getId, inventory.getId())
+            .eq(Inventory::getStock, beforeStock)
             .update();
+        if (!updated) {
+            log.warn("恢复库存CAS失败(库存已被其他操作修改), 重试中: orderNo={}, skuId={}", orderNo, item.getSkuId());
+            // 重试一次：重新读取当前库存再恢复
+            Inventory retry = inventoryService.lambdaQuery()
+                .eq(Inventory::getSkuId, item.getSkuId())
+                .orderByAsc(Inventory::getId)
+                .last("LIMIT 1")
+                .one();
+            if (retry == null) {
+                log.error("恢复库存重试失败: 未找到库存记录 orderNo={}, skuId={}", orderNo, item.getSkuId());
+                return;
+            }
+            int retryBefore = retry.getStock() == null ? 0 : retry.getStock();
+            int retryAfter = retryBefore + item.getQuantity();
+            boolean retryUpdated = inventoryService.lambdaUpdate()
+                .set(Inventory::getStock, retryAfter)
+                .set(Inventory::getUpdateTime, LocalDateTime.now())
+                .eq(Inventory::getId, retry.getId())
+                .eq(Inventory::getStock, retryBefore)
+                .update();
+            if (!retryUpdated) {
+                log.error("恢复库存CAS重试仍失败(需人工介入): orderNo={}, skuId={}", orderNo, item.getSkuId());
+                return;
+            }
+            inventory = retry;
+            beforeStock = retryBefore;
+            afterStock = retryAfter;
+        }
 
         InventoryLog logEntity = new InventoryLog();
         logEntity.setWarehouseId(inventory.getWarehouseId());

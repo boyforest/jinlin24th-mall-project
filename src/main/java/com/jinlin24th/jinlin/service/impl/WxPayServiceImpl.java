@@ -11,6 +11,7 @@ import com.jinlin24th.jinlin.mapper.PaymentRecordMapper;
 import com.jinlin24th.jinlin.mapper.OrderMasterMapper;
 import com.jinlin24th.jinlin.pojo.entity.AppUser;
 import com.jinlin24th.jinlin.pojo.entity.PaymentRecord;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.jinlin24th.jinlin.pojo.entity.OrderMaster;
 import com.jinlin24th.jinlin.pojo.dto.WxPayPrepayDTO;
 import com.jinlin24th.jinlin.pojo.vo.WxPayParamsVO;
@@ -24,6 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.security.PublicKey;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Base64;
@@ -226,7 +228,9 @@ public class WxPayServiceImpl implements WxPayService {
         params.put("amount", amount);
 
         // 2. 发送请求到微信支付
-        String url = wxPayConfig.getApiBaseUrl() + "/v3/refund/domestic/refunds";
+        //String url = wxPayConfig.getApiBaseUrl() + "/v3/refund/domestic/refunds";
+        //这里只能使用相对路径，
+        String url = "/v3/refund/domestic/refunds";
         String response = wxPayClient.sendPost(url, objectMapper.writeValueAsString(params));
 
         // 3. 解析响应
@@ -269,8 +273,17 @@ public class WxPayServiceImpl implements WxPayService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public boolean handlePaymentNotify(String notifyData) throws Exception {
+    public boolean handlePaymentNotify(String wechatpayTimestamp, String wechatpayNonce,
+                                        String wechatpaySignature, String wechatpaySerial,
+                                        String notifyData) throws Exception {
         log.info("处理支付结果通知");
+
+        // 0. 验签：确认回调确实来自微信支付
+        if (!verifyCallbackSignature(wechatpayTimestamp, wechatpayNonce,
+                wechatpaySignature, wechatpaySerial, notifyData)) {
+            log.error("支付回调验签失败，拒绝处理");
+            return false;
+        }
 
         try {
             // 1. 解析JSON通知
@@ -328,17 +341,26 @@ public class WxPayServiceImpl implements WxPayService {
             paymentRecord.setUpdateTime(LocalDateTime.now());
             paymentRecordMapper.updateById(paymentRecord);
 
-            // 5. 更新订单状态
-            OrderMaster orderMaster = orderMasterMapper.selectByOrderNo(outTradeNo);
-            if (orderMaster != null) {
-                orderMaster.setStatus(10); // 待发货
-                orderMaster.setPayType(1); // 微信支付
-                orderMaster.setPayTime(LocalDateTime.now());
-                orderMaster.setUpdateTime(LocalDateTime.now());
-                orderMasterMapper.updateById(orderMaster);
+            // 5. 更新订单状态（CAS：只有待支付状态才能改为已支付，防止与超时取消并发冲突）
+            LambdaUpdateWrapper<OrderMaster> orderUpdateWrapper = new LambdaUpdateWrapper<>();
+            orderUpdateWrapper
+                .set(OrderMaster::getStatus, 10) // 待发货
+                .set(OrderMaster::getPayType, 1) // 微信支付
+                .set(OrderMaster::getPayTime, LocalDateTime.now())
+                .set(OrderMaster::getUpdateTime, LocalDateTime.now())
+                .eq(OrderMaster::getOrderNo, outTradeNo)
+                .eq(OrderMaster::getStatus, 0);  // CAS：只有待支付(0)才能更新
+            boolean orderUpdated = orderMasterMapper.update(null, orderUpdateWrapper) > 0;
+            if (orderUpdated) {
+                log.info("支付回调订单状态更新成功: orderNo={}", outTradeNo);
 
-                // 支付成功后生成分销佣金记录：仅具备分销资格的上级才会产生佣金，distribution.uk_order_id 保证幂等。
-                distributionService.createForPaidOrder(orderMaster);
+                // 支付成功后生成分销佣金记录
+                OrderMaster orderMaster = orderMasterMapper.selectByOrderNo(outTradeNo);
+                if (orderMaster != null) {
+                    distributionService.createForPaidOrder(orderMaster);
+                }
+            } else {
+                log.warn("支付回调订单CAS更新失败(订单状态已变化，可能已被超时取消): orderNo={}", outTradeNo);
             }
 
             log.info("支付处理完成，订单号：{}", outTradeNo);
@@ -351,8 +373,17 @@ public class WxPayServiceImpl implements WxPayService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public boolean handleRefundNotify(String notifyData) throws Exception {
+    public boolean handleRefundNotify(String wechatpayTimestamp, String wechatpayNonce,
+                                       String wechatpaySignature, String wechatpaySerial,
+                                       String notifyData) throws Exception {
         log.info("处理退款结果通知");
+
+        // 0. 验签：确认回调确实来自微信支付
+        if (!verifyCallbackSignature(wechatpayTimestamp, wechatpayNonce,
+                wechatpaySignature, wechatpaySerial, notifyData)) {
+            log.error("退款回调验签失败，拒绝处理");
+            return false;
+        }
 
         try {
             // 1. 解析JSON通知
@@ -405,13 +436,19 @@ public class WxPayServiceImpl implements WxPayService {
             paymentRecord.setUpdateTime(LocalDateTime.now());
             paymentRecordMapper.updateById(paymentRecord);
 
-            // 5. 如果退款成功，更新订单状态
+            // 5. 如果退款成功，更新订单状态（CAS：只有待发货/已发货状态才改为已退款）
             if ("SUCCESS".equals(refundStatus)) {
-                OrderMaster orderMaster = orderMasterMapper.selectByOrderNo(paymentRecord.getOrderNo());
-                if (orderMaster != null) {
-                    orderMaster.setStatus(60); // 已退款
-                    orderMaster.setUpdateTime(LocalDateTime.now());
-                    orderMasterMapper.updateById(orderMaster);
+                LambdaUpdateWrapper<OrderMaster> orderUpdateWrapper = new LambdaUpdateWrapper<>();
+                orderUpdateWrapper
+                    .set(OrderMaster::getStatus, 60) // 已退款
+                    .set(OrderMaster::getUpdateTime, LocalDateTime.now())
+                    .eq(OrderMaster::getOrderNo, paymentRecord.getOrderNo())
+                    .in(OrderMaster::getStatus, 10, 20); // CAS：仅待发货(10)或已发货(20)可退款
+                boolean orderUpdated = orderMasterMapper.update(null, orderUpdateWrapper) > 0;
+                if (orderUpdated) {
+                    log.info("退款回调订单状态更新成功: orderNo={}", paymentRecord.getOrderNo());
+                } else {
+                    log.warn("退款回调订单CAS更新失败(订单状态不满足退款条件): orderNo={}", paymentRecord.getOrderNo());
                 }
 
                 // 退款成功后作废该订单对应佣金，避免财务继续结算。
@@ -423,6 +460,47 @@ public class WxPayServiceImpl implements WxPayService {
         } catch (Exception e) {
             log.error("处理退款回调失败", e);
             throw new Exception("处理退款回调失败：" + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 验证微信支付回调签名
+     * <p>
+     * 根据微信支付 V3 规范，回调签名串格式为:
+     * {@code timestamp + "\n" + nonce + "\n" + body + "\n"}
+     * 使用微信平台公钥 RSA-SHA256 验签。
+     *
+     * @return true 签名有效，false 签名无效或缺失必要参数
+     */
+    private boolean verifyCallbackSignature(String timestamp, String nonce,
+                                             String signature, String serial,
+                                             String body) {
+        if (timestamp == null || nonce == null || signature == null || body == null) {
+            log.warn("回调验签参数缺失: timestamp={}, nonce={}, signature={}, bodyLen={}",
+                    timestamp, nonce, signature, body != null ? body.length() : 0);
+            return false;
+        }
+        try {
+            // 检查时间戳是否在5分钟内
+            long ts = Long.parseLong(timestamp);
+            long now = System.currentTimeMillis() / 1000;
+            if (Math.abs(now - ts) > 300) {
+                log.warn("回调时间戳已过期: timestamp={}, now={}, diff={}s", timestamp, now, Math.abs(now - ts));
+                return false;
+            }
+
+            // 构建验签消息串: timestamp\nnonce\nbody\n
+            String message = timestamp + "\n" + nonce + "\n" + body + "\n";
+
+            PublicKey pubKey = wxPayClient.getWechatPayPublicKey();
+            boolean valid = WxPayUtil.verify(message, signature, "SHA256withRSA", pubKey);
+            if (!valid) {
+                log.warn("回调签名不匹配: serial={}", serial);
+            }
+            return valid;
+        } catch (NumberFormatException e) {
+            log.warn("回调时间戳格式异常: timestamp={}", timestamp, e);
+            return false;
         }
     }
 

@@ -11,6 +11,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.servlet.http.HttpServletRequest;
 import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.Map;
@@ -117,18 +118,20 @@ public class WxPayController {
      * 支付结果通知回调
      */
     @PostMapping("/notify")
-    public String paymentNotify(@RequestBody String notifyData) {
+    public String paymentNotify(HttpServletRequest request,
+                                 @RequestBody String notifyData) {
         try {
             log.info("收到支付回调通知");
 
-            // 解析请求头中的时间戳和随机串
-            // 实际应该从HttpServletRequest中获取，这里简化处理
-
-            // 处理回调
-            boolean success = wxPayService.handlePaymentNotify(notifyData);
+            boolean success = wxPayService.handlePaymentNotify(
+                request.getHeader("Wechatpay-Timestamp"),
+                request.getHeader("Wechatpay-Nonce"),
+                request.getHeader("Wechatpay-Signature"),
+                request.getHeader("Wechatpay-Serial"),
+                notifyData
+            );
 
             if (success) {
-                // 返回成功响应
                 Map<String, Object> response = new HashMap<>();
                 response.put("code", "SUCCESS");
                 response.put("message", "成功");
@@ -156,12 +159,18 @@ public class WxPayController {
      * 退款结果通知回调
      */
     @PostMapping("/refund/notify")
-    public String refundNotify(@RequestBody String notifyData) {
+    public String refundNotify(HttpServletRequest request,
+                                @RequestBody String notifyData) {
         try {
             log.info("收到退款回调通知");
 
-            // 处理回调
-            boolean success = wxPayService.handleRefundNotify(notifyData);
+            boolean success = wxPayService.handleRefundNotify(
+                request.getHeader("Wechatpay-Timestamp"),
+                request.getHeader("Wechatpay-Nonce"),
+                request.getHeader("Wechatpay-Signature"),
+                request.getHeader("Wechatpay-Serial"),
+                notifyData
+            );
 
             if (success) {
                 Map<String, Object> response = new HashMap<>();

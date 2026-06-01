@@ -103,3 +103,4 @@ dump.rdb
 *.docx
 *.pages
 docs/project_learning_plan.md
+.qoder/

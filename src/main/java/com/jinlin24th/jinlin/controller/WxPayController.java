@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jinlin24th.jinlin.common.constant.BizCode;
 import com.jinlin24th.jinlin.common.exception.BizException;
 import com.jinlin24th.jinlin.common.result.Result;
-import com.jinlin24th.jinlin.pojo.dto.WxPayPrepayDTO;
 import com.jinlin24th.jinlin.service.WxPayService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -21,7 +20,6 @@ import java.util.Map;
  */
 @Slf4j
 @RestController
-@RequestMapping("/api/payment")
 @ConditionalOnProperty(prefix = "wx.pay", name = "enabled", havingValue = "true")
 public class WxPayController {
 
@@ -30,94 +28,14 @@ public class WxPayController {
 
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
-    /**
-     * 统一下单（小程序支付）
-     */
-    @PostMapping("/create")
-    public Result<Map<String, String>> createOrder(@RequestBody WxPayPrepayDTO prepayDTO) {
-        throw BizException.badRequest("请使用 /user/order/{id}/pay 发起当前登录用户的订单支付");
-    }
+    // ═══════════════════════════════════════════════════════════
+    // 公开接口（微信支付服务器回调，无需鉴权）
+    // ═══════════════════════════════════════════════════════════
 
     /**
-     * 查询订单
+     * 支付结果通知回调（微信支付服务器调用）
      */
-    @GetMapping("/query/{orderNo}")
-    public Result<String> queryOrder(@PathVariable String orderNo) {
-        try {
-            String result = wxPayService.queryOrder(orderNo);
-            return Result.success(result);
-        } catch (Exception e) {
-            log.error("查询订单失败", e);
-            throw BizException.of(BizCode.WECHAT_PAY_ERROR, "查询订单失败：" + e.getMessage());
-        }
-    }
-
-    /**
-     * 关闭订单
-     */
-    @PostMapping("/close/{orderNo}")
-    public Result<String> closeOrder(@PathVariable String orderNo) {
-        try {
-            wxPayService.closeOrder(orderNo);
-            return Result.success("关闭订单成功");
-        } catch (Exception e) {
-            log.error("关闭订单失败", e);
-            throw BizException.of(BizCode.WECHAT_PAY_ERROR, "关闭订单失败：" + e.getMessage());
-        }
-    }
-
-    /**
-     * 申请退款
-     */
-    @PostMapping("/refund")
-    public Result<String> refund(
-            @RequestParam String orderNo,
-            @RequestParam String refundNo,
-            @RequestParam BigDecimal totalAmount,
-            @RequestParam BigDecimal refundAmount) {
-        try {
-            String refundId = wxPayService.refund(orderNo, refundNo, totalAmount, refundAmount);
-            return Result.success(refundId);
-        } catch (Exception e) {
-            log.error("申请退款失败", e);
-            throw BizException.of(BizCode.WECHAT_PAY_ERROR, "申请退款失败：" + e.getMessage());
-        }
-    }
-
-    /**
-     * 查询退款
-     */
-    @GetMapping("/refund/query/{refundNo}")
-    public Result<String> queryRefund(@PathVariable String refundNo) {
-        try {
-            String result = wxPayService.queryRefund(refundNo);
-            return Result.success(result);
-        } catch (Exception e) {
-            log.error("查询退款失败", e);
-            throw BizException.of(BizCode.WECHAT_PAY_ERROR, "查询退款失败：" + e.getMessage());
-        }
-    }
-
-    /**
-     * 下载对账单
-     */
-    @GetMapping("/bill")
-    public Result<String> downloadBill(
-            @RequestParam String billDate,
-            @RequestParam(defaultValue = "ALL") String billType) {
-        try {
-            String result = wxPayService.downloadBill(billDate, billType);
-            return Result.success(result);
-        } catch (Exception e) {
-            log.error("下载对账单失败", e);
-            throw BizException.of(BizCode.WECHAT_PAY_ERROR, "下载对账单失败：" + e.getMessage());
-        }
-    }
-
-    /**
-     * 支付结果通知回调
-     */
-    @PostMapping("/notify")
+    @PostMapping("/api/payment/notify")
     public String paymentNotify(HttpServletRequest request,
                                  @RequestBody String notifyData) {
         try {
@@ -156,9 +74,9 @@ public class WxPayController {
     }
 
     /**
-     * 退款结果通知回调
+     * 退款结果通知回调（微信支付服务器调用）
      */
-    @PostMapping("/refund/notify")
+    @PostMapping("/api/payment/refund/notify")
     public String refundNotify(HttpServletRequest request,
                                 @RequestBody String notifyData) {
         try {
@@ -193,6 +111,86 @@ public class WxPayController {
             } catch (Exception ex) {
                 return "{\"code\":\"FAIL\",\"message\":\"处理失败\"}";
             }
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 管理端接口（需 AdminJwtInterceptor 鉴权，/admin/** 路径）
+    // ═══════════════════════════════════════════════════════════
+
+    /**
+     * 查询订单
+     */
+    @GetMapping("/admin/payment/query/{orderNo}")
+    public Result<String> queryOrder(@PathVariable String orderNo) {
+        try {
+            String result = wxPayService.queryOrder(orderNo);
+            return Result.success(result);
+        } catch (Exception e) {
+            log.error("查询订单失败", e);
+            throw BizException.of(BizCode.WECHAT_PAY_ERROR, "查询订单失败：" + e.getMessage());
+        }
+    }
+
+    /**
+     * 关闭订单
+     */
+    @PostMapping("/admin/payment/close/{orderNo}")
+    public Result<String> closeOrder(@PathVariable String orderNo) {
+        try {
+            wxPayService.closeOrder(orderNo);
+            return Result.success("关闭订单成功");
+        } catch (Exception e) {
+            log.error("关闭订单失败", e);
+            throw BizException.of(BizCode.WECHAT_PAY_ERROR, "关闭订单失败：" + e.getMessage());
+        }
+    }
+
+    /**
+     * 申请退款
+     */
+    @PostMapping("/admin/payment/refund")
+    public Result<String> refund(
+            @RequestParam String orderNo,
+            @RequestParam String refundNo,
+            @RequestParam BigDecimal totalAmount,
+            @RequestParam BigDecimal refundAmount) {
+        try {
+            String refundId = wxPayService.refund(orderNo, refundNo, totalAmount, refundAmount);
+            return Result.success(refundId);
+        } catch (Exception e) {
+            log.error("申请退款失败", e);
+            throw BizException.of(BizCode.WECHAT_PAY_ERROR, "申请退款失败：" + e.getMessage());
+        }
+    }
+
+    /**
+     * 查询退款
+     */
+    @GetMapping("/admin/payment/refund/query/{refundNo}")
+    public Result<String> queryRefund(@PathVariable String refundNo) {
+        try {
+            String result = wxPayService.queryRefund(refundNo);
+            return Result.success(result);
+        } catch (Exception e) {
+            log.error("查询退款失败", e);
+            throw BizException.of(BizCode.WECHAT_PAY_ERROR, "查询退款失败：" + e.getMessage());
+        }
+    }
+
+    /**
+     * 下载对账单
+     */
+    @GetMapping("/admin/payment/bill")
+    public Result<String> downloadBill(
+            @RequestParam String billDate,
+            @RequestParam(defaultValue = "ALL") String billType) {
+        try {
+            String result = wxPayService.downloadBill(billDate, billType);
+            return Result.success(result);
+        } catch (Exception e) {
+            log.error("下载对账单失败", e);
+            throw BizException.of(BizCode.WECHAT_PAY_ERROR, "下载对账单失败：" + e.getMessage());
         }
     }
 }

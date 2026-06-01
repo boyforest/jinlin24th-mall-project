@@ -30,7 +30,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
         JwtInterceptor jwtInterceptor,
         AdminJwtInterceptor adminJwtInterceptor,
         OperationLogInterceptor operationLogInterceptor,
-        @Value("${app.cors.allowed-origins:*}") String corsAllowedOrigins,
+        @Value("${app.cors.allowed-origins:}") String corsAllowedOrigins,  // 默认不设，生产环境必须显式配置
         @Value("${app.upload.dir:uploads}") String uploadDir
     ) {
         this.jwtInterceptor = jwtInterceptor;
@@ -85,19 +85,15 @@ public class WebMvcConfig implements WebMvcConfigurer {
             .filter(s -> !s.isEmpty())
             .toArray(String[]::new);
         if (origins.length == 0) {
-            origins = new String[] {"*"};
+            // 未配置任何跨域来源：生产环境应显式配置，不开放 * 通配符
+            return;
         }
 
         var reg = registry.addMapping("/**")
             .allowedMethods("*")
             .allowedHeaders("*")
             .exposedHeaders("Authorization")
-            .allowCredentials(true);
-
-        if (origins.length == 1 && "*".equals(origins[0])) {
-            reg.allowedOriginPatterns("*");
-        } else {
-            reg.allowedOrigins(origins);
-        }
+            .allowCredentials(true)
+            .allowedOrigins(origins);
     }
 }

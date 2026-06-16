@@ -132,6 +132,27 @@ public class AppUserServiceImpl extends ServiceImpl<AppUserMapper, AppUser> impl
     }
 
     @Override
+    public AppUserVO updateProfile(Long userId, String nickname, String avatar) {
+        if (userId == null) return null;
+        AppUser user = getById(userId);
+        if (user == null) return null;
+
+        boolean changed = false;
+        if (nickname != null && !nickname.isBlank()) {
+            user.setNickname(nickname.trim());
+            changed = true;
+        }
+        if (avatar != null && !avatar.isBlank()) {
+            user.setAvatar(avatar.trim());
+            changed = true;
+        }
+        if (changed) {
+            updateById(user);
+        }
+        return getUserInfo(userId);
+    }
+
+    @Override
     public AppUserVO bindRecommender(Long userId, Long recommenderUserId) {
         if (userId == null || recommenderUserId == null || recommenderUserId <= 0 || userId.equals(recommenderUserId)) {
             return null;

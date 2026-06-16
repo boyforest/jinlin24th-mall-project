@@ -92,6 +92,23 @@ public class AppUserController {
     }
 
     /**
+     * C 端更新用户资料（昵称/头像）。
+     * 微信新规下，头像昵称必须由用户主动选择/输入，前端拿到后通过此接口保存。
+     */
+    @PutMapping("/me/profile")
+    public Result<AppUserVO> updateProfile(
+        @CurrentUserId Long userId,
+        @RequestParam(required = false) String nickname,
+        @RequestParam(required = false) String avatar
+    ) {
+        AppUserVO updated = appUserService.updateProfile(userId, nickname, avatar);
+        if (updated == null) {
+            throw BizException.badRequest("用户不存在");
+        }
+        return Result.success(updated);
+    }
+
+    /**
      * 退出登录：删除 Redis 中保存的 jti，使当前 token 立即失效
      */
     @PostMapping("/logout")

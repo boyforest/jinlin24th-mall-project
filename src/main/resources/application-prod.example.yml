@@ -1,0 +1,80 @@
+# ============================================================
+# 金霖二十四养 — 生产环境配置模板
+#
+# 使用方式：复制为 application-prod.yml，按实际环境修改后使用
+#   cp application-prod.example.yml application-prod.yml
+#
+# application-prod.yml 已在 .gitignore 中，不会提交到仓库。
+# ============================================================
+
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 300000
+      max-lifetime: 1800000
+      connection-timeout: 30000
+
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD}
+      database: ${REDIS_DATABASE:1}
+      lettuce:
+        pool:
+          max-active: 16
+          max-idle: 8
+          min-idle: 4
+          max-wait: 3000ms
+
+# 生产环境关闭 SQL 日志，避免每条查询都打控制台
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl
+
+# 生产环境禁用 Swagger / OpenAPI 文档
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+# Tomcat 线程池调优
+server:
+  tomcat:
+    threads:
+      max: 200
+      min-spare: 20
+    max-connections: 8192
+    accept-count: 100
+
+# JWT 密钥：必须通过环境变量注入，不设默认值
+jwt:
+  secret: ${JWT_SECRET}
+
+# CORS：必须通过环境变量显式指定允许的域名，不设 localhost 兜底
+app:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS}
+
+# 日志配置：文件输出 + 滚动策略
+logging:
+  level:
+    root: WARN
+    com.jinlin24th.jinlin: INFO
+    org.springframework.web: WARN
+    org.springframework.security: WARN
+    com.baomidou.mybatisplus: WARN
+    org.apache.rocketmq: WARN
+  file:
+    name: /app/logs/jinlin24th.log
+  logback:
+    rollingpolicy:
+      max-file-size: 50MB
+      max-history: 30
+      total-size-cap: 1GB

@@ -38,4 +38,9 @@ public interface AppUserService extends IService<AppUser> {
      * C 端绑定推荐官。MVP 规则：用户未绑定时才允许绑定，推荐官必须已开通分销资格。
      */
     AppUserVO bindRecommender(Long userId, Long recommenderUserId);
+
+    /**
+     * C 端更新用户资料（昵称/头像）。
+     */
+    AppUserVO updateProfile(Long userId, String nickname, String avatar);
 }

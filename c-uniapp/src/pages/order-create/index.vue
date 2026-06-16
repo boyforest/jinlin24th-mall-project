@@ -16,18 +16,23 @@
 
       <view class="card ink-card">
         <view class="title ink-title">商品</view>
-        <view class="row">
-          <text>SKU ID</text>
-          <text>{{ skuId || '-' }}</text>
-        </view>
-        <view class="ink-line"></view>
-        <view class="row">
-          <text>数量</text>
-          <view class="stepper">
-            <text class="step" @click="changeQty(-1)">-</text>
-            <text class="qty">{{ quantity }}</text>
-            <text class="step" @click="changeQty(1)">+</text>
+        <view v-for="(item, idx) in checkoutItems" :key="idx" class="item-row">
+          <view class="row">
+            <text>SKU ID</text>
+            <text>{{ item.skuId }}</text>
           </view>
+          <view class="row">
+            <text>数量</text>
+            <view class="stepper">
+              <text class="step" @click="changeItemQty(idx, -1)">-</text>
+              <text class="qty">{{ item.quantity }}</text>
+              <text class="step" @click="changeItemQty(idx, 1)">+</text>
+            </view>
+          </view>
+          <view class="ink-line"></view>
+        </view>
+        <view class="row">
+          <text>共 {{ totalQuantity }} 件</text>
         </view>
       </view>
 
@@ -67,11 +72,12 @@ import { reactive, ref } from 'vue'
 import { createOrder } from '@/api/order'
 import { createOrderPayment, requestMiniAppPayment } from '@/api/payment'
 import { bindRecommender, getRecommender, type AppUserVO } from '@/api/user'
+import { useCartStore } from '@/stores/cart'
 
-const productId = ref<number>(0)
-const skuId = ref<number>(0)
-const quantity = ref(1)
+const cartStore = useCartStore()
+const checkoutItems = ref<Array<{ skuId: number; quantity: number }>>([])
 const submitting = ref(false)
+const totalQuantity = ref(0)
 const binding = ref(false)
 const recommender = ref<AppUserVO | null>(null)
 const recommenderInput = ref('')
@@ -82,8 +88,10 @@ const form = reactive({
   remark: '',
 })
 
-function changeQty(delta: number) {
-  quantity.value = Math.max(1, quantity.value + delta)
+function changeItemQty(idx: number, delta: number) {
+  const next = Math.max(1, checkoutItems.value[idx].quantity + delta)
+  checkoutItems.value[idx] = { ...checkoutItems.value[idx], quantity: next }
+  totalQuantity.value = checkoutItems.value.reduce((sum, item) => sum + item.quantity, 0)
 }
 
 async function loadRecommender() {
@@ -113,8 +121,8 @@ async function bind() {
 }
 
 async function submit() {
-  if (!skuId.value) {
-    uni.showToast({ title: '缺少 SKU', icon: 'none' })
+  if (!checkoutItems.value.length) {
+    uni.showToast({ title: '暂无商品', icon: 'none' })
     return
   }
   if (!form.receiverName || !form.receiverPhone || !form.receiverAddress) {
@@ -132,8 +140,9 @@ async function submit() {
       receiverPhone: form.receiverPhone,
       receiverAddress: form.receiverAddress,
       remark: form.remark,
-      items: [{ skuId: skuId.value, quantity: quantity.value }],
+      items: checkoutItems.value.map((i) => ({ skuId: i.skuId, quantity: i.quantity })),
     })
+    cartStore.clearCheckoutItems()
     try {
       const payParams = await createOrderPayment(order.id)
       await requestMiniAppPayment(payParams)
@@ -155,9 +164,15 @@ async function submit() {
   }
 }
 
-onLoad((options) => {
-  productId.value = Number((options as any)?.productId || 0)
-  skuId.value = Number((options as any)?.skuId || 0)
+onLoad(() => {
+  const items = cartStore.checkoutItems
+  if (!items.length) {
+    uni.showToast({ title: '请先选择商品', icon: 'none' })
+    setTimeout(() => uni.navigateBack(), 1000)
+    return
+  }
+  checkoutItems.value = items.map((i) => ({ ...i }))
+  totalQuantity.value = checkoutItems.value.reduce((sum, item) => sum + item.quantity, 0)
   loadRecommender()
 })
 </script>
@@ -232,6 +247,12 @@ onLoad((options) => {
   border-radius: 16rpx;
   margin-bottom: 14rpx;
   font-size: 28rpx;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+.input:focus,
+.textarea:focus {
+  border-color: rgba(95, 143, 75, 0.52);
+  box-shadow: 0 0 0 4rpx rgba(111, 159, 88, 0.06);
 }
 .input {
   height: 84rpx;
@@ -304,10 +325,23 @@ onLoad((options) => {
   border-radius: 12rpx;
   background: rgba(255, 255, 255, 0.72);
 }
-.step,
+.step {
+  min-width: 56rpx;
+  text-align: center;
+  line-height: 52rpx;
+  transition: all 0.12s ease;
+}
+.step:active {
+  background: rgba(134, 193, 102, 0.12);
+  border-radius: 50%;
+  transform: scale(0.85);
+}
 .qty {
   min-width: 56rpx;
   text-align: center;
   line-height: 52rpx;
+}
+.item-row .row {
+  padding: 12rpx 0;
 }
 </style>

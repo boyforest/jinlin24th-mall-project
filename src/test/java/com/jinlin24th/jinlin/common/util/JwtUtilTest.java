@@ -32,10 +32,11 @@ class JwtUtilTest {
     @Test
     void shouldGenerateAdminToken() {
         JwtUtil jwtUtil = new JwtUtil("0123456789abcdef0123456789abcdef", 60_000);
-        String token = jwtUtil.generateAdminToken("admin");
+        String token = jwtUtil.generateAdminToken(1L, "admin");
         assertTrue(jwtUtil.validateToken(token));
         assertEquals("admin", jwtUtil.getSubjectFromToken(token));
         assertEquals(JwtUtil.TOKEN_TYPE_ADMIN, jwtUtil.getTokenType(token));
+        assertEquals(1L, jwtUtil.getAdminIdFromToken(token));
     }
 
     @Test

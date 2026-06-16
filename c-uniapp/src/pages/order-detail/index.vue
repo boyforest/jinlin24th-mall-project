@@ -172,6 +172,11 @@ onLoad((options) => {
   font-size: 30rpx;
   margin-bottom: 14rpx;
 }
+/* 状态标签过渡 */
+:deep(.ink-tag) {
+  transition: all 0.3s ease;
+}
+
 .pay-btn {
   margin-top: 12rpx;
 }

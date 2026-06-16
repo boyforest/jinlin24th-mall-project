@@ -37,7 +37,14 @@ async function doLogin() {
       uni.navigateBack()
     }
   } catch (e: any) {
-    uni.showToast({ title: e?.message || '登录失败', icon: 'none' })
+    // 真机调试：打开控制台查看完整错误
+    console.error('[Login] 登录失败详情', {
+      message: e?.message,
+      errMsg: e?.errMsg,
+      statusCode: e?.statusCode,
+      raw: JSON.stringify(e),
+    })
+    uni.showToast({ title: e?.message || '登录失败', icon: 'none', duration: 3000 })
   }
 }
 
@@ -58,12 +65,36 @@ function isTabBarPage(url: string) {
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  position: relative;
+}
+.login-visual::before {
+  content: "";
+  position: absolute;
+  width: 520rpx;
+  height: 520rpx;
+  border-radius: 46% 54% 48% 52%;
+  background: radial-gradient(circle at 40% 38%, rgba(176, 219, 165, 0.26), transparent 62%);
+  filter: blur(20rpx);
+  pointer-events: none;
+  animation: logo-aura 5s ease-in-out infinite;
+}
+@keyframes logo-aura {
+  0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.7; }
+  50%      { transform: scale(1.08) rotate(3deg); opacity: 1; }
 }
 .official-logo {
   width: 560rpx;
+  position: relative;
+  z-index: 1;
+  animation: logo-breathe 5s ease-in-out infinite;
+}
+@keyframes logo-breathe {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.03); }
 }
 .card {
   padding: 36rpx;
+  box-shadow: 0 8rpx 28rpx rgba(79, 123, 66, 0.12);
 }
 .title {
   font-size: 40rpx;

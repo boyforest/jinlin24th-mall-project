@@ -59,7 +59,7 @@ public class SmsMessageConsumer implements RocketMQListener<String> {
         } catch (Exception e) {
             redisUtil.delete(consumedKey);
             log.error("短信消息消费失败，等待 RocketMQ 重试: messageKey={}, phone={}",
-                dto.getMessageKey(), dto.getPhone(), e);
+                dto.getMessageKey(), maskPhone(dto.getPhone()), e);
             throw e;
         }
     }
@@ -87,7 +87,7 @@ public class SmsMessageConsumer implements RocketMQListener<String> {
      */
     private void sendSms(SmsMessageDTO dto) {
         log.info("模拟发送短信成功: type={}, phone={}, templateCode={}, params={}, bizNo={}",
-            dto.getSmsType(), dto.getPhone(), dto.getTemplateCode(), dto.getParams(), dto.getBizNo());
+            dto.getSmsType(), maskPhone(dto.getPhone()), dto.getTemplateCode(), dto.getParams(), dto.getBizNo());
     }
 
     /**
@@ -101,5 +101,10 @@ public class SmsMessageConsumer implements RocketMQListener<String> {
         } catch (Exception e) {
             log.error("短信坏消息暂存失败", e);
         }
+    }
+
+    private String maskPhone(String phone) {
+        if (phone == null || phone.length() < 7) return "***";
+        return phone.substring(0, 3) + "****" + phone.substring(phone.length() - 4);
     }
 }

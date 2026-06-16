@@ -50,13 +50,13 @@ public class SmsServiceImpl implements SmsService {
             redisUtil.set(codeKey(normalizedPhone, normalizedScene), code, codeTtl);
             SmsMessageProducer producer = smsMessageProducerProvider.getIfAvailable();
             if (producer == null) {
-                log.info("RocketMQ 未开启，验证码仅写入 Redis: phone={}, scene={}, code={}",
-                    normalizedPhone, normalizedScene, code);
+                log.info("RocketMQ 未开启，验证码已写入 Redis: phone={}, scene={}",
+                    maskPhone(normalizedPhone), normalizedScene);
                 return true;
             }
             return producer.sendVerifyCode(normalizedPhone, code);
         } catch (Exception e) {
-            log.error("发送短信验证码失败: phone={}, scene={}", normalizedPhone, normalizedScene, e);
+            log.error("发送短信验证码失败: phone={}, scene={}", maskPhone(normalizedPhone), normalizedScene, e);
             throw BizException.badRequest("短信验证码发送失败，请稍后重试");
         }
     }
@@ -79,7 +79,7 @@ public class SmsServiceImpl implements SmsService {
             }
             return passed;
         } catch (Exception e) {
-            log.error("校验短信验证码失败: phone={}, scene={}", normalizedPhone, normalizedScene, e);
+            log.error("校验短信验证码失败: phone={}, scene={}", maskPhone(normalizedPhone), normalizedScene, e);
             return false;
         }
     }
@@ -106,5 +106,10 @@ public class SmsServiceImpl implements SmsService {
             throw BizException.badRequest(message);
         }
         return value.trim();
+    }
+
+    private String maskPhone(String phone) {
+        if (phone == null || phone.length() < 7) return "***";
+        return phone.substring(0, 3) + "****" + phone.substring(phone.length() - 4);
     }
 }

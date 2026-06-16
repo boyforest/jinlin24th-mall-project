@@ -11,7 +11,7 @@
         <view class="gallery ink-card">
           <swiper v-if="galleryImages.length" class="cover-swiper" circular indicator-dots>
             <swiper-item v-for="image in galleryImages" :key="image">
-              <image class="cover" :src="image" mode="aspectFill" @click="previewImage(image)" />
+              <image class="cover" :src="image" mode="aspectFill" lazy-load @click="previewImage(image)" />
             </swiper-item>
           </swiper>
           <view v-else class="cover placeholder">JL</view>
@@ -175,8 +175,16 @@ onLoad((options) => {
   width: 100%;
   height: 520rpx;
 }
+/* 轮播指示点品牌色覆盖 */
+:deep(.uni-swiper-dot) {
+  background: rgba(111, 159, 88, 0.28);
+}
+:deep(.uni-swiper-dot-active) {
+  background: #5f8f4b;
+}
+
 .cover {
-  border-radius: 20rpx;
+  border-radius: 22rpx;
   background: #f0f7ef;
 }
 .cover.placeholder {
@@ -270,10 +278,12 @@ onLoad((options) => {
   border-radius: 16rpx;
   margin-bottom: 14rpx;
   background: rgba(255, 255, 255, 0.64);
+  transition: all 0.25s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 .sku.active {
   border-color: rgba(111, 159, 88, 0.62);
   background: linear-gradient(135deg, rgba(111, 159, 88, 0.13), rgba(207, 226, 200, 0.2));
+  box-shadow: 0 2rpx 12rpx rgba(111, 159, 88, 0.08);
 }
 .sku.disabled {
   opacity: 0.45;
@@ -314,5 +324,11 @@ onLoad((options) => {
   grid-template-columns: 1fr 1fr;
   gap: 16rpx;
   margin-top: 32rpx;
+}
+.actions button {
+  transition: all 0.22s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.actions button:active {
+  transform: scale(0.97);
 }
 </style>

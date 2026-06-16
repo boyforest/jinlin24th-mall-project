@@ -71,8 +71,7 @@ public class OrderServiceImpl implements OrderService {
     private ObjectProvider<SmsMessageProducer> smsMessageProducerProvider;
 
     @Override
-    @Transactional
-    //@Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class)
     public OrderVO create(Long userId, OrderCreateDTO dto) {
         // 下单（简化版）：
         // 1) 校验入参

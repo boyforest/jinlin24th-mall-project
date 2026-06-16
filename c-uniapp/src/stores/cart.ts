@@ -2,10 +2,16 @@ import { defineStore } from 'pinia'
 import { addCart, deleteCart, listCart, updateCart, type CartVO } from '@/api/cart'
 import { money, requireLogin } from '@/utils/auth'
 
+export interface CheckoutItem {
+  skuId: number
+  quantity: number
+}
+
 export const useCartStore = defineStore('cart', {
   state: () => ({
     items: [] as CartVO[],
     loading: false,
+    checkoutItems: [] as CheckoutItem[],
   }),
   getters: {
     totalCount: (state) => state.items.reduce((sum, item) => sum + Number(item.quantity || 0), 0),
@@ -69,6 +75,12 @@ export const useCartStore = defineStore('cart', {
     async remove(id: number) {
       await deleteCart(id)
       this.items = this.items.filter((item) => item.id !== id)
+    },
+    setCheckoutItems(items: CheckoutItem[]) {
+      this.checkoutItems = items
+    },
+    clearCheckoutItems() {
+      this.checkoutItems = []
     },
   },
 })

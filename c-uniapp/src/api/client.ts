@@ -59,6 +59,13 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     }
     return body.data
   } catch (error: any) {
+    // 调试日志：真机调试时可在控制台看到完整错误信息
+    console.error('[API] 请求失败', {
+      url: joinUrl(API_BASE_URL, path),
+      method,
+      error: error?.message || error,
+      raw: error,
+    })
     if (showErrorToast) {
       uni.showToast({ title: error?.message || '请求失败', icon: 'none' })
     }

@@ -1,7 +1,8 @@
 import { PAGE_URLS } from '@/config/app'
 import { getToken } from '@/utils/storage'
+import { money } from '@/utils/format'
 
-export { money } from '@/utils/format'
+export { money }
 
 /**
  * C 端页面登录守卫。

@@ -51,3 +51,11 @@ export function bindRecommender(recommenderUserId: number) {
     data: { recommenderUserId },
   })
 }
+
+export function updateProfile(params: { nickname?: string; avatar?: string }) {
+  const query = Object.entries(params)
+    .filter(([, v]) => v !== undefined && v !== null)
+    .map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`)
+    .join('&')
+  return apiRequest<AppUserVO>(`/user/appUser/me/profile?${query}`, { method: 'PUT' })
+}

@@ -100,8 +100,13 @@ public class JwtUtil {
         return generateToken(userId, generateJti());
     }
 
-    public String generateAdminToken(String adminName) {
-        return generateAdminToken(adminName, generateJti());
+    /**
+     * 生成管理员 Token（便捷方法，自动生成 jti）。
+     * <p>
+     * 主要用于测试；生产代码应直接调用三参数版本以明确传入 adminId。
+     */
+    public String generateAdminToken(Long adminId, String adminName) {
+        return generateAdminToken(adminId, adminName, generateJti());
     }
 
     /**

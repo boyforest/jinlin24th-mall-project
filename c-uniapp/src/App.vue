@@ -19,6 +19,18 @@ page {
   background: #f4f9f0;
   color: #2d2d2d;
   font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+  animation: page-enter 0.48s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+@keyframes page-enter {
+  from { opacity: 0; transform: translateY(12rpx); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* 文字选中色 */
+::selection {
+  background: rgba(134, 193, 102, 0.22);
+  color: #2d2d2d;
 }
 
 view,
@@ -44,6 +56,8 @@ button::after {
   min-height: 100vh;
   padding: 32rpx;
   background:
+    repeating-linear-gradient(0deg, transparent, transparent 3rpx, rgba(155, 186, 145, 0.06) 3rpx, rgba(155, 186, 145, 0.06) 3.5rpx),
+    repeating-linear-gradient(90deg, transparent, transparent 5rpx, rgba(175, 200, 165, 0.04) 5rpx, rgba(175, 200, 165, 0.04) 5.5rpx),
     radial-gradient(circle at 12% 4%, rgba(255, 255, 255, 0.9), transparent 30%),
     radial-gradient(circle at 88% 8%, rgba(176, 219, 165, 0.42), transparent 32%),
     radial-gradient(circle at 16% 78%, rgba(227, 241, 220, 0.72), transparent 30%),
@@ -126,6 +140,7 @@ button::after {
   border-radius: 24rpx;
   box-shadow: 0 6rpx 20rpx rgba(79, 123, 66, 0.09);
   overflow: hidden;
+  transition: box-shadow 0.35s ease, transform 0.35s ease;
 }
 
 .ink-card::before {
@@ -136,6 +151,11 @@ button::after {
     radial-gradient(circle at 16% 12%, rgba(147, 188, 128, 0.12), transparent 30%),
     linear-gradient(135deg, rgba(247, 248, 250, 0.36), transparent 46%);
   pointer-events: none;
+}
+
+.ink-card:active {
+  transform: translateY(1rpx);
+  opacity: 0.92;
 }
 
 .ink-title {
@@ -187,6 +207,7 @@ button::after {
   border-radius: 16rpx;
   font-size: 28rpx;
   overflow: hidden;
+  transition: all 0.22s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
 .ink-btn-primary {
@@ -195,17 +216,51 @@ button::after {
   box-shadow: 0 8rpx 22rpx rgba(111, 159, 88, 0.2);
 }
 
+.ink-btn-primary:active {
+  transform: scale(0.97);
+  box-shadow: 0 4rpx 12rpx rgba(111, 159, 88, 0.16);
+  opacity: 0.92;
+}
+
 .ink-btn-secondary {
   color: #2d2d2d;
   background: rgba(255, 255, 255, 0.84);
   border: 1rpx solid rgba(111, 159, 88, 0.36);
 }
 
-.ink-btn-primary:active,
-.ink-btn-secondary:active,
-.ink-card:active {
-  transform: translateY(1rpx);
+.ink-btn-secondary:active {
+  transform: scale(0.97);
+  background: rgba(240, 247, 235, 0.9);
   opacity: 0.92;
+}
+
+/* 搜索框获焦反馈 */
+.ink-search:focus-within {
+  border-color: rgba(79, 123, 66, 0.54);
+  box-shadow: 0 4rpx 20rpx rgba(111, 159, 88, 0.12);
+}
+
+/* 操作文字链接按压反馈 */
+.refresh:active,
+.delete:active,
+.remove:active,
+.drawer-action:active,
+.search-clear:active {
+  opacity: 0.55;
+  transition: opacity 0.15s ease;
+}
+
+/* 步进器按钮按压 */
+.step:active {
+  background: rgba(111, 159, 88, 0.1);
+  transform: scale(0.85);
+  border-radius: 50%;
+  transition: all 0.12s ease;
+}
+
+/* 分类项过渡动画 */
+.category-item {
+  transition: all 0.2s ease;
 }
 
 .ink-search {
@@ -271,7 +326,7 @@ button::after {
   border-top-color: #4f7b42;
   border-right-color: rgba(176, 73, 63, 0.46);
   border-radius: 50% 46% 52% 44%;
-  animation: ink-rotate 1.3s ease-in-out infinite;
+  animation: ink-rotate 1.3s ease-in-out infinite, ink-glow 2.4s ease-in-out infinite;
   box-shadow: 0 0 18rpx rgba(111, 159, 88, 0.08);
 }
 
@@ -328,11 +383,12 @@ button::after {
 }
 
 @keyframes ink-rotate {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes ink-glow {
+  0%, 100% { box-shadow: 0 0 8rpx rgba(111, 159, 88, 0.04); }
+  50%      { box-shadow: 0 0 28rpx rgba(111, 159, 88, 0.14); }
 }
 </style>

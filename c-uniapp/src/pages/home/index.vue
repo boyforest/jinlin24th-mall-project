@@ -98,14 +98,13 @@
           <view v-else-if="error" class="hint error">{{ error }}</view>
           <view v-else-if="items.length === 0" class="ink-empty ink-card">
             <view class="ink-empty-art"></view>
-            <text class="ink-empty-title">暂无养物</text>
-            <text class="ink-empty-sub">换个分类再看看</text>
+            <text class="ink-empty-title">{{ searchKeyword ? '未寻到此味' : '暂无养物' }}</text>
+            <text class="ink-empty-sub">{{ searchKeyword ? '换一味草木，再寻节气' : '换个分类再看看' }}</text>
           </view>
 
           <view v-else class="goods-list">
             <view v-for="item in items" :key="item.id" class="goods-card ink-card" @click="goDetail(item.id)">
-              <image v-if="item.mainImage" class="goods-cover" :src="item.mainImage" mode="aspectFill" />
-              <view v-else class="goods-cover placeholder">JL</view>
+              <image v-if="item.mainImage" class="goods-cover" :src="item.mainImage" mode="aspectFill" lazy-load />
               <view class="goods-meta">
                 <text class="goods-name ink-title">{{ item.name }}</text>
                 <text class="goods-sub">{{ item.subtitle || '顺时滋补，草本新养' }}</text>
@@ -131,7 +130,7 @@
         <view v-if="cart.items.length === 0" class="drawer-empty">暂无养物</view>
         <view v-for="item in cart.items" :key="item.id" class="drawer-item">
           <text class="check" :class="{ checked: item.checked !== 0 }" @click="cart.setChecked(item, item.checked === 0 ? 1 : 0)">✓</text>
-          <image v-if="item.productMainImage" class="drawer-cover" :src="item.productMainImage" mode="aspectFill" />
+          <image v-if="item.productMainImage" class="drawer-cover" :src="item.productMainImage" mode="aspectFill" lazy-load />
           <view class="drawer-meta">
             <text class="drawer-name">{{ item.productName }}</text>
             <text class="drawer-spec">{{ item.skuName }}</text>
@@ -333,12 +332,12 @@ function toggleAll() {
 
 function goCheckout() {
   if (!requireLogin('/pages/home/index')) return
-  const first = cart.checkedItems[0]
-  if (!first) {
+  if (!cart.checkedItems.length) {
     uni.showToast({ title: '请先选择养物', icon: 'none' })
     return
   }
-  uni.navigateTo({ url: `/pages/order-create/index?skuId=${first.skuId}` })
+  cart.setCheckoutItems(cart.checkedItems.map((i) => ({ skuId: i.skuId, quantity: i.quantity })))
+  uni.navigateTo({ url: '/pages/order-create/index' })
 }
 
 onShow(() => {
@@ -357,7 +356,7 @@ onReachBottom(loadMore)
 }
 .hero {
   min-height: 1040rpx;
-  padding: 48rpx 34rpx 52rpx;
+  padding: 52rpx 34rpx 60rpx;
   border-radius: 30rpx;
   background:
     radial-gradient(circle at 18% 7%, rgba(255, 255, 255, 0.95), transparent 34%),
@@ -404,14 +403,14 @@ onReachBottom(loadMore)
   align-items: center;
 }
 .brand-row {
-  opacity: 0.82;
+  opacity: 0.92;
 }
 .official-logo {
-  width: 520rpx;
-  opacity: 0.72;
+  width: 540rpx;
+  opacity: 0.88;
 }
 .solar-term {
-  margin-top: 160rpx;
+  margin-top: 148rpx;
 }
 .lunar-date {
   color: rgba(45, 45, 45, 0.8);
@@ -436,6 +435,13 @@ onReachBottom(loadMore)
   font-size: 132rpx;
   font-weight: 700;
   line-height: 0.92;
+  text-shadow: 0 2rpx 8rpx rgba(79, 123, 66, 0.12);
+  animation: term-float 4s ease-in-out infinite;
+}
+
+@keyframes term-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-6rpx); }
 }
 .term-en {
   margin: 24rpx 0 20rpx;
@@ -567,35 +573,37 @@ onReachBottom(loadMore)
 .market {
   display: flex;
   align-items: flex-start;
-  gap: 18rpx;
+  gap: 22rpx;
 }
 .category-side {
-  width: 120rpx;
+  width: 142rpx;
   height: 920rpx;
   flex: none;
 }
 .category-item {
   position: relative;
-  min-height: 92rpx;
-  padding: 18rpx 8rpx;
-  margin-bottom: 14rpx;
-  border-radius: 18rpx;
+  min-height: 96rpx;
+  padding: 20rpx 10rpx;
+  margin-bottom: 16rpx;
+  border-radius: 20rpx;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #5f665d;
-  font-family: "Songti SC", "STSong", serif;
-  font-size: 25rpx;
+  font-family: "STKaiti", "KaiTi", "Songti SC", "STSong", serif;
+  font-size: 26rpx;
   text-align: center;
-  background: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.78);
   border: 1rpx solid rgba(111, 159, 88, 0.14);
 }
 .category-item.active {
-  color: #263322;
+  color: #1e2d1a;
   font-weight: 700;
+  border-color: rgba(111, 159, 88, 0.42);
   background:
-    radial-gradient(circle at 20% 14%, rgba(255, 255, 255, 0.8), transparent 34%),
-    linear-gradient(135deg, rgba(111, 159, 88, 0.28), rgba(207, 226, 200, 0.54));
+    radial-gradient(circle at 20% 14%, rgba(255, 255, 255, 0.88), transparent 34%),
+    linear-gradient(135deg, rgba(111, 159, 88, 0.32), rgba(200, 224, 190, 0.56));
+  box-shadow: 0 4rpx 16rpx rgba(111, 159, 88, 0.12);
 }
 .category-badge {
   position: absolute;
@@ -645,31 +653,34 @@ onReachBottom(loadMore)
 .goods-list {
   display: flex;
   flex-direction: column;
-  gap: 18rpx;
+  gap: 24rpx;
   padding-bottom: 28rpx;
 }
 .goods-card {
   display: flex;
   align-items: center;
   min-height: 210rpx;
-  padding: 16rpx;
+  padding: 18rpx;
+  animation: card-rise 0.5s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+.goods-card:nth-child(1) { animation-delay: 0.04s; }
+.goods-card:nth-child(2) { animation-delay: 0.09s; }
+.goods-card:nth-child(3) { animation-delay: 0.14s; }
+.goods-card:nth-child(4) { animation-delay: 0.19s; }
+.goods-card:nth-child(5) { animation-delay: 0.24s; }
+
+@keyframes card-rise {
+  from { opacity: 0; transform: translateY(18rpx); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 .goods-cover {
   position: relative;
   z-index: 1;
-  width: 156rpx;
-  height: 156rpx;
-  border-radius: 12rpx;
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: 18rpx;
   background: #eef6eb;
   flex: none;
-}
-.goods-cover.placeholder {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #5f8f4b;
-  font-family: Georgia, "Times New Roman", serif;
-  font-weight: 700;
 }
 .goods-meta {
   position: relative;
@@ -698,8 +709,8 @@ onReachBottom(loadMore)
 }
 .goods-price {
   display: block;
-  margin-top: 10rpx;
-  font-size: 30rpx;
+  margin-top: 12rpx;
+  font-size: 32rpx;
 }
 .add-btn {
   position: relative;
@@ -714,6 +725,11 @@ onReachBottom(loadMore)
   background: #5f8f4b;
   font-size: 36rpx;
   box-shadow: 0 8rpx 18rpx rgba(95, 143, 75, 0.24);
+  transition: all 0.18s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.add-btn:active {
+  transform: scale(0.82);
+  background: #4f7b42;
 }
 .more-tip,
 .drawer-empty {
@@ -740,7 +756,7 @@ onReachBottom(loadMore)
   background: rgba(253, 253, 251, 0.98);
   box-shadow: 0 -14rpx 36rpx rgba(79, 123, 66, 0.16);
   overflow: hidden;
-  transition: height 0.22s ease;
+  transition: height 0.28s cubic-bezier(0.32, 0.72, 0, 0.95);
 }
 .cart-drawer.open {
   height: 720rpx;
@@ -834,41 +850,55 @@ onReachBottom(loadMore)
   position: fixed;
   left: 28rpx;
   right: 28rpx;
-  bottom: 24rpx;
+  bottom: 28rpx;
   z-index: 30;
-  height: 104rpx;
-  padding: 14rpx 16rpx;
-  border-radius: 999rpx;
+  height: 108rpx;
+  padding: 12rpx 18rpx 12rpx 14rpx;
+  border-radius: 22rpx;
   display: flex;
   align-items: center;
-  background: rgba(43, 56, 38, 0.96);
-  box-shadow: 0 14rpx 34rpx rgba(43, 56, 38, 0.24);
+  background: rgba(253, 252, 248, 0.94);
+  border: 1rpx solid rgba(111, 159, 88, 0.16);
+  box-shadow:
+    0 10rpx 32rpx rgba(79, 123, 66, 0.1),
+    0 2rpx 8rpx rgba(45, 45, 45, 0.04);
+  backdrop-filter: blur(12rpx);
+  transition: box-shadow 0.35s ease;
 }
 .basket-mark {
   position: relative;
-  width: 76rpx;
-  height: 76rpx;
+  width: 82rpx;
+  height: 82rpx;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #eef6eb;
-  color: #5f8f4b;
-  font-family: "Songti SC", "STSong", serif;
+  background: rgba(253, 251, 247, 0.9);
+  border: 2.5rpx double rgba(79, 123, 66, 0.42);
+  color: #4f7b42;
+  font-family: "STKaiti", "KaiTi", "Songti SC", "STSong", serif;
+  font-size: 28rpx;
+  box-shadow: inset 0 0 0 1rpx rgba(79, 123, 66, 0.08);
+  animation: seal-glow 3s ease-in-out infinite;
+}
+@keyframes seal-glow {
+  0%, 100% { box-shadow: inset 0 0 0 1rpx rgba(79, 123, 66, 0.04); }
+  50%      { box-shadow: inset 0 0 0 1rpx rgba(79, 123, 66, 0.14), 0 0 12rpx rgba(111, 159, 88, 0.08); }
 }
 .basket-count {
   position: absolute;
   right: -4rpx;
-  top: -8rpx;
-  min-width: 30rpx;
-  height: 30rpx;
-  padding: 0 6rpx;
+  top: -4rpx;
+  min-width: 28rpx;
+  height: 28rpx;
+  padding: 0 5rpx;
   border-radius: 999rpx;
-  background: #b0493f;
+  background: #b64f45;
   color: #fff;
-  font-size: 18rpx;
-  line-height: 30rpx;
+  font-size: 16rpx;
+  line-height: 28rpx;
   text-align: center;
+  box-shadow: 0 1rpx 4rpx rgba(182, 79, 69, 0.3);
 }
 .basket-copy {
   flex: 1;
@@ -876,22 +906,30 @@ onReachBottom(loadMore)
 }
 .basket-title {
   display: block;
-  color: #fff;
+  color: #2d2d2d;
   font-size: 28rpx;
+  letter-spacing: 1rpx;
 }
 .basket-sub {
   display: block;
   margin-top: 4rpx;
-  color: rgba(255, 255, 255, 0.68);
+  color: #6f7b68;
   font-size: 22rpx;
 }
 .checkout-btn {
-  width: 166rpx;
-  height: 68rpx;
-  border-radius: 999rpx;
-  line-height: 68rpx;
-  color: #263322;
-  background: #d8ebce;
+  width: 160rpx;
+  height: 72rpx;
+  border-radius: 18rpx;
+  line-height: 72rpx;
+  color: #fff;
+  background: linear-gradient(135deg, #5f8f4b, #86c166);
   font-size: 26rpx;
+  font-weight: 500;
+  box-shadow: 0 4rpx 14rpx rgba(95, 143, 75, 0.22);
+  transition: all 0.22s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.checkout-btn:active {
+  transform: scale(0.96);
+  box-shadow: 0 2rpx 8rpx rgba(95, 143, 75, 0.14);
 }
 </style>

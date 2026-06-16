@@ -22,7 +22,7 @@
 
       <view v-else class="list">
         <view v-for="item in items" :key="item.id" class="cart-card ink-card">
-          <image v-if="item.productMainImage" class="cover" :src="item.productMainImage" mode="aspectFill" />
+          <image v-if="item.productMainImage" class="cover" :src="item.productMainImage" mode="aspectFill" lazy-load />
           <view v-else class="cover placeholder">JL</view>
           <view class="meta">
             <text class="name ink-title">{{ item.productName }}</text>
@@ -56,6 +56,9 @@ import { onShow } from '@dcloudio/uni-app'
 import { computed, ref } from 'vue'
 import { deleteCart, listCart, updateCart, type CartVO } from '@/api/cart'
 import { money, requireLogin } from '@/utils/auth'
+import { useCartStore } from '@/stores/cart'
+
+const cartStore = useCartStore()
 
 const items = ref<CartVO[]>([])
 const loading = ref(false)
@@ -99,8 +102,8 @@ async function remove(id: number) {
 
 function goCreateOrder() {
   if (!items.value.length) return
-  const skuId = items.value[0].skuId
-  uni.navigateTo({ url: `/pages/order-create/index?skuId=${skuId}` })
+  cartStore.setCheckoutItems(items.value.map((i) => ({ skuId: i.skuId, quantity: i.quantity })))
+  uni.navigateTo({ url: '/pages/order-create/index' })
 }
 
 function goHome() {
@@ -151,6 +154,17 @@ onShow(load)
 .cart-card {
   display: flex;
   padding: 18rpx;
+  animation: cart-item-in 0.4s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+.cart-card:nth-child(1) { animation-delay: 0.03s; }
+.cart-card:nth-child(2) { animation-delay: 0.08s; }
+.cart-card:nth-child(3) { animation-delay: 0.13s; }
+.cart-card:nth-child(4) { animation-delay: 0.18s; }
+.cart-card:nth-child(5) { animation-delay: 0.23s; }
+
+@keyframes cart-item-in {
+  from { opacity: 0; transform: translateX(-16rpx); }
+  to   { opacity: 1; transform: translateX(0); }
 }
 .cover {
   width: 156rpx;
@@ -196,7 +210,17 @@ onShow(load)
   border-radius: 12rpx;
   background: rgba(255, 255, 255, 0.72);
 }
-.step,
+.step {
+  min-width: 52rpx;
+  text-align: center;
+  line-height: 48rpx;
+  transition: all 0.12s ease;
+}
+.step:active {
+  background: rgba(111, 159, 88, 0.1);
+  border-radius: 50%;
+  transform: scale(0.85);
+}
 .qty {
   min-width: 52rpx;
   text-align: center;
@@ -209,10 +233,12 @@ onShow(load)
   bottom: 0;
   padding: 18rpx 32rpx;
   background: rgba(253, 253, 251, 0.96);
+  backdrop-filter: blur(10rpx);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  box-shadow: 0 -4rpx 16rpx rgba(134, 193, 102, 0.1);
+  box-shadow: 0 -2rpx 20rpx rgba(79, 123, 66, 0.08);
+  border-top: 1rpx solid rgba(111, 159, 88, 0.1);
 }
 .sum-label {
   color: #6f7b68;

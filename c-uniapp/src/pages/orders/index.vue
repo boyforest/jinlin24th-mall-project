@@ -109,6 +109,7 @@ onShow(load)
   color: #2d2d2d;
   font-family: "Songti SC", "STSong", serif;
   font-size: 26rpx;
+  transition: all 0.22s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 .tab.active {
   border-color: transparent;
@@ -125,6 +126,16 @@ onShow(load)
 }
 .order-card {
   padding: 26rpx;
+  animation: order-in 0.4s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+.order-card:nth-child(1) { animation-delay: 0.03s; }
+.order-card:nth-child(2) { animation-delay: 0.08s; }
+.order-card:nth-child(3) { animation-delay: 0.13s; }
+.order-card:nth-child(4) { animation-delay: 0.18s; }
+
+@keyframes order-in {
+  from { opacity: 0; transform: translateY(14rpx); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 .row,
 .item {

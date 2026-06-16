@@ -35,6 +35,15 @@ public class AdminJwtInterceptor implements HandlerInterceptor {
             throw BizException.forbidden("无权限");
         }
 
+        // 受限 token（仅允许改密）
+        String scope = jwtUtil.getTokenScope(token);
+        String requestUri = request.getRequestURI();
+        if (JwtUtil.TOKEN_SCOPE_PASSWORD_CHANGE.equals(scope)) {
+            if (!requestUri.endsWith("/admin/password")) {
+                throw BizException.forbidden("请先修改初始密码");
+            }
+        }
+
         String adminName = jwtUtil.getSubjectFromToken(token);
         Long adminId = jwtUtil.getAdminIdFromToken(token);
         String jti = jwtUtil.getJtiFromToken(token);
@@ -42,6 +51,7 @@ public class AdminJwtInterceptor implements HandlerInterceptor {
 
         // 写入 ThreadLocal，供 @CurrentAdminId 注解使用
         CurrentUserContext.setAdminId(adminId);
+        CurrentUserContext.setAdminName(adminName);
 
         return true;
     }

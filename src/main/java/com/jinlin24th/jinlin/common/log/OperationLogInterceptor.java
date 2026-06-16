@@ -74,7 +74,8 @@ public class OperationLogInterceptor implements HandlerInterceptor {
     private boolean shouldRecord(HttpServletRequest request) {
         return request.getRequestURI().startsWith("/admin/")
             && Arrays.asList("POST", "PUT", "DELETE").contains(request.getMethod().toUpperCase())
-            && !request.getRequestURI().equals("/admin/login");
+            && !request.getRequestURI().equals("/admin/login")
+            && !request.getRequestURI().equals("/admin/password");
     }
 
     /**

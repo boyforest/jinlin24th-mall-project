@@ -10,6 +10,7 @@ public class CurrentUserContext {
 
     private static final ThreadLocal<Long> USER_ID_HOLDER = new ThreadLocal<>();
     private static final ThreadLocal<Long> ADMIN_ID_HOLDER = new ThreadLocal<>();
+    private static final ThreadLocal<String> ADMIN_NAME_HOLDER = new ThreadLocal<>();
 
     private CurrentUserContext() {
     }
@@ -34,10 +35,19 @@ public class CurrentUserContext {
         return ADMIN_ID_HOLDER.get();
     }
 
+    public static void setAdminName(String adminName) {
+        ADMIN_NAME_HOLDER.set(adminName);
+    }
+
+    public static String getAdminName() {
+        return ADMIN_NAME_HOLDER.get();
+    }
+
     // ── 清理 ──
 
     public static void clear() {
         USER_ID_HOLDER.remove();
         ADMIN_ID_HOLDER.remove();
+        ADMIN_NAME_HOLDER.remove();
     }
 }

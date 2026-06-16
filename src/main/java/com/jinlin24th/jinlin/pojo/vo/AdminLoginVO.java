@@ -16,6 +16,11 @@ public class AdminLoginVO implements Serializable {
     private String token;
     private String username;
     private String realName;
+    /**
+     * 是否强制修改密码：true 时前端需弹出修改密码弹窗，token 为受限 token。
+     */
+    private Boolean mustChangePwd;
+
     private List<String> roles;
     private List<String> permissions;
 }

@@ -71,6 +71,11 @@ public class SysAdmin {
     private String lastLoginIp;
 
     /**
+     * 首次登录是否强制修改密码：1-是，0-否。
+     */
+    private Integer mustChangePwd;
+
+    /**
      * 逻辑删除：0-未删除，1-已删除。
      */
     @TableLogic

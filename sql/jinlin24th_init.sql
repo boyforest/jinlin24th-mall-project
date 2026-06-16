@@ -422,6 +422,7 @@ CREATE TABLE IF NOT EXISTS `sys_admin` (
   `email` varchar(128) DEFAULT NULL COMMENT '邮箱',
   `avatar` varchar(255) DEFAULT NULL COMMENT '头像URL',
   `status` tinyint NOT NULL DEFAULT 1 COMMENT '1-启用，0-禁用',
+  `must_change_pwd` tinyint NOT NULL DEFAULT 0 COMMENT '首次登录强制改密：1-是，0-否',
   `last_login_time` datetime DEFAULT NULL COMMENT '最后登录时间',
   `last_login_ip` varchar(64) DEFAULT NULL COMMENT '最后登录IP',
   `deleted` tinyint NOT NULL DEFAULT 0 COMMENT '0-未删除，1-已删除',
@@ -645,12 +646,13 @@ SELECT 1, p.`id` FROM `sys_permission` p
 ON DUPLICATE KEY UPDATE `role_id` = VALUES(`role_id`);
 
 -- 默认后台管理员：账号 admin，初始密码 123123
--- 注意：password_hash 为 BCrypt 哈希，生产环境上线前必须登录后修改初始密码。
-INSERT INTO `sys_admin` (`id`, `username`, `password_hash`, `real_name`, `status`) VALUES
-(1, 'admin', '$2a$10$KwwYK1vaw.XZiv.NXF1nbuy1ZOsrEJuNSQOGXJOZsGql.l.YjHka.', '超级管理员', 1)
+-- 注意：password_hash 为 BCrypt 哈希，must_change_pwd=1 强制首次登录改密。
+INSERT INTO `sys_admin` (`id`, `username`, `password_hash`, `real_name`, `status`, `must_change_pwd`) VALUES
+(1, 'admin', '$2a$10$KwwYK1vaw.XZiv.NXF1nbuy1ZOsrEJuNSQOGXJOZsGql.l.YjHka.', '超级管理员', 1, 1)
 ON DUPLICATE KEY UPDATE
   `real_name` = VALUES(`real_name`),
-  `status` = VALUES(`status`);
+  `status` = VALUES(`status`),
+  `must_change_pwd` = VALUES(`must_change_pwd`);
 
 INSERT INTO `sys_admin_role` (`admin_id`, `role_id`) VALUES
 (1, 1)

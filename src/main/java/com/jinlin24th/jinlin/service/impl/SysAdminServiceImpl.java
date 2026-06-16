@@ -10,6 +10,7 @@ import com.jinlin24th.jinlin.mapper.SysPermissionMapper;
 import com.jinlin24th.jinlin.mapper.SysRoleMapper;
 import com.jinlin24th.jinlin.mapper.SysRolePermissionMapper;
 import com.jinlin24th.jinlin.pojo.dto.AdminLoginDTO;
+import com.jinlin24th.jinlin.pojo.dto.AdminPasswordDTO;
 import com.jinlin24th.jinlin.pojo.entity.SysAdmin;
 import com.jinlin24th.jinlin.pojo.entity.SysAdminRole;
 import com.jinlin24th.jinlin.pojo.entity.SysPermission;
@@ -102,7 +103,9 @@ public class SysAdminServiceImpl extends ServiceImpl<SysAdminMapper, SysAdmin> i
         List<String> permissions = getPermissionCodes(admin.getId());
 
         String jti = jwtUtil.generateJti();
-        String token = jwtUtil.generateAdminToken(admin.getId(), username, jti);
+        boolean mustChangePwd = Objects.equals(admin.getMustChangePwd(), 1);
+        String scope = mustChangePwd ? JwtUtil.TOKEN_SCOPE_PASSWORD_CHANGE : JwtUtil.TOKEN_SCOPE_FULL;
+        String token = jwtUtil.generateAdminToken(admin.getId(), username, jti, scope);
         authSessionService.onLoginAdmin(username, jti);
 
         AdminLoginVO vo = new AdminLoginVO();
@@ -110,6 +113,65 @@ public class SysAdminServiceImpl extends ServiceImpl<SysAdminMapper, SysAdmin> i
         vo.setUsername(username);
         vo.setRealName(admin.getRealName());
         vo.setToken(token);
+        vo.setMustChangePwd(mustChangePwd);
+        vo.setRoles(roles);
+        vo.setPermissions(permissions);
+        return vo;
+    }
+
+    /**
+     * 管理员修改密码。
+     * <p>
+     * 旧密码校验 → 新密码长度 ≥ 8 → BCrypt 更新入库 → 清除 mustChangePwd。
+     * 改密成功后签发新的完整权限 token，旧受限 token 的 jti 被覆盖自动失效。
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public AdminLoginVO changePassword(Long adminId, String adminName, AdminPasswordDTO dto) {
+        if (adminId == null || !StringUtils.hasText(adminName)) {
+            throw BizException.unauthorized("登录已失效");
+        }
+        if (dto == null || !StringUtils.hasText(dto.getOldPassword()) || !StringUtils.hasText(dto.getNewPassword())) {
+            throw BizException.badRequest("请填写新旧密码");
+        }
+        if (dto.getNewPassword().length() < 8) {
+            throw BizException.badRequest("新密码长度至少 8 位");
+        }
+        if (dto.getOldPassword().equals(dto.getNewPassword())) {
+            throw BizException.badRequest("新密码不能与旧密码相同");
+        }
+
+        SysAdmin admin = lambdaQuery()
+            .eq(SysAdmin::getId, adminId)
+            .eq(SysAdmin::getDeleted, 0)
+            .one();
+        if (admin == null) {
+            throw BizException.unauthorized("管理员不存在");
+        }
+        if (!passwordEncoder.matches(dto.getOldPassword(), admin.getPasswordHash())) {
+            throw BizException.badRequest("旧密码不正确");
+        }
+
+        String newHash = passwordEncoder.encode(dto.getNewPassword());
+        lambdaUpdate()
+            .set(SysAdmin::getPasswordHash, newHash)
+            .set(SysAdmin::getMustChangePwd, 0)
+            .eq(SysAdmin::getId, adminId)
+            .update();
+
+        // 签发新 token，旧 token（含受限 token）因 jti 覆盖自动失效
+        List<String> roles = getRoleCodes(adminId);
+        List<String> permissions = getPermissionCodes(adminId);
+        String jti = jwtUtil.generateJti();
+        String token = jwtUtil.generateAdminToken(adminId, adminName, jti);
+        authSessionService.onLoginAdmin(adminName, jti);
+
+        AdminLoginVO vo = new AdminLoginVO();
+        vo.setAdminId(adminId);
+        vo.setUsername(adminName);
+        vo.setRealName(admin.getRealName());
+        vo.setToken(token);
+        vo.setMustChangePwd(false);
         vo.setRoles(roles);
         vo.setPermissions(permissions);
         return vo;

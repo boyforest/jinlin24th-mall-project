@@ -32,6 +32,9 @@ public class JwtUtil {
     public static final String TOKEN_TYPE_USER = "USER";
     public static final String TOKEN_TYPE_ADMIN = "ADMIN";
 
+    public static final String TOKEN_SCOPE_FULL = "full";
+    public static final String TOKEN_SCOPE_PASSWORD_CHANGE = "password_change";
+
     private final SecretKey signingKey;
     private final long expirationMillis;
 
@@ -142,6 +145,15 @@ public class JwtUtil {
     }
 
     public String generateAdminToken(Long adminId, String adminName, String jti) {
+        return generateAdminToken(adminId, adminName, jti, TOKEN_SCOPE_FULL);
+    }
+
+    /**
+     * 生成管理员 Token（指定 jti 和 scope）。
+     * <p>
+     * scope 用于权限分级：{@code full} 为完整权限，{@code password_change} 为仅允许改密。
+     */
+    public String generateAdminToken(Long adminId, String adminName, String jti, String scope) {
         if (adminId == null) {
             throw new IllegalArgumentException("adminId 不能为空");
         }
@@ -155,6 +167,7 @@ public class JwtUtil {
         Map<String, Object> claims = new HashMap<>();
         claims.put("tokenType", TOKEN_TYPE_ADMIN);
         claims.put("adminId", adminId);
+        claims.put("scope", scope);
         return buildToken(adminName.trim(), claims, jti);
     }
 
@@ -197,6 +210,18 @@ public class JwtUtil {
     public String getTokenType(String token) {
         Claims claims = parseClaims(token);
         return claims.get("tokenType", String.class);
+    }
+
+    /**
+     * 从 token 中获取 scope（权限范围），默认为 full。
+     */
+    public String getTokenScope(String token) {
+        Claims claims = parseClaims(token);
+        String scope = claims.get("scope", String.class);
+        if (scope == null || scope.isBlank()) {
+            return TOKEN_SCOPE_FULL;
+        }
+        return scope;
     }
 
     /**

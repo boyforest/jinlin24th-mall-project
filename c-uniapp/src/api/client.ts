@@ -42,10 +42,10 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     const body = (res as any)?.data ?? (res as any)?.[1]?.data
 
     if (httpStatus && httpStatus !== 200) {
-      // 401：清理登录态并引导重新登录
       if (httpStatus === 401) {
         clearToken()
         clearUserId()
+        uni.reLaunch({ url: '/pages/login/index' })
       }
       throw new Error(body?.message || `HTTP ${httpStatus}`)
     }

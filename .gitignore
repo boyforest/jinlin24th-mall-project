@@ -104,3 +104,4 @@ dump.rdb
 *.pages
 docs/project_learning_plan.md
 .qoder/
+application-dev.yml

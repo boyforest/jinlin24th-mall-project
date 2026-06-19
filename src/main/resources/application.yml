@@ -66,6 +66,7 @@ jwt:
 app:
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000}
+  public-url: ${APP_PUBLIC_URL:}
   cache:
     product-entity-ttl-ms: ${PRODUCT_ENTITY_CACHE_TTL_MS:1800000}
     product-detail-ttl-ms: ${PRODUCT_DETAIL_CACHE_TTL_MS:1800000}

@@ -30,6 +30,9 @@ public class AdminUploadController {
     @Value("${app.upload.dir:uploads}")
     private String uploadDir;
 
+    @Value("${app.public-url:}")
+    private String publicUrl;
+
     @PostMapping("/image")
     public Result<Map<String, String>> uploadImage(@RequestParam("file") MultipartFile file, HttpServletRequest request) throws Exception {
         if (file == null || file.isEmpty()) {
@@ -67,6 +70,9 @@ public class AdminUploadController {
     }
 
     private String publicBaseUrl(HttpServletRequest request) {
+        if (publicUrl != null && !publicUrl.isBlank()) {
+            return publicUrl.replaceFirst("/+$", "");
+        }
         String proto = request.getHeader("X-Forwarded-Proto");
         String host = request.getHeader("X-Forwarded-Host");
         if (host == null || host.isBlank()) {

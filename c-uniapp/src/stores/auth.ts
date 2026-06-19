@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { login, me, type AppUserVO } from '@/api/user'
+import { login, me, updateProfile, type AppUserVO } from '@/api/user'
 import { clearInviterUserId, getInviterUserId, getToken, getUserId, setToken, setUserId } from '@/utils/storage'
 import { STORAGE_KEYS } from '@/config/app'
 
@@ -59,7 +59,6 @@ export const useAuthStore = defineStore('auth', {
     },
 
     async saveProfile(nickname?: string, avatar?: string) {
-      const { updateProfile } = await import('@/api/user')
       const updated = await updateProfile({ nickname, avatar })
       this.profile = updated
       return updated

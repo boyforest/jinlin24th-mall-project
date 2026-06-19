@@ -8,6 +8,26 @@
       <view class="card ink-card">
         <view class="title ink-title">静候相逢</view>
         <view class="desc">登录后收藏节气养物，查看订单与会员积分。</view>
+
+        <view class="profile-row">
+          <button class="avatar-btn" open-type="chooseAvatar" @chooseavatar="onChooseAvatar">
+            <image
+              v-if="avatarUrl"
+              class="avatar-preview"
+              :src="avatarUrl"
+              mode="aspectFill"
+            />
+            <view v-else class="avatar-placeholder">+</view>
+          </button>
+          <input
+            class="nickname-input"
+            type="nickname"
+            v-model="nickname"
+            placeholder="点击填写微信昵称"
+            maxlength="20"
+          />
+        </view>
+
         <button class="ink-btn-primary" :loading="auth.loading" @click="doLogin">微信一键登录</button>
       </view>
     </view>
@@ -17,15 +37,47 @@
 <script setup lang="ts">
 import { onLoad } from '@dcloudio/uni-app'
 import { ref } from 'vue'
-import { PAGE_URLS } from '@/config/app'
+import { PAGE_URLS, API_BASE_URL } from '@/config/app'
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
 const redirect = ref('')
+const nickname = ref('')
+const tempAvatarPath = ref('')
+const avatarPreview = ref('')
+
+function onChooseAvatar(e: any) {
+  const path = e.detail?.avatarUrl
+  if (path) {
+    tempAvatarPath.value = path
+    avatarPreview.value = path
+  }
+}
 
 async function doLogin() {
   try {
-    await auth.loginWithWeixinProfile()
+    await auth.loginWithWeixinProfile({
+      nickname: nickname.value || undefined,
+    })
+
+    // 登录成功后如果选了头像，后台自动上传
+    if (tempAvatarPath.value && auth.token) {
+      try {
+        const res = await uni.uploadFile({
+          url: API_BASE_URL + '/user/upload/image',
+          filePath: tempAvatarPath.value,
+          name: 'file',
+          header: { Authorization: `Bearer ${auth.token}` },
+        })
+        const body = JSON.parse(res.data)
+        if (body.code === 0 && body.data?.url) {
+          await auth.saveProfile(undefined, body.data.url)
+        }
+      } catch (_) {
+        // 头像上传失败不阻塞登录
+      }
+    }
+
     uni.showToast({ title: '登录成功', icon: 'success' })
     if (redirect.value) {
       if (isTabBarPage(redirect.value)) {
@@ -37,7 +89,6 @@ async function doLogin() {
       uni.navigateBack()
     }
   } catch (e: any) {
-    // 真机调试：打开控制台查看完整错误
     console.error('[Login] 登录失败详情', {
       message: e?.message,
       errMsg: e?.errMsg,
@@ -105,5 +156,45 @@ function isTabBarPage(url: string) {
   color: #6f7b68;
   margin-bottom: 32rpx;
   line-height: 1.65;
+}
+.profile-row {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  margin-bottom: 32rpx;
+}
+.avatar-btn {
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 50%;
+  padding: 0;
+  background: none;
+  border: 2rpx dashed #cfe2c8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.avatar-btn::after {
+  border: none;
+}
+.avatar-preview {
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 50%;
+}
+.avatar-placeholder {
+  font-size: 40rpx;
+  color: #b8ceb1;
+  line-height: 1;
+}
+.nickname-input {
+  flex: 1;
+  height: 80rpx;
+  background: #f4f9f0;
+  border-radius: 16rpx;
+  padding: 0 24rpx;
+  font-size: 28rpx;
+  color: #2d2d2d;
 }
 </style>

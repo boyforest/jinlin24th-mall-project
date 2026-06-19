@@ -105,3 +105,4 @@ dump.rdb
 docs/project_learning_plan.md
 .qoder/
 application-dev.yml
+.opencode/

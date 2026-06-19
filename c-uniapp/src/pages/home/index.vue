@@ -361,9 +361,12 @@ function goCheckout() {
 }
 
 onShow(() => {
-  if (items.value.length === 0) loadList(true)
+  if (items.value.length === 0) loadList(true).catch(() => {})
   loadActivities().then(() => {
-    if (loginPopup.value) popupVisible.value = true
+    if (loginPopup.value && !uni.getStorageSync('popup_login_shown')) {
+      popupVisible.value = true
+      uni.setStorageSync('popup_login_shown', '1')
+    }
   })
   cart.refresh('/pages/home/index').catch(() => {})
 })

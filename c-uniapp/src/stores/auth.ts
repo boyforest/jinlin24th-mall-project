@@ -14,21 +14,21 @@ export const useAuthStore = defineStore('auth', {
     async loginWithWeixinProfile(payload: { nickname?: string; avatarUrl?: string } = {}) {
       this.loading = true
       try {
-        console.log('[Auth] 步骤1/3：调用 uni.login 获取微信 code...')
+        if (import.meta.env.DEV) console.log('[Auth] 步骤1/3：调用 uni.login 获取微信 code...')
         const wxLoginRes = await uni.login({ provider: 'weixin' })
         const code = (wxLoginRes as any)?.code
-        console.log('[Auth] 步骤1/3 结果：', { hasCode: !!code })
+        if (import.meta.env.DEV) console.log('[Auth] 步骤1/3 结果：', { hasCode: !!code })
         if (!code) throw new Error('未获取到 wx.login code')
 
         const inviterUserId = getInviterUserId()
-        console.log('[Auth] 步骤2/3：调用后端 /user/appUser/login...')
+        if (import.meta.env.DEV) console.log('[Auth] 步骤2/3：调用后端 /user/appUser/login...')
         const res = await login({
           code,
           nickname: payload.nickname,
           avatarUrl: payload.avatarUrl,
           inviterUserId,
         })
-        console.log('[Auth] 步骤2/3 结果：', { hasToken: !!res.token, userId: res.userId })
+        if (import.meta.env.DEV) console.log('[Auth] 步骤2/3 结果：', { hasToken: !!res.token, userId: res.userId })
 
         this.token = res.token
         this.userId = res.userId
@@ -36,12 +36,12 @@ export const useAuthStore = defineStore('auth', {
         setUserId(res.userId)
         clearInviterUserId()
 
-        console.log('[Auth] 步骤3/3：调用 /user/appUser/me 获取用户信息...')
+        if (import.meta.env.DEV) console.log('[Auth] 步骤3/3：调用 /user/appUser/me 获取用户信息...')
         await this.refreshMe()
-        console.log('[Auth] 步骤3/3 完成')
+        if (import.meta.env.DEV) console.log('[Auth] 步骤3/3 完成')
         return res
       } catch (e: any) {
-        console.error('[Auth] 登录链路失败 - 步骤详情：', {
+        if (import.meta.env.DEV) console.error('[Auth] 登录链路失败 - 步骤详情：', {
           message: e?.message,
           errMsg: e?.errMsg,
           statusCode: e?.statusCode,

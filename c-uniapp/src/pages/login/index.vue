@@ -74,8 +74,12 @@ async function doLogin() {
       nickname: nickname.value || undefined,
     })
 
-    // 头像上传不阻塞跳转，后台执行
-    uploadAvatarAfterLogin()
+    // 等待头像上传完成再跳转，防止页面销毁导致回调丢失
+    try {
+      await uploadAvatarAfterLogin()
+    } catch (_) {
+      // 头像上传失败不阻塞登录，已在 uploadAvatarAfterLogin 内 warn
+    }
 
     uni.showToast({ title: '登录成功', icon: 'success' })
     if (redirect.value) {

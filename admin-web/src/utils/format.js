@@ -94,9 +94,10 @@ export const inventoryLogType = {
 export const activityPosition = {
   options: [
     { label: '首页横幅', value: 'home_banner' },
-    { label: '首页公告', value: 'home_notice' }
+    { label: '首页公告', value: 'home_notice' },
+    { label: '登录弹窗', value: 'login_popup' }
   ],
-  text: value => ({ home_banner: '首页横幅', home_notice: '首页公告' }[value] ?? value)
+  text: value => ({ home_banner: '首页横幅', home_notice: '首页公告', login_popup: '登录弹窗' }[value] ?? value)
 }
 
 export const activityLinkType = {

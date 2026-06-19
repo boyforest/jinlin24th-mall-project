@@ -157,6 +157,20 @@
       </view>
       <button class="checkout-btn" @click.stop="goCheckout">去结算</button>
     </view>
+
+    <view v-if="popupVisible && loginPopup" class="popup-mask" @click="popupVisible = false">
+      <view class="popup-card ink-card" @click.stop>
+        <view class="popup-close" @click="popupVisible = false">✕</view>
+        <image
+          v-if="loginPopup.imageUrl"
+          class="popup-image"
+          :src="loginPopup.imageUrl"
+          mode="widthFix"
+        />
+        <view class="popup-title ink-title">{{ loginPopup.title }}</view>
+        <text v-if="loginPopup.subtitle" class="popup-sub">{{ loginPopup.subtitle }}</text>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -187,6 +201,8 @@ const cartOpen = ref(false)
 const searchKeyword = ref('')
 const banners = ref<MarketingActivityVO[]>([])
 const notices = ref<MarketingActivityVO[]>([])
+const loginPopup = ref<MarketingActivityVO | null>(null)
+const popupVisible = ref(false)
 const cart = useCartStore()
 const currentTerm = computed(() => getCurrentSolarTerm())
 const currentTermDate = computed(() => formatSolarTermDate(currentTerm.value))
@@ -271,15 +287,19 @@ function clearSearch() {
 
 async function loadActivities() {
   try {
-    const [bannerData, noticeData] = await Promise.all([
+    const [bannerData, noticeData, popupData] = await Promise.all([
       listMarketingActivities('home_banner'),
       listMarketingActivities('home_notice'),
+      listMarketingActivities('login_popup'),
     ])
     banners.value = bannerData || []
     notices.value = noticeData || []
+    const popups = (popupData || []) as MarketingActivityVO[]
+    loginPopup.value = popups.length > 0 ? popups[0] : null
   } catch {
     banners.value = []
     notices.value = []
+    loginPopup.value = null
   }
 }
 
@@ -342,7 +362,9 @@ function goCheckout() {
 
 onShow(() => {
   if (items.value.length === 0) loadList(true)
-  loadActivities()
+  loadActivities().then(() => {
+    if (loginPopup.value) popupVisible.value = true
+  })
   cart.refresh('/pages/home/index').catch(() => {})
 })
 
@@ -931,5 +953,59 @@ onReachBottom(loadMore)
 .checkout-btn:active {
   transform: scale(0.96);
   box-shadow: 0 2rpx 8rpx rgba(95, 143, 75, 0.14);
+}
+
+/* 登录弹窗 */
+.popup-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: popup-fade 0.28s ease both;
+}
+@keyframes popup-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.popup-card {
+  position: relative;
+  width: 600rpx;
+  padding: 48rpx 36rpx 36rpx;
+  animation: popup-scale 0.36s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+@keyframes popup-scale {
+  from { opacity: 0; transform: scale(0.9) translateY(20rpx); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.popup-close {
+  position: absolute;
+  top: 16rpx;
+  right: 20rpx;
+  width: 48rpx;
+  height: 48rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28rpx;
+  color: #9aac94;
+  border-radius: 50%;
+}
+.popup-image {
+  width: 100%;
+  display: block;
+  border-radius: 16rpx;
+  margin-bottom: 24rpx;
+}
+.popup-title {
+  font-size: 34rpx;
+  margin-bottom: 8rpx;
+}
+.popup-sub {
+  font-size: 26rpx;
+  color: #6f7b68;
+  line-height: 1.5;
 }
 </style>

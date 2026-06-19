@@ -12,9 +12,9 @@
         <view class="profile-row">
           <button class="avatar-btn" open-type="chooseAvatar" @chooseavatar="onChooseAvatar">
             <image
-              v-if="avatarUrl"
+              v-if="avatarPath"
               class="avatar-preview"
-              :src="avatarUrl"
+              :src="avatarPath"
               mode="aspectFill"
             />
             <view v-else class="avatar-placeholder">+</view>
@@ -43,14 +43,28 @@ import { useAuthStore } from '@/stores/auth'
 const auth = useAuthStore()
 const redirect = ref('')
 const nickname = ref('')
-const tempAvatarPath = ref('')
-const avatarPreview = ref('')
+const avatarPath = ref('')
 
 function onChooseAvatar(e: any) {
   const path = e.detail?.avatarUrl
-  if (path) {
-    tempAvatarPath.value = path
-    avatarPreview.value = path
+  if (path) avatarPath.value = path
+}
+
+async function uploadAvatarAfterLogin() {
+  if (!avatarPath.value || !auth.token) return
+  try {
+    const res = await uni.uploadFile({
+      url: API_BASE_URL + '/user/upload/image',
+      filePath: avatarPath.value,
+      name: 'file',
+      header: { Authorization: `Bearer ${auth.token}` },
+    })
+    const body = JSON.parse(res.data)
+    if (body.code === 0 && body.data?.url) {
+      await auth.saveProfile(undefined, body.data.url)
+    }
+  } catch (e: any) {
+    console.warn('[Login] 头像上传失败（不影响登录）', e.message)
   }
 }
 
@@ -60,23 +74,8 @@ async function doLogin() {
       nickname: nickname.value || undefined,
     })
 
-    // 登录成功后如果选了头像，后台自动上传
-    if (tempAvatarPath.value && auth.token) {
-      try {
-        const res = await uni.uploadFile({
-          url: API_BASE_URL + '/user/upload/image',
-          filePath: tempAvatarPath.value,
-          name: 'file',
-          header: { Authorization: `Bearer ${auth.token}` },
-        })
-        const body = JSON.parse(res.data)
-        if (body.code === 0 && body.data?.url) {
-          await auth.saveProfile(undefined, body.data.url)
-        }
-      } catch (_) {
-        // 头像上传失败不阻塞登录
-      }
-    }
+    // 头像上传不阻塞跳转，后台执行
+    uploadAvatarAfterLogin()
 
     uni.showToast({ title: '登录成功', icon: 'success' })
     if (redirect.value) {

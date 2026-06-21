@@ -73,6 +73,7 @@ import { createOrder } from '@/api/order'
 import { createOrderPayment, requestMiniAppPayment } from '@/api/payment'
 import { bindRecommender, getRecommender, type AppUserVO } from '@/api/user'
 import { useCartStore } from '@/stores/cart'
+import { safeNavigateBack } from '@/utils/navigation'
 
 const cartStore = useCartStore()
 const checkoutItems = ref<Array<{ skuId: number; quantity: number }>>([])
@@ -168,7 +169,7 @@ onLoad(() => {
   const items = cartStore.checkoutItems
   if (!items.length) {
     uni.showToast({ title: '请先选择商品', icon: 'none' })
-    setTimeout(() => uni.navigateBack(), 1000)
+    setTimeout(() => safeNavigateBack('/pages/cart/index'), 1000)
     return
   }
   checkoutItems.value = items.map((i) => ({ ...i }))

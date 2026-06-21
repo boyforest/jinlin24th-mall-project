@@ -39,6 +39,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import { ref } from 'vue'
 import { PAGE_URLS, API_BASE_URL } from '@/config/app'
 import { useAuthStore } from '@/stores/auth'
+import { safeNavigateBack } from '@/utils/navigation'
 
 const auth = useAuthStore()
 const redirect = ref('')
@@ -89,7 +90,7 @@ async function doLogin() {
         uni.redirectTo({ url: redirect.value })
       }
     } else {
-      uni.navigateBack()
+      safeNavigateBack(PAGE_URLS.home)
     }
   } catch (e: any) {
     console.error('[Login] 登录失败详情', {

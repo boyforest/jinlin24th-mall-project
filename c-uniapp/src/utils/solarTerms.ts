@@ -10,6 +10,25 @@ export interface SolarTerm {
   poemEn: string
 }
 
+export interface LocalDateTime {
+  year: number
+  month: number
+  day: number
+  hour: number
+  minute: number
+  second: number
+}
+
+export interface SolarTermInfo {
+  currentTerm: SolarTerm
+  nextTerm: SolarTerm
+  currentDateText: string
+  nextDateText: string
+  daysSinceCurrent: number
+  daysUntilNext: number
+  isCurrentTermDay: boolean
+}
+
 const SOLAR_TERMS: SolarTerm[] = [
   { name: '小寒', chars: ['小', '寒'], english: 'Lesser Cold', month: 1, day: 5, dateText: '01.05', seasonText: '冬藏', poem: '寒气初深，万物安藏', poemEn: 'Cold deepens softly as all things rest.' },
   { name: '大寒', chars: ['大', '寒'], english: 'Greater Cold', month: 1, day: 20, dateText: '01.20', seasonText: '冬藏', poem: '岁末大寒，静待春归', poemEn: 'At year-end cold, spring waits in silence.' },
@@ -37,27 +56,106 @@ const SOLAR_TERMS: SolarTerm[] = [
   { name: '冬至', chars: ['冬', '至'], english: 'Winter Solstice', month: 12, day: 22, dateText: '12.22', seasonText: '冬藏', poem: '阴极阳生，静养待春', poemEn: 'At deepest winter, new yang quietly begins.' },
 ]
 
-export function getCurrentSolarTerm(now = new Date()): SolarTerm {
-  const year = now.getFullYear()
-  const currentDay = dayKey(now)
-  let current = SOLAR_TERMS[SOLAR_TERMS.length - 1]
+export function getLocalDateTime(now = new Date()): LocalDateTime {
+  return {
+    year: now.getFullYear(),
+    month: now.getMonth() + 1,
+    day: now.getDate(),
+    hour: now.getHours(),
+    minute: now.getMinutes(),
+    second: now.getSeconds(),
+  }
+}
 
-  for (const term of SOLAR_TERMS) {
-    const termDay = dayKey(new Date(year, term.month - 1, term.day))
+export function parseLocalDateTime(value: string): LocalDateTime {
+  const matched = value.trim().match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?/)
+  if (!matched) {
+    throw new Error('Invalid LocalDateTime format')
+  }
+  return {
+    year: Number(matched[1]),
+    month: Number(matched[2]),
+    day: Number(matched[3]),
+    hour: Number(matched[4]),
+    minute: Number(matched[5]),
+    second: Number(matched[6] || 0),
+  }
+}
+
+export function getCurrentSolarTerm(now: Date | LocalDateTime = new Date()): SolarTerm {
+  return getCurrentSolarTermInfo(now).currentTerm
+}
+
+export function getCurrentSolarTermInfo(now: Date | LocalDateTime = new Date()): SolarTermInfo {
+  const localNow = toLocalDateTime(now)
+  const currentIndex = getCurrentSolarTermIndex(localNow)
+  const currentTerm = SOLAR_TERMS[currentIndex]
+  const nextTerm = SOLAR_TERMS[(currentIndex + 1) % SOLAR_TERMS.length]
+  const currentYear = currentIndex === SOLAR_TERMS.length - 1 && dayKey(localNow) < dayKey(SOLAR_TERMS[0]) ? localNow.year - 1 : localNow.year
+  const nextYear = currentIndex === SOLAR_TERMS.length - 1 ? currentYear + 1 : currentYear
+  const currentDate = localDate(currentYear, currentTerm)
+  const nextDate = localDate(nextYear, nextTerm)
+  const today = localMidnight(localNow)
+
+  return {
+    currentTerm,
+    nextTerm,
+    currentDateText: formatDateText(currentYear, currentTerm),
+    nextDateText: formatDateText(nextYear, nextTerm),
+    daysSinceCurrent: diffDays(currentDate, today),
+    daysUntilNext: diffDays(today, nextDate),
+    isCurrentTermDay: localNow.month === currentTerm.month && localNow.day === currentTerm.day,
+  }
+}
+
+function getCurrentSolarTermIndex(now: LocalDateTime) {
+  const currentDay = dayKey(now)
+  let currentIndex = SOLAR_TERMS.length - 1
+  for (let index = 0; index < SOLAR_TERMS.length; index += 1) {
+    const term = SOLAR_TERMS[index]
+    const termDay = dayKey(term)
     if (currentDay >= termDay) {
-      current = term
+      currentIndex = index
     } else {
       break
     }
   }
-
-  return current
+  return currentIndex
 }
 
-export function formatSolarTermDate(term: SolarTerm, now = new Date()) {
-  return `${now.getFullYear()}.${term.dateText}`
+export function formatSolarTermDate(term: SolarTerm, now: Date | LocalDateTime = new Date()) {
+  return `${toLocalDateTime(now).year}.${term.dateText}`
 }
 
-function dayKey(date: Date) {
-  return (date.getMonth() + 1) * 100 + date.getDate()
+export function formatSolarTermInterval(info: SolarTermInfo) {
+  const nextText = info.daysUntilNext === 1 ? `明日${info.nextTerm.name}` : `距${info.nextTerm.name} ${info.daysUntilNext} 天`
+  if (info.isCurrentTermDay) {
+    return `今日${info.currentTerm.name} · ${nextText}`
+  }
+  return `${info.currentTerm.name}第 ${info.daysSinceCurrent + 1} 天 · ${nextText}`
+}
+
+function toLocalDateTime(value: Date | LocalDateTime): LocalDateTime {
+  return value instanceof Date ? getLocalDateTime(value) : value
+}
+
+function localDate(year: number, term: SolarTerm) {
+  return new Date(year, term.month - 1, term.day)
+}
+
+function localMidnight(value: LocalDateTime) {
+  return new Date(value.year, value.month - 1, value.day)
+}
+
+function formatDateText(year: number, term: SolarTerm) {
+  return `${year}.${term.dateText}`
+}
+
+function diffDays(start: Date, end: Date) {
+  const msPerDay = 24 * 60 * 60 * 1000
+  return Math.round((end.getTime() - start.getTime()) / msPerDay)
+}
+
+function dayKey(date: Pick<LocalDateTime | SolarTerm, 'month' | 'day'>) {
+  return date.month * 100 + date.day
 }

@@ -18,6 +18,7 @@
           </view>
           <view class="term-copy">
             <text class="term-poem">{{ currentTerm.poem }}</text>
+            <text class="term-time">{{ currentTermIntervalText }}</text>
             <text class="term-poem-en">{{ currentTerm.poemEn }}</text>
           </view>
         </view>
@@ -183,7 +184,7 @@ import { listMarketingActivities, type MarketingActivityVO } from '@/api/marketi
 import type { CartVO } from '@/api/cart'
 import { useCartStore } from '@/stores/cart'
 import { money, requireLogin } from '@/utils/auth'
-import { formatSolarTermDate, getCurrentSolarTerm } from '@/utils/solarTerms'
+import { formatSolarTermInterval, getCurrentSolarTermInfo, getLocalDateTime } from '@/utils/solarTerms'
 
 type ProductWithSku = ProductVO & { defaultSku?: ProductSkuVO }
 
@@ -204,8 +205,11 @@ const notices = ref<MarketingActivityVO[]>([])
 const loginPopup = ref<MarketingActivityVO | null>(null)
 const popupVisible = ref(false)
 const cart = useCartStore()
-const currentTerm = computed(() => getCurrentSolarTerm())
-const currentTermDate = computed(() => formatSolarTermDate(currentTerm.value))
+const localNow = ref(getLocalDateTime())
+const currentTermInfo = computed(() => getCurrentSolarTermInfo(localNow.value))
+const currentTerm = computed(() => currentTermInfo.value.currentTerm)
+const currentTermDate = computed(() => currentTermInfo.value.currentDateText)
+const currentTermIntervalText = computed(() => formatSolarTermInterval(currentTermInfo.value))
 
 async function ensureCategories() {
   if (categories.value.length === 0) {
@@ -361,6 +365,7 @@ function goCheckout() {
 }
 
 onShow(() => {
+  localNow.value = getLocalDateTime()
   if (items.value.length === 0) loadList(true).catch(() => {})
   loadActivities().then(() => {
     if (loginPopup.value && !uni.getStorageSync('popup_login_shown')) {
@@ -439,7 +444,7 @@ onReachBottom(loadMore)
 }
 .lunar-date {
   color: rgba(45, 45, 45, 0.8);
-  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-family: "LXGW Heart Serif", "Songti SC", "STSong", "SimSun", serif;
   font-size: 24rpx;
   letter-spacing: 4rpx;
   margin-bottom: 10rpx;
@@ -456,7 +461,7 @@ onReachBottom(loadMore)
 }
 .term-cn {
   color: #101410;
-  font-family: "STKaiti", "KaiTi", "Songti SC", "STSong", serif;
+  font-family: "Huiwen Mincho Solar", "LXGW Heart Serif", "Songti SC", "STSong", serif;
   font-size: 132rpx;
   font-weight: 700;
   line-height: 0.92;
@@ -496,9 +501,17 @@ onReachBottom(loadMore)
 }
 .term-poem {
   color: #2d2d2d;
-  font-family: "Songti SC", "STSong", serif;
+  font-family: "LXGW Heart Serif", "Songti SC", "STSong", serif;
   font-size: 28rpx;
   letter-spacing: 14rpx;
+}
+.term-time {
+  display: block;
+  margin-top: 18rpx;
+  color: rgba(79, 123, 66, 0.72);
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+  font-size: 24rpx;
+  letter-spacing: 2rpx;
 }
 .term-poem-en {
   margin-top: 24rpx;
@@ -588,7 +601,9 @@ onReachBottom(loadMore)
 }
 .activity-title {
   color: #23482f;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", Arial, sans-serif;
   font-size: 34rpx;
+  font-weight: 500;
 }
 .activity-sub {
   margin-top: 8rpx;
@@ -719,7 +734,9 @@ onReachBottom(loadMore)
   overflow: hidden;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", Arial, sans-serif;
   font-size: 30rpx;
+  font-weight: 600;
   line-height: 1.35;
 }
 .goods-sub,

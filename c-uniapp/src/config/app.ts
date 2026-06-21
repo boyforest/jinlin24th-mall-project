@@ -4,7 +4,7 @@ export const APP_NAME = '金霖二十四养'
 // - 小程序上线/体验版：必须通过 VITE_API_BASE_URL 指向 HTTPS 线上域名
 // - 小程序本地真机/微信开发者工具：建议改成你电脑局域网 IP（不能用 localhost）
 // - H5：可以用 localhost
-export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:7878').replace(/\/+$/, '')
+export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://8.130.134.79').replace(/\/+$/, '')
 
 export const STORAGE_KEYS = {
   token: 'jl_user_token',

@@ -100,7 +100,7 @@ public class OrderServiceImpl implements OrderService {
             }
 
             // 下单时先占用库存，超时未支付取消时再归还库存。
-            occupyInventory(orderNo, sku.getId(), i.getQuantity());
+            Inventory occupiedInventory = occupyInventory(orderNo, sku.getId(), i.getQuantity());
 
             // 价格以 SKU 的 memberPrice 优先（简化实现：未根据会员等级折扣动态计算）
             BigDecimal price = sku.getMemberPrice() != null ? sku.getMemberPrice() : sku.getPrice();
@@ -114,6 +114,7 @@ public class OrderServiceImpl implements OrderService {
             item.setOrderNo(orderNo);
             item.setProductId(product.getId());
             item.setSkuId(sku.getId());
+            item.setWarehouseId(occupiedInventory.getWarehouseId());
             item.setProductName(product.getName());
             item.setSkuName(sku.getSkuName());
             item.setProductImage(product.getMainImage());
@@ -325,10 +326,12 @@ public class OrderServiceImpl implements OrderService {
     /**
      * 下单时占用库存，并记录出库流水。
      * <p>
-     * 当前订单模型没有 warehouseId，因此按 skuId 选择第一条有库存的库存记录；
-     * 后续做多仓发货时，建议在订单明细中保存 warehouseId 快照。
+     * 按 skuId 选择第一条有库存的库存记录扣减，并把实际扣减的库存记录返回给调用方，
+     * 已把扣减仓库快照到订单明细，取消订单时可原仓恢复库存。
+     *
+     * @return 实际扣减库存的库存记录（含 warehouseId）
      */
-    private void occupyInventory(String orderNo, Long skuId, Integer quantity) {
+    private Inventory occupyInventory(String orderNo, Long skuId, Integer quantity) {
         Inventory inventory = inventoryService.lambdaQuery()
             .eq(Inventory::getSkuId, skuId)
             .ge(Inventory::getStock, quantity)
@@ -363,19 +366,20 @@ public class OrderServiceImpl implements OrderService {
         logEntity.setOperatorId(0L);
         logEntity.setCreateTime(LocalDateTime.now());
         inventoryLogService.save(logEntity);
+
+        return inventory;
     }
 
     /**
      * 按订单明细恢复库存，并记录库存流水。
+     * <p>
+     * 优先按下单时快照的 warehouseId 恢复（哪仓扣的哪仓还）；
+     * 历史订单没有仓库快照时，退回按 skuId 查第一条的旧逻辑。
      */
     private void restoreInventory(String orderNo, OrderItem item, String reason) {
-        Inventory inventory = inventoryService.lambdaQuery()
-            .eq(Inventory::getSkuId, item.getSkuId())
-            .orderByAsc(Inventory::getId)
-            .last("LIMIT 1")
-            .one();
+        Inventory inventory = findInventoryForRestore(item);
         if (inventory == null) {
-            log.warn("订单超时取消恢复库存时未找到库存记录: orderNo={}, skuId={}", orderNo, item.getSkuId());
+            log.warn("订单取消恢复库存时未找到库存记录: orderNo={}, skuId={}, warehouseId={}", orderNo, item.getSkuId(), item.getWarehouseId());
             return;
         }
 
@@ -388,15 +392,11 @@ public class OrderServiceImpl implements OrderService {
             .eq(Inventory::getStock, beforeStock)
             .update();
         if (!updated) {
-            log.warn("恢复库存CAS失败(库存已被其他操作修改), 重试中: orderNo={}, skuId={}", orderNo, item.getSkuId());
-            // 重试一次：重新读取当前库存再恢复
-            Inventory retry = inventoryService.lambdaQuery()
-                .eq(Inventory::getSkuId, item.getSkuId())
-                .orderByAsc(Inventory::getId)
-                .last("LIMIT 1")
-                .one();
+            log.warn("恢复库存CAS失败(库存已被其他操作修改), 重试中: orderNo={}, skuId={}, warehouseId={}", orderNo, item.getSkuId(), item.getWarehouseId());
+            // 重试一次：按同样的 skuId + warehouseId 条件重新读取当前库存再恢复
+            Inventory retry = findInventoryForRestore(item);
             if (retry == null) {
-                log.error("恢复库存重试失败: 未找到库存记录 orderNo={}, skuId={}", orderNo, item.getSkuId());
+                log.error("恢复库存重试失败: 未找到库存记录 orderNo={}, skuId={}, warehouseId={}", orderNo, item.getSkuId(), item.getWarehouseId());
                 return;
             }
             int retryBefore = retry.getStock() == null ? 0 : retry.getStock();
@@ -408,7 +408,7 @@ public class OrderServiceImpl implements OrderService {
                 .eq(Inventory::getStock, retryBefore)
                 .update();
             if (!retryUpdated) {
-                log.error("恢复库存CAS重试仍失败(需人工介入): orderNo={}, skuId={}", orderNo, item.getSkuId());
+                log.error("恢复库存CAS重试仍失败(需人工介入): orderNo={}, skuId={}, warehouseId={}", orderNo, item.getSkuId(), item.getWarehouseId());
                 return;
             }
             inventory = retry;
@@ -428,6 +428,27 @@ public class OrderServiceImpl implements OrderService {
         logEntity.setOperatorId(0L);
         logEntity.setCreateTime(LocalDateTime.now());
         inventoryLogService.save(logEntity);
+    }
+
+    /**
+     * 查找待恢复库存记录：优先按订单明细快照的 warehouseId 查同仓记录；
+     * 历史订单 warehouseId 为空时，退回按 skuId 查第一条的旧逻辑。
+     */
+    private Inventory findInventoryForRestore(OrderItem item) {
+        if (item.getWarehouseId() == null) {
+            log.warn("历史订单无仓库快照，按旧逻辑恢复: orderNo={}, skuId={}", item.getOrderNo(), item.getSkuId());
+            return inventoryService.lambdaQuery()
+                .eq(Inventory::getSkuId, item.getSkuId())
+                .orderByAsc(Inventory::getId)
+                .last("LIMIT 1")
+                .one();
+        }
+        return inventoryService.lambdaQuery()
+            .eq(Inventory::getSkuId, item.getSkuId())
+            .eq(Inventory::getWarehouseId, item.getWarehouseId())
+            .orderByAsc(Inventory::getId)
+            .last("LIMIT 1")
+            .one();
     }
 
     @Override

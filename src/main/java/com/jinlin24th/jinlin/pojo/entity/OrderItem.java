@@ -40,6 +40,11 @@ public class OrderItem {
     private Long skuId;
 
     /**
+     * 下单时占用库存的仓库ID快照（用于取消订单时原仓恢复库存）
+     */
+    private Long warehouseId;
+
+    /**
      * 商品名称（快照）
      */
     private String productName;

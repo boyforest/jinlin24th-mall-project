@@ -306,6 +306,7 @@ CREATE TABLE IF NOT EXISTS `order_item` (
   `order_no` varchar(32) NOT NULL COMMENT '订单编号',
   `product_id` bigint NOT NULL COMMENT '商品ID',
   `sku_id` bigint NOT NULL COMMENT 'SKU ID',
+  `warehouse_id` bigint DEFAULT NULL COMMENT '下单时占用库存的仓库ID快照',
   `product_name` varchar(128) NOT NULL COMMENT '商品名称（快照）',
   `sku_name` varchar(128) DEFAULT NULL COMMENT '规格名称（快照）',
   `product_image` varchar(255) DEFAULT NULL COMMENT '商品图片（快照）',
@@ -315,7 +316,8 @@ CREATE TABLE IF NOT EXISTS `order_item` (
   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   PRIMARY KEY (`id`),
   KEY `idx_order_id` (`order_id`),
-  KEY `idx_order_no` (`order_no`)
+  KEY `idx_order_no` (`order_no`),
+  KEY `idx_order_no_warehouse` (`order_no`, `warehouse_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='订单明细表';
 
 -- 15. 分销佣金记录表

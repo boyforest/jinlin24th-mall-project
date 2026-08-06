@@ -149,7 +149,8 @@ function goOrderCreate() {
     uni.showToast({ title: '请选择规格', icon: 'none' })
     return
   }
-  uni.navigateTo({ url: `/pages/order-create/index?productId=${id.value}&skuId=${selectedSkuId.value}` })
+  cart.setCheckoutItems([{ skuId: selectedSkuId.value, quantity: 1 }])
+  uni.navigateTo({ url: '/pages/order-create/index' })
 }
 
 onLoad((options) => {

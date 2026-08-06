@@ -56,7 +56,6 @@ wx:
     api-base-url: ${WX_PAY_API_BASE_URL:https://api.mch.weixin.qq.com}
     notify-url: ${WX_PAY_NOTIFY_URL:https://your-domain.com/api/payment/notify}
     refund-notify-url: ${WX_PAY_REFUND_NOTIFY_URL:https://your-domain.com/api/payment/refund/notify}
-    sandbox: ${WX_PAY_SANDBOX:false}
 
 # JWT 配置
 jwt:

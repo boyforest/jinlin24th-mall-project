@@ -104,5 +104,6 @@ dump.rdb
 *.pages
 docs/project_learning_plan.md
 .qoder/
+.trae/
 application-dev.yml
 .opencode/

@@ -43,7 +43,7 @@ public class WechatAuthService {
         try {
             // code2session：微信官方流程，用 code 换取 openid/session_key
             WxMaJscode2SessionResult result = wxMaService.getUserService().getSessionInfo(code);
-            log.info("微信登录成功，openid: {}", result.getOpenid());
+            log.info("微信登录成功");
             return result.getOpenid();
         } catch (WxErrorException e) {
             log.error("微信登录失败，error: {}", e.getError());

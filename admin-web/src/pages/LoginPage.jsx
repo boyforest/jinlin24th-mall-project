@@ -64,7 +64,7 @@ export default function LoginPage() {
             <span className="brand-subtitle">商家管理后台</span>
           </span>
         </div>
-        <Form layout="vertical" initialValues={{ username: 'admin' }} onFinish={submit}>
+        <Form layout="vertical" onFinish={submit}>
           <Form.Item label="账号" name="username" rules={[{ required: true, message: '请输入账号' }]}>
             <Input autoFocus />
           </Form.Item>
@@ -73,9 +73,6 @@ export default function LoginPage() {
           </Form.Item>
           <Button block type="primary" htmlType="submit" loading={loading}>登录</Button>
         </Form>
-        <Typography.Text type="secondary" style={{ display: 'block', marginTop: 16 }}>
-          默认代理到 localhost:7878
-        </Typography.Text>
       </Card>
 
       <Modal

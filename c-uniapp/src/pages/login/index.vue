@@ -65,7 +65,7 @@ async function uploadAvatarAfterLogin() {
       await auth.saveProfile(undefined, body.data.url)
     }
   } catch (e: any) {
-    console.warn('[Login] 头像上传失败（不影响登录）', e.message)
+    if (import.meta.env.DEV) console.warn('[Login] 头像上传失败（不影响登录）', e.message)
   }
 }
 
@@ -93,12 +93,14 @@ async function doLogin() {
       safeNavigateBack(PAGE_URLS.home)
     }
   } catch (e: any) {
-    console.error('[Login] 登录失败详情', {
-      message: e?.message,
-      errMsg: e?.errMsg,
-      statusCode: e?.statusCode,
-      raw: JSON.stringify(e),
-    })
+    if (import.meta.env.DEV) {
+      console.error('[Login] 登录失败详情', {
+        message: e?.message,
+        errMsg: e?.errMsg,
+        statusCode: e?.statusCode,
+        raw: JSON.stringify(e),
+      })
+    }
     uni.showToast({ title: e?.message || '登录失败', icon: 'none', duration: 3000 })
   }
 }

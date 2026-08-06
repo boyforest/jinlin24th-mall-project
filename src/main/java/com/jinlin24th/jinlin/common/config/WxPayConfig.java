@@ -54,8 +54,5 @@ public class WxPayConfig {
      */
     private String refundNotifyUrl;
 
-    /**
-     * 是否沙箱环境
-     */
-    private Boolean sandbox = false;
+
 }

@@ -102,16 +102,16 @@ const nicknameSaving = ref(false)
 
 // 用户选择微信头像：先上传到后端获取永久 URL，再保存到用户资料
 async function onChooseAvatar(e: any) {
-  console.log('[Profile] chooseAvatar 触发', e.detail)
+  if (import.meta.env.DEV) console.log('[Profile] chooseAvatar 触发', e.detail)
   const tempPath = e.detail?.avatarUrl
   if (!tempPath) {
-    console.log('[Profile] 未获取到头像临时路径')
+    if (import.meta.env.DEV) console.log('[Profile] 未获取到头像临时路径')
     return
   }
 
   uni.showLoading({ title: '上传中...' })
   try {
-    console.log('[Profile] 开始上传头像文件到后端...', { tempPath, apiUrl: API_BASE_URL + '/user/upload/image' })
+    if (import.meta.env.DEV) console.log('[Profile] 开始上传头像文件到后端...', { apiUrl: API_BASE_URL + '/user/upload/image' })
     // 1) 上传临时文件到后端
     const uploadRes = await uni.uploadFile({
       url: API_BASE_URL + '/user/upload/image',
@@ -119,21 +119,21 @@ async function onChooseAvatar(e: any) {
       name: 'file',
       header: { Authorization: `Bearer ${auth.token}` },
     })
-    console.log('[Profile] 上传响应：', uploadRes.data)
+    if (import.meta.env.DEV) console.log('[Profile] 上传响应：', uploadRes.data)
     const body = JSON.parse(uploadRes.data)
     if (body.code !== 0) throw new Error(body.message || '上传失败')
     const avatarUrl = body.data?.url
     if (!avatarUrl) throw new Error('未获取到图片地址')
-    console.log('[Profile] 头像永久 URL：', avatarUrl)
+    if (import.meta.env.DEV) console.log('[Profile] 头像永久 URL：', avatarUrl)
 
     // 2) 保存到用户资料
-    console.log('[Profile] 调用 saveProfile 保存头像...')
+    if (import.meta.env.DEV) console.log('[Profile] 调用 saveProfile 保存头像...')
     await auth.saveProfile(undefined, avatarUrl)
-    console.log('[Profile] 头像保存完成，当前 profile：', auth.profile)
+    if (import.meta.env.DEV) console.log('[Profile] 头像保存完成')
     uni.hideLoading()
     uni.showToast({ title: '头像已更新', icon: 'success' })
   } catch (e: any) {
-    console.error('[Profile] 头像上传失败：', e)
+    if (import.meta.env.DEV) console.error('[Profile] 头像上传失败：', e)
     uni.hideLoading()
     uni.showToast({ title: e?.message || '保存失败', icon: 'none' })
   }

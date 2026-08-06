@@ -12,7 +12,6 @@ services:
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
-      - --character-set-client-handshake=FALSE
       - --default-time-zone=+08:00
     ports:
       - "127.0.0.1:${MYSQL_HOST_PORT:-13306}:3306"
@@ -73,8 +72,8 @@ services:
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
       REDIS_DATABASE: ${REDIS_DATABASE:-1}
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-*}
-      APP_PUBLIC_URL: ${APP_PUBLIC_URL:-}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:?set CORS_ALLOWED_ORIGINS in .env}
+      APP_PUBLIC_URL: ${APP_PUBLIC_URL:?set APP_PUBLIC_URL in .env}
       WX_MINIAPP_APPID: ${WX_MINIAPP_APPID:-}
       WX_MINIAPP_SECRET: ${WX_MINIAPP_SECRET:-}
       WX_PAY_ENABLED: ${WX_PAY_ENABLED:-false}

@@ -1,8 +1,10 @@
 package com.jinlin24th.jinlin.service.impl;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.jinlin24th.jinlin.common.exception.BizException;
 import com.jinlin24th.jinlin.mapper.DistributionMapper;
 import com.jinlin24th.jinlin.pojo.entity.AppUser;
 import com.jinlin24th.jinlin.pojo.entity.Distribution;
@@ -12,6 +14,7 @@ import com.jinlin24th.jinlin.pojo.vo.DistributionVO;
 import com.jinlin24th.jinlin.service.AppUserService;
 import com.jinlin24th.jinlin.service.DistributionConfigService;
 import com.jinlin24th.jinlin.service.DistributionService;
+import com.jinlin24th.jinlin.service.OrderMasterService;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -39,10 +42,14 @@ public class DistributionServiceImpl extends ServiceImpl<DistributionMapper, Dis
 
     private final AppUserService appUserService;
     private final DistributionConfigService distributionConfigService;
+    private final OrderMasterService orderMasterService;
 
-    public DistributionServiceImpl(AppUserService appUserService, DistributionConfigService distributionConfigService) {
+    public DistributionServiceImpl(AppUserService appUserService,
+                                   DistributionConfigService distributionConfigService,
+                                   OrderMasterService orderMasterService) {
         this.appUserService = appUserService;
         this.distributionConfigService = distributionConfigService;
+        this.orderMasterService = orderMasterService;
     }
 
     @Override
@@ -89,18 +96,93 @@ public class DistributionServiceImpl extends ServiceImpl<DistributionMapper, Dis
 
     @Override
     public Distribution settle(Long id) {
-        // 结算：只有 status=1（待结算/可结算）才允许变更为 2（已结算）
+        // 结算：只有 status=1（可结算）才允许变更为 2（已结算），
+        // 用带状态条件的 CAS 更新防止两个管理员并发重复结算。
         Distribution distribution = getById(id);
         if (distribution == null) {
             return null;
         }
-        if (distribution.getStatus() == null || distribution.getStatus() != 1) {
-            return null;
+        if (Integer.valueOf(2).equals(distribution.getStatus())) {
+            throw BizException.badRequest("该佣金已结算，请勿重复操作");
         }
-        distribution.setStatus(2);
-        distribution.setSettleTime(LocalDateTime.now());
-        updateById(distribution);
-        return distribution;
+        if (Integer.valueOf(3).equals(distribution.getStatus())) {
+            throw BizException.badRequest("该佣金已退回，不可结算");
+        }
+        if (!Integer.valueOf(1).equals(distribution.getStatus())) {
+            throw BizException.badRequest("当前状态不可结算");
+        }
+        int updated = getBaseMapper().update(null, Wrappers.<Distribution>lambdaUpdate()
+            .set(Distribution::getStatus, 2)
+            .set(Distribution::getSettleTime, LocalDateTime.now())
+            .set(Distribution::getUpdateTime, LocalDateTime.now())
+            .eq(Distribution::getId, id)
+            .eq(Distribution::getStatus, 1));
+        if (updated == 0) {
+            throw BizException.badRequest("佣金状态已变化，请刷新后重试");
+        }
+        return getById(id);
+    }
+
+    /**
+     * 将已到可结算时间的佣金记录从 0-待结算 变为 1-可结算。
+     * <p>
+     * 规则：订单已完成（status=30）、有收货完成时间、且 receiveTime + settleDays <= 当前时间。
+     * 批量更新带 status=0 条件，多实例重复执行也幂等。
+     *
+     * @return 本次实际变为可结算的记录数
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int markEligibleDistributionsSettleable() {
+        DistributionConfig config = distributionConfigService.getCurrentConfig();
+        int settleDays = config != null && config.getSettleDays() != null ? config.getSettleDays() : 7;
+        LocalDateTime now = LocalDateTime.now();
+
+        List<Distribution> pending = lambdaQuery()
+            .eq(Distribution::getStatus, 0)
+            .list();
+        if (pending.isEmpty()) {
+            return 0;
+        }
+
+        Set<Long> orderIds = pending.stream()
+            .map(Distribution::getOrderId)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toSet());
+        Map<Long, OrderMaster> orderMap = orderIds.isEmpty()
+            ? Map.of()
+            : orderMasterService.listByIds(orderIds).stream()
+                .collect(Collectors.toMap(OrderMaster::getId, Function.identity(), (a, b) -> a));
+
+        List<Long> eligibleIds = pending.stream()
+            .filter(d -> isEligibleForSettle(orderMap.get(d.getOrderId()), settleDays, now))
+            .map(Distribution::getId)
+            .collect(Collectors.toList());
+        if (eligibleIds.isEmpty()) {
+            return 0;
+        }
+
+        int updated = getBaseMapper().update(null, Wrappers.<Distribution>lambdaUpdate()
+            .set(Distribution::getStatus, 1)
+            .set(Distribution::getUpdateTime, now)
+            .eq(Distribution::getStatus, 0)
+            .in(Distribution::getId, eligibleIds));
+        log.info("分销佣金到期可结算: count={}", updated);
+        return updated;
+    }
+
+    /**
+     * 判断佣金记录是否已到可结算时间。
+     */
+    private boolean isEligibleForSettle(OrderMaster order, int settleDays, LocalDateTime now) {
+        if (order == null) {
+            return false;
+        }
+        // 订单状态 30 = 已完成（见 order_master.status 注释）
+        if (!Integer.valueOf(30).equals(order.getStatus()) || order.getReceiveTime() == null) {
+            return false;
+        }
+        return !order.getReceiveTime().plusDays(settleDays).isAfter(now);
     }
 
     /**

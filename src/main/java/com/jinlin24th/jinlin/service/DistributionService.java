@@ -20,6 +20,14 @@ public interface DistributionService extends IService<Distribution> {
     Distribution settle(Long id);
 
     /**
+     * 将已到可结算时间的佣金记录从 0-待结算 变为 1-可结算。
+     * 规则：订单已完成（status=30）、有收货完成时间、且 receiveTime + settleDays <= 当前时间。
+     *
+     * @return 本次实际变为可结算的记录数
+     */
+    int markEligibleDistributionsSettleable();
+
+    /**
      * 支付成功后按买家上下级关系生成佣金记录。
      *
      * @param orderMaster 已支付订单

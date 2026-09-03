@@ -102,5 +102,5 @@ docker compose logs -f backend   # 期待日志：微信支付客户端初始化
 
 - 不重写为官方 SDK（wechatpay-java）
 - 不接入服务商/特约商户模式
-- 不做小程序端 H5/App 支付
+- 只做小程序内 JSAPI 支付；不做 H5 支付（浏览器/公众号网页拉起）和 App 支付（微信 OpenSDK）
 - 营销广告升级（B1）另期进行

@@ -30,6 +30,11 @@ public class WxPayConfig {
     private String serialNo;
 
     /**
+     * 微信支付平台公钥 ID（用于响应/回调验签，与商户API证书序列号不同）
+     */
+    private String platformPublicKeyId;
+
+    /**
      * 商户API私钥路径
      */
     private String privateKeyPath;

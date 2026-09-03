@@ -77,7 +77,7 @@ public class WxPayClient {
     }
 
     /**
-     * 获取微信支付平台证书序列号，用于验签回调通知
+     * 获取微信支付平台公钥 ID，用于验签回调通知
      */
     public String getWechatPayPublicKeyId() {
         return this.wechatPayPublicKeyId;

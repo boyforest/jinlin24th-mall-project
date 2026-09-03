@@ -51,6 +51,7 @@ wx:
     mch-id: ${WX_PAY_MCH_ID:}
     api-v3-key: ${WX_PAY_API_V3_KEY:}
     serial-no: ${WX_PAY_SERIAL_NO:}
+    platform-public-key-id: ${WX_PAY_PLATFORM_PUBLIC_KEY_ID:}
     private-key-path: ${WX_PAY_PRIVATE_KEY_PATH:}
     certificate-path: ${WX_PAY_CERTIFICATE_PATH:}
     api-base-url: ${WX_PAY_API_BASE_URL:https://api.mch.weixin.qq.com}

@@ -31,6 +31,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -478,6 +479,12 @@ public class WxPayServiceImpl implements WxPayService {
         if (timestamp == null || nonce == null || signature == null || body == null) {
             log.warn("回调验签参数缺失: timestamp={}, nonce={}, signature={}, bodyLen={}",
                     timestamp, nonce, signature, body != null ? body.length() : 0);
+            return false;
+        }
+        // 回调头 Wechatpay-Serial 必须等于本地配置的平台公钥 ID，防止用错误公钥验签
+        if (!Objects.equals(serial, wxPayClient.getWechatPayPublicKeyId())) {
+            log.warn("回调序列号不匹配: headerSerial={}, localPublicKeyId={}",
+                    serial, wxPayClient.getWechatPayPublicKeyId());
             return false;
         }
         try {

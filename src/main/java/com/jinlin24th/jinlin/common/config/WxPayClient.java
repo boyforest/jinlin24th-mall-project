@@ -37,7 +37,7 @@ public class WxPayClient {
     public WxPayClient(@Value("${wx.pay.mch-id:}") String mchid,
                        @Value("${wx.pay.serial-no:}") String certificateSerialNo,
                        @Value("${wx.pay.private-key-path:}") String privateKeyPath,
-                       @Value("${wx.pay.serial-no:}") String wechatPayPublicKeyId,
+                       @Value("${wx.pay.platform-public-key-id:}") String wechatPayPublicKeyId,
                        @Value("${wx.pay.certificate-path:}") String wechatPayPublicKeyPath) {
         this.mchid = mchid;
         this.certificateSerialNo = certificateSerialNo;

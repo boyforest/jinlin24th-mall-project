@@ -88,6 +88,9 @@ src/main/resources/application-*.local.yml
 id_rsa*
 id_ed25519*
 
+# 微信支付证书目录（服务器本地放置，禁止提交）
+certs/
+
 ### Logs ###
 logs/
 *.log

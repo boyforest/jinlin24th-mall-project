@@ -92,6 +92,7 @@ services:
     volumes:
       - uploads:/app/uploads
       - logs:/app/logs
+      - ./certs:/app/certs:ro
 
   admin-web:
     build:

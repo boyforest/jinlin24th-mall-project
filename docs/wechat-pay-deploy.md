@@ -50,6 +50,12 @@ docker compose up -d --build backend
 docker compose logs -f backend
 ```
 
+可选检查：确认容器环境变量已注入（应能看到 WX_PAY_PLATFORM_PUBLIC_KEY_ID）：
+
+```bash
+docker compose exec backend env | grep WX_PAY
+```
+
 启动日志出现 `微信支付客户端初始化成功,商户号: xxx` 即配置就绪。
 
 ## 3. 微信商户平台配置（纯后台）

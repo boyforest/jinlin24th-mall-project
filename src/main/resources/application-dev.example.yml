@@ -24,6 +24,7 @@ wx:
     mch-id:
     api-v3-key:
     serial-no:
+    platform-public-key-id:
     private-key-path:
     certificate-path:
 

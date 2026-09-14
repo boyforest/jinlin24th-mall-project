@@ -12,6 +12,7 @@ import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
  * 全局异常处理：把异常统一转换成 Result 返回
@@ -48,6 +49,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Result<Void>> handleMediaTypeNotSupported(HttpMediaTypeNotSupportedException e) {
         log.warn("请求内容类型不支持：{}", e.getMessage());
         return response(BizCode.UNSUPPORTED_MEDIA_TYPE);
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<Result<Void>> handleNoResourceFound(NoResourceFoundException e) {
+        log.warn("请求路径不存在：{}", e.getMessage());
+        return response(BizCode.NOT_FOUND);
     }
 
     @ExceptionHandler(Exception.class)

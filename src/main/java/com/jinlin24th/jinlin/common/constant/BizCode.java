@@ -21,6 +21,7 @@ public enum BizCode {
 
     UNAUTHORIZED(40100, HttpStatus.UNAUTHORIZED, "未登录"),
     FORBIDDEN(40300, HttpStatus.FORBIDDEN, "无权限"),
+    NOT_FOUND(40400, HttpStatus.NOT_FOUND, "资源不存在"),
 
     SYSTEM_ERROR(50000, HttpStatus.INTERNAL_SERVER_ERROR, "系统繁忙，请稍后再试"),
     AUTH_SESSION_WRITE_FAILED(50010, HttpStatus.INTERNAL_SERVER_ERROR, "登录态写入失败（Redis）"),

@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.jinlin24th.jinlin.common.exception.BizException;
 import com.jinlin24th.jinlin.mapper.DistributionMapper;
+import com.jinlin24th.jinlin.pojo.entity.AppUser;
 import com.jinlin24th.jinlin.pojo.entity.Distribution;
 import com.jinlin24th.jinlin.pojo.entity.DistributionConfig;
 import com.jinlin24th.jinlin.pojo.entity.OrderMaster;
@@ -64,6 +65,27 @@ class DistributionServiceImplTest {
         DistributionConfig config = new DistributionConfig();
         config.setSettleDays(settleDays);
         return config;
+    }
+
+    @Test
+    void loadRelatedUsersShouldTolerateNullRecommenderIds() throws Exception {
+        Distribution record = new Distribution();
+        record.setBuyerUserId(1L);
+        record.setLevel1UserId(null);
+        record.setLevel2UserId(null);
+
+        AppUser buyer = new AppUser();
+        buyer.setId(1L);
+        when(appUserService.listByIds(any())).thenReturn(List.of(buyer));
+
+        java.lang.reflect.Method method = DistributionServiceImpl.class
+                .getDeclaredMethod("loadRelatedUsers", List.class);
+        method.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        Map<Long, AppUser> result = (Map<Long, AppUser>) method.invoke(service, List.of(record));
+
+        assertEquals(1, result.size());
+        assertTrue(result.containsKey(1L));
     }
 
     private Distribution pendingDistribution(Long id, Long orderId) {

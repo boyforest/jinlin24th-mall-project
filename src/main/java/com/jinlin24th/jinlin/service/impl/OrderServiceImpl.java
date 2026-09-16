@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 @Slf4j
@@ -572,7 +573,7 @@ public class OrderServiceImpl implements OrderService {
 
     private Map<Long, AppUser> loadOrderUsers(List<OrderMaster> orders) {
         Set<Long> userIds = orders.stream()
-            .flatMap(order -> List.of(order.getUserId(), order.getRecommenderUserId(), order.getLevel2RecommenderUserId()).stream())
+            .flatMap(order -> Stream.of(order.getUserId(), order.getRecommenderUserId(), order.getLevel2RecommenderUserId()))
             .filter(Objects::nonNull)
             .collect(Collectors.toSet());
         if (userIds.isEmpty()) {

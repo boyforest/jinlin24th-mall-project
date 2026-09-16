@@ -34,6 +34,7 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Slf4j
 @Service
@@ -334,7 +335,7 @@ public class DistributionServiceImpl extends ServiceImpl<DistributionMapper, Dis
      */
     private Map<Long, AppUser> loadRelatedUsers(List<Distribution> records) {
         Set<Long> userIds = records.stream()
-            .flatMap(record -> List.of(record.getBuyerUserId(), record.getLevel1UserId(), record.getLevel2UserId()).stream())
+            .flatMap(record -> Stream.of(record.getBuyerUserId(), record.getLevel1UserId(), record.getLevel2UserId()))
             .filter(Objects::nonNull)
             .collect(Collectors.toSet());
         if (userIds.isEmpty()) {

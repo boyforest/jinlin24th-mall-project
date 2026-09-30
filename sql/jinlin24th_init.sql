@@ -127,7 +127,10 @@ CREATE TABLE IF NOT EXISTS `product_sku` (
   `sku_name` varchar(128) NOT NULL COMMENT '规格名称，如：500g/盒',
   `price` decimal(10,2) NOT NULL COMMENT '售价',
   `member_price` decimal(10,2) DEFAULT NULL COMMENT '会员价',
-  `stock` int NOT NULL DEFAULT 0 COMMENT '库存数量',
+  -- 已废弃：不参与任何业务。下单占用/归还库存只认 inventory 表（按仓库），
+  -- 可售库存展示也改为实时汇总 inventory。保留该列仅为兼容历史数据，
+  -- 请勿再读写它——它不随销售变化，照它做补货或展示会造成误导。
+  `stock` int NOT NULL DEFAULT 0 COMMENT '【已废弃】库存数量，请使用 inventory.stock',
   `sku_image` varchar(255) DEFAULT NULL COMMENT 'SKU图片',
   `status` tinyint DEFAULT 1 COMMENT '1-启用，0-禁用',
   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -395,7 +398,8 @@ CREATE TABLE IF NOT EXISTS `payment_record` (
   `refund_amount` decimal(10,2) DEFAULT NULL COMMENT '退款金额',
   `refund_status` tinyint NOT NULL DEFAULT 0 COMMENT '退款状态：0-未退款，1-退款中，2-退款成功，3-退款失败',
   `refund_time` datetime DEFAULT NULL COMMENT '退款时间',
-  `refund_id` varchar(64) DEFAULT NULL COMMENT '退款订单号',
+  `refund_id` varchar(64) DEFAULT NULL COMMENT '退款订单号（微信 refund_id）',
+  `refund_remark` varchar(255) DEFAULT NULL COMMENT '人工处理标记/说明，如 MANUAL_REFUND_PENDING-待人工退款',
   `reason` varchar(255) DEFAULT NULL COMMENT '支付/退款原因',
   `notify_time` datetime DEFAULT NULL COMMENT '回调通知时间',
   `extend_info` text COMMENT '扩展信息(JSON格式)',
@@ -407,6 +411,7 @@ CREATE TABLE IF NOT EXISTS `payment_record` (
   KEY `idx_user_id` (`user_id`),
   KEY `idx_transaction_id` (`transaction_id`),
   KEY `idx_refund_id` (`refund_id`),
+  KEY `idx_refund_remark` (`refund_remark`),
   KEY `idx_create_time` (`create_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='支付记录表';
 
@@ -527,31 +532,11 @@ CREATE TABLE IF NOT EXISTS `user_address` (
   KEY `idx_default` (`user_id`, `is_default`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户收货地址表';
 
--- 26. 退款单表
-CREATE TABLE IF NOT EXISTS `refund_order` (
-  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '退款单ID',
-  `refund_no` varchar(64) NOT NULL COMMENT '退款单号',
-  `order_id` bigint NOT NULL COMMENT '订单ID',
-  `order_no` varchar(64) NOT NULL COMMENT '订单编号',
-  `payment_no` varchar(64) DEFAULT NULL COMMENT '支付流水号',
-  `user_id` bigint NOT NULL COMMENT '用户ID',
-  `refund_amount` decimal(10,2) NOT NULL COMMENT '退款金额',
-  `reason` varchar(255) DEFAULT NULL COMMENT '退款原因',
-  `status` tinyint NOT NULL DEFAULT 0 COMMENT '状态：0-申请中，1-退款中，2-退款成功，3-退款失败，4-已拒绝',
-  `transaction_id` varchar(64) DEFAULT NULL COMMENT '微信支付订单号',
-  `refund_id` varchar(64) DEFAULT NULL COMMENT '微信退款单号',
-  `apply_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '申请时间',
-  `finish_time` datetime DEFAULT NULL COMMENT '完成时间',
-  `operator_id` bigint DEFAULT NULL COMMENT '处理人ID',
-  `remark` varchar(255) DEFAULT NULL COMMENT '备注',
-  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_refund_no` (`refund_no`),
-  KEY `idx_order_no` (`order_no`),
-  KEY `idx_user_id` (`user_id`),
-  KEY `idx_status` (`status`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='退款单表';
+-- 26.（已移除）退款单表 refund_order
+-- 该表从未被任何 entity / mapper / service 使用：退款状态实际记录在
+-- payment_record（refund_status / refund_id / refund_amount / refund_time / refund_remark）。
+-- 保留一张空表会让人误以为有独立的退款单流程，故从初始化脚本中删除。
+-- 注意：已存在的库不会自动删表（无破坏性迁移），如确认无用可手工 DROP。
 
 -- 27. 系统配置表
 CREATE TABLE IF NOT EXISTS `system_config` (

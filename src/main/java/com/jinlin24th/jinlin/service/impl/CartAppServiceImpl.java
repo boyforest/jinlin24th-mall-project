@@ -6,9 +6,12 @@ import com.jinlin24th.jinlin.pojo.entity.Product;
 import com.jinlin24th.jinlin.pojo.entity.ProductSku;
 import com.jinlin24th.jinlin.pojo.vo.CartVO;
 import com.jinlin24th.jinlin.service.CartAppService;
+import com.jinlin24th.jinlin.service.AppUserService;
+import com.jinlin24th.jinlin.service.EffectivePriceService;
 import com.jinlin24th.jinlin.service.CartService;
 import com.jinlin24th.jinlin.service.ProductService;
 import com.jinlin24th.jinlin.service.ProductSkuService;
+import com.jinlin24th.jinlin.service.SkuStockQueryService;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -27,6 +30,22 @@ public class CartAppServiceImpl implements CartAppService {
 
     @Autowired
     private ProductSkuService productSkuService;
+
+    /**
+     * 可售库存查询（唯一事实来源 = inventory）。
+     * <p>
+     * 刻意不注入 InventoryService：InventoryServiceImpl 构造期依赖 ProductSkuService，
+     * 反向依赖会形成循环引用（Spring Boot 2.6+ 默认禁止，启动即失败）。
+     */
+    @Autowired
+    private SkuStockQueryService skuStockQueryService;
+
+    @Autowired
+    private AppUserService appUserService;
+
+    /** 会员价规则唯一事实来源。 */
+    @Autowired
+    private EffectivePriceService effectivePriceService;
 
     @Override
     public List<CartVO> list(Long userId) {
@@ -51,9 +70,12 @@ public class CartAppServiceImpl implements CartAppService {
             ? Collections.emptyMap()
             : productSkuService.listByIds(skuIds).stream().collect(Collectors.toMap(ProductSku::getId, s -> s, (a, b) -> a));
 
-        return carts.stream()
+        List<CartVO> vos = carts.stream()
             .map(c -> toVO(c, productById.get(c.getProductId()), skuById.get(c.getSkuId())))
             .collect(Collectors.toList());
+        // 库存以 inventory 为准（product_sku.stock 不随销售变化，会让用户卖光了还能加购）
+        // 成交价按当前用户身份算（购物车需登录，能准确判断是否分销会员）
+        return fillLiveFields(vos, resolveDistributorMember(userId));
     }
 
     @Override
@@ -93,7 +115,7 @@ public class CartAppServiceImpl implements CartAppService {
         }
 
         Product product = productService.getById(productId);
-        return toVO(cart, product, sku);
+        return fillLiveFields(List.of(toVO(cart, product, sku)), resolveDistributorMember(userId)).get(0);
     }
 
     @Override
@@ -126,7 +148,7 @@ public class CartAppServiceImpl implements CartAppService {
 
         Product product = productService.getById(cart.getProductId());
         ProductSku sku = productSkuService.getById(cart.getSkuId());
-        return toVO(cart, product, sku);
+        return fillLiveFields(List.of(toVO(cart, product, sku)), resolveDistributorMember(userId)).get(0);
     }
 
     @Override
@@ -139,6 +161,45 @@ public class CartAppServiceImpl implements CartAppService {
             .eq(Cart::getId, id)
             .eq(Cart::getUserId, userId)
             .remove();
+    }
+
+    /**
+     * 批量覆盖购物车条目的实时字段：**库存**与**成交价**（避免 N+1）。
+     * <p>
+     * - 库存：以 inventory 汇总为准，无记录 → 0（不可售），不回退到 {@code product_sku.stock}；
+     * - 成交价：由 {@link EffectivePriceService} 按购买者身份算好，前端不得自行判断。
+     */
+    private List<CartVO> fillLiveFields(List<CartVO> vos, boolean distributorMember) {
+        if (vos == null || vos.isEmpty()) {
+            return List.of();
+        }
+        Set<Long> skuIds = vos.stream().map(CartVO::getSkuId).filter(Objects::nonNull).collect(Collectors.toSet());
+        Map<Long, Integer> stockBySku = skuStockQueryService.stockBySkuIds(skuIds);
+
+        // 成交价需要 SKU 实体；购物车里的 sku 已在上层批量查过，这里按需再取一次以保证
+        // 价格与库存同源（价格只依赖 SKU 的 price/memberPrice，不受库存影响）
+        Map<Long, ProductSku> skuById = skuIds.isEmpty()
+            ? Map.of()
+            : productSkuService.listByIds(skuIds).stream()
+                .filter(Objects::nonNull)
+                .collect(Collectors.toMap(ProductSku::getId, s -> s, (a, b) -> a));
+
+        vos.forEach(vo -> {
+            vo.setStock(vo.getSkuId() == null ? 0 : stockBySku.getOrDefault(vo.getSkuId(), 0));
+            ProductSku sku = vo.getSkuId() == null ? null : skuById.get(vo.getSkuId());
+            if (sku != null) {
+                vo.setEffectivePrice(effectivePriceService.effectivePrice(sku, distributorMember));
+            }
+        });
+        return vos;
+    }
+
+    /** 解析当前用户是否分销会员（拿不到身份时保守按非会员）。 */
+    private boolean resolveDistributorMember(Long userId) {
+        if (userId == null) {
+            return false;
+        }
+        return effectivePriceService.isDistributorMember(appUserService.getById(userId));
     }
 
     private CartVO toVO(Cart cart, Product product, ProductSku sku) {
@@ -154,7 +215,7 @@ public class CartAppServiceImpl implements CartAppService {
             vo.setSkuImage(sku.getSkuImage());
             vo.setPrice(sku.getPrice());
             vo.setMemberPrice(sku.getMemberPrice());
-            vo.setStock(sku.getStock());
+            // 库存由 fillLiveStock 用 inventory 实时覆盖，这里不写 product_sku.stock
         }
         return vo;
     }

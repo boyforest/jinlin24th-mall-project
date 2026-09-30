@@ -23,7 +23,9 @@ uploads/
 .env.*
 !.env.example
 
+# 本地/含密钥的 profile 不进入镜像
 src/main/resources/application-dev.yml
 src/main/resources/application-local.yml
-src/main/resources/application-prod.yml
 src/main/resources/application-*.local.yml
+# 注意：application-prod.yml 必须打进镜像——它不含密钥，只引用环境变量。
+# 若把它排除，生产容器就只剩基座配置，Hikari/日志滚动/线程池调优全部失效。

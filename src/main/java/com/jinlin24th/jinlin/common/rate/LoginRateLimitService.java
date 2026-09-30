@@ -2,6 +2,7 @@ package com.jinlin24th.jinlin.common.rate;
 
 import com.jinlin24th.jinlin.common.constant.BizCode;
 import com.jinlin24th.jinlin.common.exception.BizException;
+import com.jinlin24th.jinlin.common.util.ClientIpUtil;
 import com.jinlin24th.jinlin.common.util.RedisUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.stereotype.Component;
@@ -37,19 +38,14 @@ public class LoginRateLimitService {
         }
     }
 
+    /**
+     * 获取客户端 IP。
+     * <p>
+     * 统一走 {@link ClientIpUtil}：取 X-Forwarded-For 的**最右侧**值。
+     * 此前取首值等于采信攻击者伪造的 IP——每次请求换一个伪造值即可无限绕过
+     * 登录限流（后台口令爆破的最后一道自动化防线）。
+     */
     private static String getClientIp(HttpServletRequest request) {
-        if (request == null) {
-            return "unknown";
-        }
-        String xff = request.getHeader("X-Forwarded-For");
-        if (StringUtils.hasText(xff)) {
-            int idx = xff.indexOf(',');
-            return (idx > 0 ? xff.substring(0, idx) : xff).trim();
-        }
-        String realIp = request.getHeader("X-Real-IP");
-        if (StringUtils.hasText(realIp)) {
-            return realIp.trim();
-        }
-        return request.getRemoteAddr();
+        return ClientIpUtil.resolve(request);
     }
 }

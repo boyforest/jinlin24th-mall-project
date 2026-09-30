@@ -40,7 +40,17 @@ mybatis-plus:
   type-aliases-package: com.jinlin24th.jinlin.pojo.entity
   configuration:
     map-underscore-to-camel-case: true
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    # 安全默认：基座关闭 SQL 日志（含参数，可能包含手机号等 PII）。
+    # 需要调试时由 application-dev.yml 反向开启，避免生产环境忘记关闭。
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl
+
+# 安全默认：基座关闭 Swagger / OpenAPI 文档，避免生产环境暴露全部接口签名。
+# 本地开发需要时由 application-dev.yml 反向开启。
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
 
 wx:
   miniapp:
@@ -74,11 +84,26 @@ app:
     null-ttl-ms: ${CACHE_NULL_TTL_MS:60000}
   sms:
     code-ttl-seconds: ${SMS_CODE_TTL_SECONDS:300}
+  order:
+    # 订单超时判定时长（秒）。下单即占用库存，超过该时长未付款即由兜底任务取消并归还库存。
+    # 与下方 app.mq.order-timeout-cancel-delay-seconds 必须一致，否则两条取消路径的时限会不一致。
+    timeout-cancel-seconds: ${ORDER_TIMEOUT_CANCEL_SECONDS:1800}
+    # 兜底扫描间隔（毫秒），默认 5 分钟；用 fixedDelay，避免上一轮未完成时叠加
+    timeout-scan-interval-ms: ${ORDER_TIMEOUT_SCAN_INTERVAL_MS:300000}
+    # 首次启动延迟（毫秒），避免与应用启动期资源竞争
+    timeout-scan-initial-delay-ms: ${ORDER_TIMEOUT_SCAN_INITIAL_DELAY_MS:60000}
+    # 单次扫描处理上限，必须为正，避免一次把全部待付款订单拉进内存
+    timeout-scan-batch-size: ${ORDER_TIMEOUT_SCAN_BATCH_SIZE:200}
+  distribution:
+    # 佣金 CSV 单次导出上限。财务按该文件线下打款，达到上限时会在文件末尾写入 # 开头的提示行。
+    max-export-rows: ${DISTRIBUTION_MAX_EXPORT_ROWS:10000}
   mq:
     enabled: ${ROCKETMQ_ENABLED:false}
     producer-retry-times: ${ROCKETMQ_PRODUCER_RETRY_TIMES:3}
     send-timeout-ms: ${ROCKETMQ_SEND_TIMEOUT_MS:3000}
-    order-timeout-cancel-delay-seconds: ${ORDER_TIMEOUT_CANCEL_DELAY_SECONDS:1800}
+    # 默认值引用 app.order.timeout-cancel-seconds，保证两条取消路径的时限只有一个事实来源；
+    # 如需单独调整 MQ 延迟，可显式设置 ORDER_TIMEOUT_CANCEL_DELAY_SECONDS 覆盖。
+    order-timeout-cancel-delay-seconds: ${ORDER_TIMEOUT_CANCEL_DELAY_SECONDS:${ORDER_TIMEOUT_CANCEL_SECONDS:1800}}
     topic-order-created: ${ROCKETMQ_TOPIC_ORDER_CREATED:order-created-topic}
     consumer-group-order-created: ${ROCKETMQ_CONSUMER_GROUP_ORDER_CREATED:jinlin-order-created-consumer}
     topic-sms: ${ROCKETMQ_TOPIC_SMS:mall_sms_topic}

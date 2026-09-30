@@ -16,8 +16,6 @@ public interface AppUserService extends IService<AppUser> {
 
     AppUserVO updateStatus(Long id, Integer status);
 
-    List<AppUserVO> getUserList();
-
     IPage<AppUserVO> adminPage(long page, long size, Integer status, Integer isDistributor, String keyword);
 
     /**

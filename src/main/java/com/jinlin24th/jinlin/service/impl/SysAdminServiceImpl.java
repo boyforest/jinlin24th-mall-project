@@ -3,6 +3,7 @@ package com.jinlin24th.jinlin.service.impl;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.jinlin24th.jinlin.common.auth.AuthSessionService;
 import com.jinlin24th.jinlin.common.exception.BizException;
+import com.jinlin24th.jinlin.common.util.ClientIpUtil;
 import com.jinlin24th.jinlin.common.util.JwtUtil;
 import com.jinlin24th.jinlin.mapper.SysAdminMapper;
 import com.jinlin24th.jinlin.mapper.SysAdminRoleMapper;
@@ -292,21 +293,12 @@ public class SysAdminServiceImpl extends ServiceImpl<SysAdminMapper, SysAdmin> i
     }
 
     /**
-     * 获取客户端 IP，兼容本地开发代理和上线后的反向代理。
+     * 获取客户端 IP，用于记录管理员最后登录 IP（安全审计字段）。
+     * <p>
+     * 统一走 {@link ClientIpUtil} 取 X-Forwarded-For 最右侧值：
+     * 取首值会把这个审计字段写成攻击者可任意伪造的内容，失去审计价值。
      */
     private static String getClientIp(HttpServletRequest request) {
-        if (request == null) {
-            return "unknown";
-        }
-        String xff = request.getHeader("X-Forwarded-For");
-        if (StringUtils.hasText(xff)) {
-            int idx = xff.indexOf(',');
-            return (idx > 0 ? xff.substring(0, idx) : xff).trim();
-        }
-        String realIp = request.getHeader("X-Real-IP");
-        if (StringUtils.hasText(realIp)) {
-            return realIp.trim();
-        }
-        return request.getRemoteAddr();
+        return ClientIpUtil.resolve(request);
     }
 }

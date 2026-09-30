@@ -60,7 +60,12 @@ class WxPayClientTest {
                         "wx.pay.serial-no=" + serialNo,
                         "wx.pay.platform-public-key-id=" + platformKeyId,
                         "wx.pay.private-key-path=" + privateKeyFile,
-                        "wx.pay.certificate-path=" + publicKeyFile)
+                        "wx.pay.certificate-path=" + publicKeyFile,
+                        // WxPayConfig 在 wx.pay.enabled=true 时会 fail-fast 校验回调地址：
+                        // 留空会导致"支付成功但订单永远收不到回调"。因此启用支付的测试
+                        // fixture 必须提供完整的 https 回调地址。
+                        "wx.pay.notify-url=https://api.example.com/api/payment/notify",
+                        "wx.pay.refund-notify-url=https://api.example.com/api/payment/refund/notify")
                 .withUserConfiguration(TestPayConfig.class);
     }
 

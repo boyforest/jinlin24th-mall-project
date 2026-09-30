@@ -3,6 +3,7 @@ package com.jinlin24th.jinlin.common.log;
 import com.alibaba.fastjson2.JSON;
 import com.jinlin24th.jinlin.common.mq.dto.OperationLogMessageDTO;
 import com.jinlin24th.jinlin.common.mq.producer.OperationLogProducer;
+import com.jinlin24th.jinlin.common.util.ClientIpUtil;
 import com.jinlin24th.jinlin.common.util.JwtUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -136,14 +137,14 @@ public class OperationLogInterceptor implements HandlerInterceptor {
     }
 
     /**
-     * 获取客户端真实 IP，兼容反向代理。
+     * 获取客户端真实 IP，用于操作日志审计。
+     * <p>
+     * 统一走 {@link ClientIpUtil} 取 X-Forwarded-For 最右侧值：
+     * 此前取首值（split(",")[0]），会把审计日志的 IP 写成攻击者任意伪造的内容，
+     * 出事后无法追溯真实来源。
      */
     private String clientIp(HttpServletRequest request) {
-        String forwardedFor = request.getHeader("X-Forwarded-For");
-        if (forwardedFor != null && !forwardedFor.isBlank()) {
-            return forwardedFor.split(",")[0].trim();
-        }
-        return request.getRemoteAddr();
+        return ClientIpUtil.resolve(request);
     }
 
     /**

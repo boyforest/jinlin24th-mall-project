@@ -1,5 +1,6 @@
 package com.jinlin24th.jinlin.controller;
 
+import com.jinlin24th.jinlin.common.auth.AuthSessionService;
 import com.jinlin24th.jinlin.common.auth.CurrentAdminId;
 import com.jinlin24th.jinlin.common.auth.CurrentUserContext;
 import com.jinlin24th.jinlin.common.exception.BizException;
@@ -33,13 +34,16 @@ public class AdminAuthController {
 
     private final SysAdminService sysAdminService;
     private final LoginRateLimitService loginRateLimitService;
+    private final AuthSessionService authSessionService;
 
     public AdminAuthController(
         SysAdminService sysAdminService,
-        LoginRateLimitService loginRateLimitService
+        LoginRateLimitService loginRateLimitService,
+        AuthSessionService authSessionService
     ) {
         this.sysAdminService = sysAdminService;
         this.loginRateLimitService = loginRateLimitService;
+        this.authSessionService = authSessionService;
     }
 
     /**
@@ -69,6 +73,24 @@ public class AdminAuthController {
             @RequestBody AdminPasswordDTO dto) {
         String adminName = CurrentUserContext.getAdminName();
         return Result.success(sysAdminService.changePassword(adminId, adminName, dto));
+    }
+
+    /**
+     * 管理员退出登录。
+     * <p>
+     * 关键：必须删除服务端 Redis 中的 jti，而不仅是前端清 localStorage。
+     * 否则 token 一旦泄漏（XSS / 日志 / 抓包），在 {@code jwt.expiration}（默认 7 天）
+     * 内仍可继续使用，且无法主动踢下线。
+     */
+    @PostMapping("/logout")
+    public Result<Boolean> logout() {
+        String adminName = CurrentUserContext.getAdminName();
+        if (!StringUtils.hasText(adminName)) {
+            // 拿不到身份就删不掉登录态，必须报错而不是让用户误以为已登出
+            throw BizException.unauthorized("登录已失效");
+        }
+        authSessionService.onLogoutAdmin(adminName);
+        return Result.success(true);
     }
 
     @GetMapping("/admins/options")

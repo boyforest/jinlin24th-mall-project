@@ -3,8 +3,8 @@ package com.jinlin24th.jinlin.common.rate.aspect;
 import com.jinlin24th.jinlin.common.constant.BizCode;
 import com.jinlin24th.jinlin.common.exception.BizException;
 import com.jinlin24th.jinlin.common.rate.annotation.RedisRateLimit;
+import com.jinlin24th.jinlin.common.util.ClientIpUtil;
 import com.jinlin24th.jinlin.common.util.RedisUtil;
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
@@ -63,20 +63,16 @@ public class RedisRateLimitAspect {
     }
 
     /**
-     * 获取客户端 IP，优先兼容网关/代理头。
+     * 获取客户端 IP。
+     * <p>
+     * 统一走 {@link ClientIpUtil}：取 X-Forwarded-For 的**最右侧**值，
+     * 避免客户端伪造首值绕过限流（详见 ClientIpUtil 的类注释）。
      */
     private String clientIp() {
         ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
         if (attributes == null) {
             return "unknown";
         }
-        HttpServletRequest request = attributes.getRequest();
-        String xff = request.getHeader("X-Forwarded-For");
-        if (StringUtils.hasText(xff)) {
-            int idx = xff.indexOf(',');
-            return (idx > 0 ? xff.substring(0, idx) : xff).trim();
-        }
-        String realIp = request.getHeader("X-Real-IP");
-        return StringUtils.hasText(realIp) ? realIp.trim() : request.getRemoteAddr();
+        return ClientIpUtil.resolve(attributes.getRequest());
     }
 }

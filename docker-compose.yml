@@ -8,6 +8,9 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in .env}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-jinlin24th}
+      # 业务账号：backend 用它连接，避免应用直接用 root（最小权限原则）
+      MYSQL_APP_USER: ${MYSQL_APP_USER:-jinlin_app}
+      MYSQL_APP_PASSWORD: ${MYSQL_APP_PASSWORD:?set MYSQL_APP_PASSWORD in .env}
       TZ: Asia/Shanghai
     command:
       - --character-set-server=utf8mb4
@@ -17,9 +20,12 @@ services:
       - "127.0.0.1:${MYSQL_HOST_PORT:-13306}:3306"
     volumes:
       - mysql_data:/var/lib/mysql
+      # 首次初始化（数据卷为空）时按文件名顺序执行
       - ./deploy/mysql/init/01-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
       - ./deploy/mysql/init/02-product-ops.sql:/docker-entrypoint-initdb.d/02-product-ops.sql:ro
-      - ./deploy/mysql/init/03-demo-seed.sql:/docker-entrypoint-initdb.d/03-demo-seed.sql:ro
+      # 演示数据不进入生产初始化流程（需要时手工执行：
+      #   docker exec -i jinlin-mysql mysql -uroot -p"$MYSQL_ROOT_PASSWORD" jinlin24th < sql/demo_seed.sql）
+      - ./deploy/mysql/init/04-app-user.sh:/docker-entrypoint-initdb.d/04-app-user.sh:ro
       - ./sql:/docker-entrypoint-initdb.d/sql:ro
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$${MYSQL_ROOT_PASSWORD} --silent"]
@@ -65,11 +71,13 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
       DB_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-jinlin24th}?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
-      DB_USERNAME: root
-      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      # 业务账号（非 root），仅 jinlin24th 库 DML 权限，由 04-app-user.sh 创建
+      DB_USERNAME: ${MYSQL_APP_USER:-jinlin_app}
+      DB_PASSWORD: ${MYSQL_APP_PASSWORD:?set MYSQL_APP_PASSWORD in .env}
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      # Redis 中保存登录态 jti，必须设置密码（配合 JWT 密钥构成完整认证边界）
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}
       REDIS_DATABASE: ${REDIS_DATABASE:-1}
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:?set CORS_ALLOWED_ORIGINS in .env}
@@ -83,9 +91,16 @@ services:
       WX_PAY_PLATFORM_PUBLIC_KEY_ID: ${WX_PAY_PLATFORM_PUBLIC_KEY_ID:-}
       WX_PAY_PRIVATE_KEY_PATH: ${WX_PAY_PRIVATE_KEY_PATH:-}
       WX_PAY_CERTIFICATE_PATH: ${WX_PAY_CERTIFICATE_PATH:-}
+      # 注意：这两项如果传空字符串，会覆盖 Spring 侧的默认值，导致回调地址为空。
+      # WxPayConfig 会在 wx.pay.enabled=true 时校验非空且为 https，配置错误直接启动失败。
       WX_PAY_NOTIFY_URL: ${WX_PAY_NOTIFY_URL:-}
       WX_PAY_REFUND_NOTIFY_URL: ${WX_PAY_REFUND_NOTIFY_URL:-}
       ROCKETMQ_ENABLED: ${ROCKETMQ_ENABLED:-false}
+      # 订单超时兜底（MQ 关闭时唯一能释放库存的机制）。
+      # 用 :- 给出与 application.yml 一致的默认值，避免"空字符串覆盖默认值"的陷阱。
+      ORDER_TIMEOUT_CANCEL_SECONDS: ${ORDER_TIMEOUT_CANCEL_SECONDS:-1800}
+      ORDER_TIMEOUT_SCAN_INTERVAL_MS: ${ORDER_TIMEOUT_SCAN_INTERVAL_MS:-300000}
+      ORDER_TIMEOUT_SCAN_BATCH_SIZE: ${ORDER_TIMEOUT_SCAN_BATCH_SIZE:-200}
       JAVA_OPTS: ${JAVA_OPTS:--Xms256m -Xmx512m}
       TZ: Asia/Shanghai
     ports:

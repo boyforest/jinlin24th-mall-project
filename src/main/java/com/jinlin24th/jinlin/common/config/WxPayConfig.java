@@ -1,5 +1,6 @@
 package com.jinlin24th.jinlin.common.config;
 
+import jakarta.annotation.PostConstruct;
 import lombok.Data;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -59,5 +60,38 @@ public class WxPayConfig {
      */
     private String refundNotifyUrl;
 
+    /**
+     * 启动期配置校验。
+     * <p>
+     * 只在 {@code wx.pay.enabled=true} 时生效（本类本身已带该条件注解）。
+     * 目的是把"配置漏填"从"运行时静默失败"变成"启动即失败"：
+     * docker-compose 里 {@code WX_PAY_NOTIFY_URL: ${WX_PAY_NOTIFY_URL:-}} 会把未配置的变量
+     * 传成空字符串，从而覆盖 Spring 侧的默认值——若不在启动时拦截，就会出现
+     * "支付成功但商户收不到回调、订单永远停在待付款"的隐性故障。
+     */
+    @PostConstruct
+    public void validate() {
+        requireHttps("wx.pay.notify-url", notifyUrl);
+        requireHttps("wx.pay.refund-notify-url", refundNotifyUrl);
+        requireText("wx.pay.mch-id", mchId);
+        requireText("wx.pay.api-v3-key", apiV3Key);
+        requireText("wx.pay.serial-no", serialNo);
+        requireText("wx.pay.platform-public-key-id", platformPublicKeyId);
+        requireText("wx.pay.private-key-path", privateKeyPath);
+    }
 
+    private static void requireText(String key, String value) {
+        if (value == null || value.isBlank() || value.contains("your-")) {
+            throw new IllegalStateException(
+                "微信支付已启用（wx.pay.enabled=true），但 " + key + " 未正确配置，请检查服务器 .env");
+        }
+    }
+
+    private static void requireHttps(String key, String value) {
+        requireText(key, value);
+        if (!value.startsWith("https://")) {
+            throw new IllegalStateException(
+                "微信支付回调地址必须是 https，当前 " + key + "=" + value);
+        }
+    }
 }

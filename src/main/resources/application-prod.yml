@@ -1,0 +1,88 @@
+# ============================================================
+# 金霖二十四养 — 生产环境配置（已提交，不含任何密钥）
+#
+# 生效条件：SPRING_PROFILES_ACTIVE=prod（docker-compose 默认已设置）
+#
+# 本文件只包含"与密钥无关"的环境相关配置，所有密钥/连接信息一律通过
+# 环境变量注入（见 .env.example）：
+#   DB_URL / DB_USERNAME / DB_PASSWORD
+#   REDIS_HOST / REDIS_PORT / REDIS_PASSWORD / REDIS_DATABASE
+#   JWT_SECRET / CORS_ALLOWED_ORIGINS / APP_PUBLIC_URL
+#   WX_MINIAPP_* / WX_PAY_*
+#
+# 安全默认值（关闭 Swagger、关闭 SQL 日志）同时写在基座 application.yml 里，
+# 即使本文件缺失或 profile 未生效也不会退化为"生产开调试"。
+# ============================================================
+
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 300000
+      max-lifetime: 1800000
+      connection-timeout: 30000
+
+  data:
+    redis:
+      # docker-compose 中 backend 与 redis 同网络，服务名为 redis
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD}
+      database: ${REDIS_DATABASE:1}
+      lettuce:
+        pool:
+          max-active: 16
+          max-idle: 8
+          min-idle: 4
+          max-wait: 3000ms
+
+# 生产环境关闭 SQL 日志（基座已是该默认值，此处显式声明防止被覆盖）
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl
+
+# 生产环境禁用 Swagger / OpenAPI 文档（基座已是该默认值，此处显式声明）
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+# Tomcat 线程池调优
+server:
+  tomcat:
+    threads:
+      max: 200
+      min-spare: 20
+    max-connections: 8192
+    accept-count: 100
+
+# JWT 密钥：必须通过环境变量注入，不设默认值（缺失即启动失败）
+jwt:
+  secret: ${JWT_SECRET}
+
+# CORS：必须通过环境变量显式指定允许的域名，不设 localhost 兜底
+app:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS}
+
+# 日志配置：文件输出 + 滚动策略
+logging:
+  level:
+    root: WARN
+    com.jinlin24th.jinlin: INFO
+    org.springframework.web: WARN
+    org.springframework.security: WARN
+    com.baomidou.mybatisplus: WARN
+    org.apache.rocketmq: WARN
+  file:
+    name: /app/logs/jinlin24th.log
+  logback:
+    rollingpolicy:
+      max-file-size: 50MB
+      max-history: 30
+      total-size-cap: 1GB

@@ -158,6 +158,17 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
+
+        <!--
+            H2 内存库（仅测试）：用于验证分页拦截器的真实 SQL 行为。
+            分页越界（size=-1）这类问题只有跑真实 SQL 才能证明修好了，
+            纯 Mockito 测试无法覆盖。
+        -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>

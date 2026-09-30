@@ -3,6 +3,7 @@ package com.jinlin24th.jinlin.service.impl;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.jinlin24th.jinlin.common.util.PhoneMaskUtil;
 import com.jinlin24th.jinlin.mapper.AppUserMapper;
 import com.jinlin24th.jinlin.mapper.MemberLevelMapper;
 import com.jinlin24th.jinlin.pojo.dto.UserLoginDTO;
@@ -128,7 +129,14 @@ public class AppUserServiceImpl extends ServiceImpl<AppUserMapper, AppUser> impl
             .eq(AppUser::getStatus, 1)
             .eq(AppUser::getDeleted, 0)
             .one();
-        return recommender == null ? null : toVO(recommender, null, null);
+        if (recommender == null) {
+            return null;
+        }
+        AppUserVO vo = toVO(recommender, null, null);
+        // 该接口把推荐官当作 VO 主体返回，因此完整号码落在 phone 字段——
+        // 这是第二条泄漏路径，必须单独脱敏（不能只靠 parentUserPhone）。
+        vo.setPhone(PhoneMaskUtil.mask(vo.getPhone()));
+        return vo;
     }
 
     @Override
@@ -173,30 +181,6 @@ public class AppUserServiceImpl extends ServiceImpl<AppUserMapper, AppUser> impl
         return getRecommender(userId);
     }
 
-    @Override
-    public List<AppUserVO> getUserList() {
-        // 管理端列表（不分页）：批量查会员等级，避免 N+1
-        List<AppUser> users = list();
-        if (users == null || users.isEmpty()) {
-            return Collections.emptyList();
-        }
-
-        Set<Long> memberLevelIds = users.stream()
-            .map(AppUser::getMemberLevelId)
-            .filter(Objects::nonNull)
-            .filter(id -> id > 0)
-            .collect(Collectors.toSet());
-
-        Map<Long, String> levelNameById = memberLevelIds.isEmpty()
-            ? Collections.emptyMap()
-            : memberLevelMapper.selectBatchIds(memberLevelIds).stream()
-                .filter(Objects::nonNull)
-                .collect(Collectors.toMap(MemberLevel::getId, MemberLevel::getName, (a, b) -> a));
-
-        return users.stream()
-            .map(u -> toVO(u, levelNameById.get(u.getMemberLevelId()), null))
-            .collect(Collectors.toList());
-    }
 
     @Override
     public IPage<AppUserVO> adminPage(long page, long size, Integer status, Integer isDistributor, String keyword) {
@@ -287,7 +271,9 @@ public class AppUserServiceImpl extends ServiceImpl<AppUserMapper, AppUser> impl
         vo.setTotalAmount(user.getTotalAmount());
         vo.setParentUserId(user.getParentUserId());
         vo.setParentUserNickname(parentUser == null ? null : parentUser.getNickname());
-        vo.setParentUserPhone(parentUser == null ? null : parentUser.getPhone());
+        // 推荐官手机号一律脱敏：这是"别人的号码"，下游用户无权获得完整值。
+        // 放在 toVO 里统一处理，避免遗漏某条接口路径（C 端有 /me、/recommender、绑定接口等多处）。
+        vo.setParentUserPhone(parentUser == null ? null : PhoneMaskUtil.mask(parentUser.getPhone()));
         vo.setStatus(user.getStatus());
         vo.setIsDistributor(user.getIsDistributor());
         vo.setDistributorEnabledTime(user.getDistributorEnabledTime());

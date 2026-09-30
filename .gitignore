@@ -69,8 +69,10 @@ pnpm-debug.log*
 ### Local profiles / secrets ###
 src/main/resources/application-dev.yml
 src/main/resources/application-local.yml
-src/main/resources/application-prod.yml
 src/main/resources/application-*.local.yml
+# 注意：application-prod.yml 已改为提交入库——它不含任何密钥，只引用环境变量。
+# 生产配置若不入库，"复制模板"流程一旦漏做，Swagger 与 SQL 日志会在生产全开。
+# 若将来必须在生产配置里写明文密钥，请改用 application-prod.local.yml（下方已忽略）。
 .env
 .env.*
 !.env.example
@@ -97,6 +99,9 @@ logs/
 
 ### Runtime uploads ###
 uploads/
+
+### Database backups (contain customer PII, never commit) ###
+backups/
 
 ### Local runtime files ###
 .run/

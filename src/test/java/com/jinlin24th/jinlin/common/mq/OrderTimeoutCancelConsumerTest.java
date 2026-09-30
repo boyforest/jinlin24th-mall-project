@@ -23,12 +23,15 @@ class OrderTimeoutCancelConsumerTest {
 
     /**
      * 验证未重复消费时，会调用订单取消服务。
+     * <p>
+     * 幂等标记语义已改为"业务成功后才写"，因此这里 stub 的是 exists（快速短路），
+     * 而不是 setIfAbsentRequired。详见 OrderTimeoutCancelConsumerIdempotencyTest。
      */
     @Test
     void onMessageShouldCancelUnpaidOrder() {
         RedisUtil redisUtil = mock(RedisUtil.class);
         OrderService orderService = mock(OrderService.class);
-        when(redisUtil.setIfAbsentRequired(any(), eq("1"), any(Duration.class))).thenReturn(true);
+        when(redisUtil.exists(any())).thenReturn(false);
         when(orderService.cancelUnpaidOrder(eq("JL_TEST"), any())).thenReturn(true);
 
         OrderTimeoutCancelConsumer consumer = new OrderTimeoutCancelConsumer(redisUtil, orderService);

@@ -91,9 +91,18 @@ public class PaymentRecord {
     private LocalDateTime refundTime;
 
     /**
-     * 退款订单号
+     * 退款订单号（微信生成的 refund_id）
      */
     private String refundId;
+
+    /**
+     * 人工处理标记/说明。
+     * <p>
+     * 用于记录需要人工介入的异常场景，例如"用户已支付但订单已被超时取消"——
+     * 此时 {@code refundStatus} 会被置为 3（退款失败/待人工退款），并在此字段写明原因。
+     * 运维可直接按该字段非空来捞取待人工处理的支付记录。
+     */
+    private String refundRemark;
 
     /**
      * 支付/退款原因

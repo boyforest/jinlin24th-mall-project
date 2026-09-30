@@ -3,6 +3,7 @@ package com.jinlin24th.jinlin.service.impl;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jinlin24th.jinlin.common.config.WxPayConfig;
+import com.jinlin24th.jinlin.common.constant.BizCode;
 import com.jinlin24th.jinlin.common.util.WxPayUtil;
 import com.jinlin24th.jinlin.common.config.WxPayClient;
 import com.jinlin24th.jinlin.common.exception.BizException;
@@ -25,6 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.security.PublicKey;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -64,6 +66,16 @@ public class WxPayServiceImpl implements WxPayService {
     private String miniappAppid;
 
     private static final ObjectMapper objectMapper = new ObjectMapper();
+
+    /**
+     * 告警日志前缀。便于运维用 `docker logs | grep '[PAY-ALERT]'` 或日志平台按关键字告警。
+     */
+    private static final String ALERT_TAG = "[PAY-ALERT]";
+
+    /**
+     * "用户已支付但订单已失效，等待人工退款"的标记值，写入 payment_record.refund_remark。
+     */
+    private static final String MANUAL_REFUND_PENDING = "MANUAL_REFUND_PENDING";
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -211,49 +223,154 @@ public class WxPayServiceImpl implements WxPayService {
         return true;
     }
 
+    /**
+     * 申请退款。
+     * <p>
+     * 关键安全约束（修复"退款接口无任何校验，任意 admin token 可退"）：
+     * <ol>
+     *   <li>订单总金额以 {@code payment_record.pay_amount} 为准，不接受调用方传入；</li>
+     *   <li>退款单号 {@code out_refund_no} 由订单号确定性生成（{@code RF+orderNo}），
+     *       微信侧对同一 out_refund_no 只会退款一次，天然防重复退款；</li>
+     *   <li>用 CAS 占位"退款中"，防止两个并发请求同时发起退款；</li>
+     *   <li>校验订单状态（仅已支付未完成可退）与退款金额上限。</li>
+     * </ol>
+     * 注意：微信 HTTP 调用放在 DB 写操作之后但在同一事务内，失败时回滚并把
+     * 占位的"退款中"状态一并回滚，保证不会出现"标记了退款中但实际没退"的悬挂状态。
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public String refund(String outTradeNo, String outRefundNo, BigDecimal totalAmount, BigDecimal refundAmount) throws Exception {
-        log.info("申请退款，订单号：{}，退款单号：{}，退款金额：{}", outTradeNo, outRefundNo, refundAmount);
+    public String refund(String outTradeNo, BigDecimal refundAmount) throws Exception {
+        if (isBlank(outTradeNo)) {
+            throw BizException.badRequest("订单号不能为空");
+        }
 
-        // 1. 构建请求参数
+        // 1. 支付记录是金额与退款状态的唯一事实来源
+        PaymentRecord paymentRecord = paymentRecordMapper.selectByOrderNo(outTradeNo);
+        if (paymentRecord == null) {
+            throw BizException.of(BizCode.PAYMENT_RECORD_NOT_FOUND);
+        }
+        if (!Integer.valueOf(1).equals(paymentRecord.getStatus())) {
+            throw BizException.of(BizCode.PAYMENT_NOT_REFUNDABLE, "订单未支付成功，不能退款");
+        }
+
+        BigDecimal paidAmount = paymentRecord.getPayAmount();
+        if (paidAmount == null || paidAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw BizException.of(BizCode.ORDER_AMOUNT_MISMATCH, "支付记录金额异常");
+        }
+
+        // 2. 退款金额校验：**仅支持全额退款**
+        //
+        // 为什么不支持部分退款（这不是"少做功能"，而是避免资金死局）：
+        // 退款成功回调会把 refund_status 置 2、订单状态置 60（已退款），
+        // 之后任何退款请求都会被这两处校验拦下 —— 于是 ¥100 的订单退了 ¥30 后，
+        // 剩下 ¥70 在系统里**永远退不出去**（只能人工转账，账实不符）。
+        // 更糟的是回调里作废佣金没有金额判断，部分退款会把该订单**全部**佣金作废。
+        //
+        // 在实现"累计已退金额 + 唯一退款单号 + 退款流水表"之前（见 docs 规格），
+        // 唯一安全的做法就是只允许全额；传部分金额必须在这里明确拒绝。
+        BigDecimal actualRefund = refundAmount == null ? paidAmount : refundAmount;
+        if (actualRefund.compareTo(paidAmount) != 0) {
+            throw BizException.of(BizCode.REFUND_AMOUNT_INVALID,
+                "仅支持全额退款（实付 " + paidAmount.toPlainString() + " 元）。"
+                    + "部分退款会使剩余金额无法再退，暂不支持。");
+        }
+
+        // 3. 幂等校验放在订单状态校验之前：
+        //    已退款完成的订单无论当前处于什么状态，都应直接明确拒绝。
+        if (Integer.valueOf(2).equals(paymentRecord.getRefundStatus())) {
+            throw BizException.of(BizCode.REFUND_NOT_ALLOWED, "该订单已退款完成");
+        }
+
+        // 4. 订单状态校验：仅待发货/待收货可退；已退款、已取消、已完成不允许直接退
+        OrderMaster order = orderMasterMapper.selectByOrderNo(outTradeNo);
+        if (order == null) {
+            throw BizException.of(BizCode.ORDER_NOT_FOUND);
+        }
+        Integer orderStatus = order.getStatus();
+        if (!Integer.valueOf(10).equals(orderStatus) && !Integer.valueOf(20).equals(orderStatus)) {
+            throw BizException.of(BizCode.PAYMENT_NOT_REFUNDABLE,
+                "仅待发货/待收货订单可退款，当前状态：" + orderStatus);
+        }
+
+        // 5. 并发防护：CAS 占位退款中（仅允许 未退款(0) / 退款失败(3) 进入）
+        int occupied = paymentRecordMapper.update(null, new LambdaUpdateWrapper<PaymentRecord>()
+            .set(PaymentRecord::getRefundStatus, 1)          // 退款中
+            .set(PaymentRecord::getRefundAmount, actualRefund)
+            .set(PaymentRecord::getRefundRemark, null)
+            .set(PaymentRecord::getUpdateTime, LocalDateTime.now())
+            .eq(PaymentRecord::getId, paymentRecord.getId())
+            .in(PaymentRecord::getRefundStatus, 0, 3));
+        if (occupied == 0) {
+            throw BizException.of(BizCode.REFUND_IN_PROGRESS);
+        }
+
+        // 6. 退款单号由服务端确定性生成：同一订单重复调用不会产生第二笔退款
+        String outRefundNo = buildOutRefundNo(outTradeNo);
+
         Map<String, Object> params = new HashMap<>();
         params.put("out_trade_no", outTradeNo);
         params.put("out_refund_no", outRefundNo);
         params.put("notify_url", wxPayConfig.getRefundNotifyUrl());
 
         Map<String, Object> amount = new HashMap<>();
-        amount.put("refund", refundAmount.multiply(new BigDecimal("100")).intValue());
-        amount.put("total", totalAmount.multiply(new BigDecimal("100")).intValue());
+        amount.put("refund", toFen(actualRefund));
+        // total 必须等于原支付订单总额，取服务端记录，绝不信客户端
+        amount.put("total", toFen(paidAmount));
         amount.put("currency", "CNY");
         params.put("amount", amount);
 
-        // 2. 发送请求到微信支付
-        //String url = wxPayConfig.getApiBaseUrl() + "/v3/refund/domestic/refunds";
-        //这里只能使用相对路径，
+        // 7. 发送请求到微信支付（相对路径固定，见 WxPayClient）
         String url = "/v3/refund/domestic/refunds";
-        String response = wxPayClient.sendPost(url, objectMapper.writeValueAsString(params));
+        String response;
+        try {
+            response = wxPayClient.sendPost(url, objectMapper.writeValueAsString(params));
+        } catch (Exception e) {
+            // 事务会回滚，占位的"退款中"自动还原为 0，允许后续重试
+            log.error("调用微信退款接口失败，订单号：{}，退款单号：{}", outTradeNo, outRefundNo, e);
+            throw e;
+        }
 
-        // 3. 解析响应
+        // 8. 解析响应
         JsonNode jsonNode = objectMapper.readTree(response);
         if (!jsonNode.has("refund_id")) {
-            throw new Exception("微信退款申请失败：" + response);
+            throw new BizException(BizCode.WECHAT_PAY_ERROR, "微信退款申请失败，请查看服务端日志");
         }
 
         String refundId = jsonNode.get("refund_id").asText();
-        log.info("微信退款申请成功，退款ID：{}", refundId);
+        log.info("微信退款申请成功，订单号：{}，退款单号：{}，退款ID：{}，金额：{}",
+            outTradeNo, outRefundNo, refundId, actualRefund);
 
-        // 4. 更新支付记录
-        PaymentRecord paymentRecord = paymentRecordMapper.selectByOrderNo(outTradeNo);
-        if (paymentRecord != null) {
-            paymentRecord.setRefundAmount(refundAmount);
-            paymentRecord.setRefundStatus(1); // 退款中
-            paymentRecord.setRefundId(refundId);
-            paymentRecord.setUpdateTime(LocalDateTime.now());
-            paymentRecordMapper.updateById(paymentRecord);
-        }
+        // 9. 落库微信退款单号；refund_status 保持 1（退款中），等回调置 2
+        paymentRecordMapper.update(null, new LambdaUpdateWrapper<PaymentRecord>()
+            .set(PaymentRecord::getRefundId, refundId)
+            .set(PaymentRecord::getRefundAmount, actualRefund)
+            .set(PaymentRecord::getUpdateTime, LocalDateTime.now())
+            .eq(PaymentRecord::getId, paymentRecord.getId()));
 
         return refundId;
+    }
+
+    /**
+     * 生成商户退款单号：{@code RF + 订单号}。
+     * <p>
+     * 确定性生成是刻意设计——微信对同一 out_refund_no 只允许一次成功退款，
+     * 因此重复调用/重试不会造成重复退款。
+     */
+    private String buildOutRefundNo(String outTradeNo) {
+        String candidate = "RF" + outTradeNo;
+        return candidate.length() <= 64 ? candidate : candidate.substring(0, 64);
+    }
+
+    /**
+     * 元转分。使用 {@code movePointRight(2)} + {@code intValueExact()}，
+     * 避免 {@code multiply(100).intValue()} 的静默截断与溢出。
+     */
+    private int toFen(BigDecimal yuan) {
+        try {
+            return yuan.movePointRight(2).setScale(0, java.math.RoundingMode.UNNECESSARY).intValueExact();
+        } catch (ArithmeticException e) {
+            throw BizException.of(BizCode.ORDER_AMOUNT_MISMATCH, "金额精度或数值超出范围：" + yuan.toPlainString());
+        }
     }
 
     @Override
@@ -307,9 +424,11 @@ public class WxPayServiceImpl implements WxPayService {
             String outTradeNo = jsonNode.get("out_trade_no").asText();
             String transactionId = jsonNode.get("transaction_id").asText();
             String tradeState = jsonNode.get("trade_state").asText();
-            BigDecimal amount = new BigDecimal(jsonNode.get("amount").get("total").asText()).divide(new BigDecimal("100"));
+            BigDecimal notifiedAmount = new BigDecimal(jsonNode.get("amount").get("total").asText())
+                .divide(new BigDecimal("100"));
 
-            log.info("支付回调，订单号：{}，交易号：{}，状态：{}，金额：{}", outTradeNo, transactionId, tradeState, amount);
+            log.info("支付回调，订单号：{}，交易号：{}，状态：{}，金额：{}",
+                outTradeNo, transactionId, tradeState, notifiedAmount);
 
             // 4. 更新支付记录
             PaymentRecord paymentRecord = paymentRecordMapper.selectByOrderNo(outTradeNo);
@@ -319,8 +438,9 @@ public class WxPayServiceImpl implements WxPayService {
             }
 
             // 幂等性检查：如果已处理则跳过
-            if (paymentRecord.getStatus() == 1) {
-                log.info("订单已处理，订单号：{}", outTradeNo);
+            if (Integer.valueOf(1).equals(paymentRecord.getStatus())
+                    || Integer.valueOf(3).equals(paymentRecord.getStatus())) {
+                log.info("订单已处理，订单号：{}，支付记录状态：{}", outTradeNo, paymentRecord.getStatus());
                 return true;
             }
 
@@ -334,15 +454,17 @@ public class WxPayServiceImpl implements WxPayService {
                 return false;
             }
 
-            // 更新支付记录
-            paymentRecord.setTransactionId(transactionId);
-            paymentRecord.setStatus(1); // 支付成功
-            paymentRecord.setPayTime(LocalDateTime.now());
-            paymentRecord.setNotifyTime(LocalDateTime.now());
-            paymentRecord.setUpdateTime(LocalDateTime.now());
-            paymentRecordMapper.updateById(paymentRecord);
+            // 4.1 金额校验（新增）：回调金额必须等于订单实付金额，否则拒绝入账。
+            //     防止篡改/串单导致"小额支付换大额订单"。
+            BigDecimal expectedAmount = paymentRecord.getPayAmount();
+            if (expectedAmount == null || notifiedAmount.compareTo(expectedAmount) != 0) {
+                log.error("{} 支付回调金额不一致，拒绝入账。orderNo={}, 回调金额={}, 应付金额={}",
+                    ALERT_TAG, outTradeNo, notifiedAmount, expectedAmount);
+                return false; // 不落库、返回 FAIL，微信会重试并告警，需人工核对
+            }
 
-            // 5. 更新订单状态（CAS：只有待支付状态才能改为已支付，防止与超时取消并发冲突）
+            // 5. 先做订单状态 CAS（只有待支付(0)才能改为已支付(10)），
+            //    成功后再落库支付记录——避免"支付记录已成功但订单没更新"的不一致。
             LambdaUpdateWrapper<OrderMaster> orderUpdateWrapper = new LambdaUpdateWrapper<>();
             orderUpdateWrapper
                 .set(OrderMaster::getStatus, 10) // 待发货
@@ -352,16 +474,26 @@ public class WxPayServiceImpl implements WxPayService {
                 .eq(OrderMaster::getOrderNo, outTradeNo)
                 .eq(OrderMaster::getStatus, 0);  // CAS：只有待支付(0)才能更新
             boolean orderUpdated = orderMasterMapper.update(null, orderUpdateWrapper) > 0;
-            if (orderUpdated) {
-                log.info("支付回调订单状态更新成功: orderNo={}", outTradeNo);
 
-                // 支付成功后生成分销佣金记录
-                OrderMaster orderMaster = orderMasterMapper.selectByOrderNo(outTradeNo);
-                if (orderMaster != null) {
-                    distributionService.createForPaidOrder(orderMaster);
-                }
-            } else {
-                log.warn("支付回调订单CAS更新失败(订单状态已变化，可能已被超时取消): orderNo={}", outTradeNo);
+            if (!orderUpdated) {
+                return handlePaymentCasConflict(outTradeNo, paymentRecord, notifiedAmount);
+            }
+
+            // 5.1 订单已置为已支付，落库支付记录
+            paymentRecordMapper.update(null, new LambdaUpdateWrapper<PaymentRecord>()
+                .set(PaymentRecord::getTransactionId, transactionId)
+                .set(PaymentRecord::getStatus, 1) // 支付成功
+                .set(PaymentRecord::getPayTime, LocalDateTime.now())
+                .set(PaymentRecord::getNotifyTime, LocalDateTime.now())
+                .set(PaymentRecord::getUpdateTime, LocalDateTime.now())
+                .eq(PaymentRecord::getId, paymentRecord.getId()));
+
+            log.info("支付回调订单状态更新成功: orderNo={}", outTradeNo);
+
+            // 6. 支付成功后生成分销佣金记录
+            OrderMaster orderMaster = orderMasterMapper.selectByOrderNo(outTradeNo);
+            if (orderMaster != null) {
+                distributionService.createForPaidOrder(orderMaster);
             }
 
             log.info("支付处理完成，订单号：{}", outTradeNo);
@@ -370,6 +502,51 @@ public class WxPayServiceImpl implements WxPayService {
             log.error("处理支付回调失败", e);
             throw new Exception("处理支付回调失败：" + e.getMessage(), e);
         }
+    }
+
+    /**
+     * 处理"用户已支付，但订单已不是待支付状态"的冲突。
+     * <p>
+     * CAS 失败说明订单在回调到达前已被改变（最典型：被超时任务取消并已归还库存）。
+     * 此时钱已经进了商户账户，如果只是打一条 warn 日志就返回成功，就会出现
+     * "用户付了钱、订单却是已取消、系统不退款"的资损场景。
+     * <p>
+     * 处理策略：
+     * <ul>
+     *   <li>支付记录已被标记为"待人工退款"：返回 false，让微信继续重试直到人工处理；</li>
+     *   <li>已经退过款（存在 refund_id）：无需重复处理，返回 true 结束重试；</li>
+     *   <li>订单已取消（40）：记录待人工退款标记并返回 false，人工退款完成后
+     *       支付记录会被置为已退款，微信再次回调时走上面的分支自动收敛；</li>
+     *   <li>其它状态（如已完成）：无法自动退款，打告警并返回 false 交人工处理。</li>
+     * </ul>
+     */
+    private boolean handlePaymentCasConflict(String outTradeNo, PaymentRecord paymentRecord, BigDecimal notifiedAmount) {
+        if (MANUAL_REFUND_PENDING.equals(paymentRecord.getRefundRemark())) {
+            log.error("{} 已支付订单仍在等待人工退款，继续让微信重试: orderNo={}, 金额={}",
+                ALERT_TAG, outTradeNo, notifiedAmount);
+            return false;
+        }
+        if (!isBlank(paymentRecord.getRefundId())) {
+            log.warn("支付回调到达时订单已退款，无需重复处理: orderNo={}, refundId={}",
+                outTradeNo, paymentRecord.getRefundId());
+            return true;
+        }
+
+        OrderMaster current = orderMasterMapper.selectByOrderNo(outTradeNo);
+        Integer currentStatus = current == null ? null : current.getStatus();
+
+        // 订单已取消且未退款 → 必须人工介入退款，否则用户钱货两空
+        paymentRecordMapper.update(null, new LambdaUpdateWrapper<PaymentRecord>()
+            .set(PaymentRecord::getRefundStatus, 3) // 退款失败 → 语义为"待人工退款"
+            .set(PaymentRecord::getRefundRemark, MANUAL_REFUND_PENDING
+                + "：支付回调到达时订单状态=" + currentStatus + "（已支付 " + notifiedAmount.toPlainString() + " 元）")
+            .set(PaymentRecord::getUpdateTime, LocalDateTime.now())
+            .eq(PaymentRecord::getId, paymentRecord.getId()));
+
+        log.error("{} 用户已支付但订单不可置为已支付，已标记待人工退款。"
+                + "orderNo={}, transactionId={}, 金额={}, 订单当前状态={}，请立即人工核实并退款",
+            ALERT_TAG, outTradeNo, paymentRecord.getTransactionId(), notifiedAmount, currentStatus);
+        return false;
     }
 
     @Override
@@ -409,36 +586,44 @@ public class WxPayServiceImpl implements WxPayService {
             String refundStatus = jsonNode.get("refund_status").asText();
             BigDecimal refundAmount = new BigDecimal(jsonNode.get("amount").get("refund").asText()).divide(new BigDecimal("100"));
 
-            log.info("退款回调，退款单号：{}，退款ID：{}，状态：{}，金额：{}", outRefundNo, refundId, refundStatus, refundAmount);
+            log.info("退款回调，商户退款单号：{}，微信退款ID：{}，状态：{}，金额：{}",
+                outRefundNo, refundId, refundStatus, refundAmount);
 
-            // 4. 更新支付记录
-            PaymentRecord paymentRecord = paymentRecordMapper.selectByRefundNo(outRefundNo);
+            // 4. 按微信退款单号（refund_id）查询——这是本方法此前恒失败的原因：
+            //    申请退款时落库的是 refund_id，而这里曾用 out_refund_no 去查 refund_id 列。
+            PaymentRecord paymentRecord = paymentRecordMapper.selectByRefundId(refundId);
             if (paymentRecord == null) {
-                log.error("退款记录不存在，退款单号：{}", outRefundNo);
+                log.error("退款记录不存在，微信退款ID：{}，商户退款单号：{}", refundId, outRefundNo);
                 return false;
             }
 
-            // 幂等性检查
-            if (paymentRecord.getRefundStatus() == 2) {
-                log.info("退款已处理，退款单号：{}", outRefundNo);
+            // 幂等性检查：已退款成功则直接确认，避免重复改订单/重复作废佣金
+            if (Integer.valueOf(2).equals(paymentRecord.getRefundStatus())) {
+                log.info("退款已处理，退款ID：{}", refundId);
                 return true;
             }
 
-            // 更新退款状态
+            String mappedStatus;
             if ("SUCCESS".equals(refundStatus)) {
-                paymentRecord.setRefundStatus(2); // 退款成功
-            } else if ("ABNORMAL".equals(refundStatus)) {
-                paymentRecord.setRefundStatus(3); // 退款失败
+                mappedStatus = "2";  // 退款成功
+            } else if ("ABNORMAL".equals(refundStatus) || "CLOSED".equals(refundStatus)) {
+                mappedStatus = "3";  // 退款失败/已关闭 → 需人工核实后重试
             } else {
-                paymentRecord.setRefundStatus(1); // 退款中
+                mappedStatus = "1";  // PROCESSING 等中间态
             }
 
-            paymentRecord.setRefundTime(LocalDateTime.now());
-            paymentRecord.setUpdateTime(LocalDateTime.now());
-            paymentRecordMapper.updateById(paymentRecord);
+            boolean refundSucceeded = "2".equals(mappedStatus);
+            paymentRecordMapper.update(null, new LambdaUpdateWrapper<PaymentRecord>()
+                .set(PaymentRecord::getRefundStatus, Integer.valueOf(mappedStatus))
+                .set(PaymentRecord::getRefundAmount, refundAmount)
+                .set(PaymentRecord::getRefundTime, LocalDateTime.now())
+                // 退款成功时清掉"待人工退款"标记
+                .set(refundSucceeded, PaymentRecord::getRefundRemark, null)
+                .set(PaymentRecord::getUpdateTime, LocalDateTime.now())
+                .eq(PaymentRecord::getId, paymentRecord.getId()));
 
             // 5. 如果退款成功，更新订单状态（CAS：只有待发货/已发货状态才改为已退款）
-            if ("SUCCESS".equals(refundStatus)) {
+            if (refundSucceeded) {
                 LambdaUpdateWrapper<OrderMaster> orderUpdateWrapper = new LambdaUpdateWrapper<>();
                 orderUpdateWrapper
                     .set(OrderMaster::getStatus, 60) // 已退款
@@ -454,9 +639,12 @@ public class WxPayServiceImpl implements WxPayService {
 
                 // 退款成功后作废该订单对应佣金，避免财务继续结算。
                 distributionService.markRefundedByOrderNo(paymentRecord.getOrderNo());
+            } else if ("3".equals(mappedStatus)) {
+                log.error("{} 退款未成功，需人工核实。orderNo={}, refundId={}, refund_status={}",
+                    ALERT_TAG, paymentRecord.getOrderNo(), refundId, refundStatus);
             }
 
-            log.info("退款处理完成，退款单号：{}", outRefundNo);
+            log.info("退款处理完成，退款ID：{}，状态：{}", refundId, mappedStatus);
             return true;
         } catch (Exception e) {
             log.error("处理退款回调失败", e);

@@ -15,7 +15,8 @@ CREATE TABLE IF NOT EXISTS `payment_record` (
     `refund_amount` DECIMAL(10, 2) DEFAULT NULL COMMENT '退款金额',
     `refund_status` TINYINT(4) NOT NULL DEFAULT 0 COMMENT '退款状态：0-未退款，1-退款中，2-退款成功，3-退款失败',
     `refund_time` DATETIME DEFAULT NULL COMMENT '退款时间',
-    `refund_id` VARCHAR(64) DEFAULT NULL COMMENT '退款订单号',
+    `refund_id` VARCHAR(64) DEFAULT NULL COMMENT '退款订单号（微信 refund_id）',
+    `refund_remark` VARCHAR(255) DEFAULT NULL COMMENT '人工处理标记/说明，如 MANUAL_REFUND_PENDING-待人工退款',
     `reason` VARCHAR(255) DEFAULT NULL COMMENT '支付/退款原因',
     `notify_time` DATETIME DEFAULT NULL COMMENT '回调通知时间',
     `extend_info` TEXT DEFAULT NULL COMMENT '扩展信息(JSON格式)',
@@ -27,5 +28,6 @@ CREATE TABLE IF NOT EXISTS `payment_record` (
     KEY `idx_user_id` (`user_id`),
     KEY `idx_transaction_id` (`transaction_id`),
     KEY `idx_refund_id` (`refund_id`),
+    KEY `idx_refund_remark` (`refund_remark`),
     KEY `idx_create_time` (`create_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='支付记录表';

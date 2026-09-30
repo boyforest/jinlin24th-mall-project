@@ -15,8 +15,6 @@ public interface DistributionService extends IService<Distribution> {
 
     DistributionVO getDetail(Long id);
 
-    Distribution getRequired(Long id);
-
     Distribution settle(Long id);
 
     /**

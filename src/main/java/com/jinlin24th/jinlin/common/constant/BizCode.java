@@ -38,6 +38,13 @@ public enum BizCode {
 
     ORDER_NOT_FOUND(30404, HttpStatus.NOT_FOUND, "订单不存在"),
     ORDER_CREATE_FAILED(30400, HttpStatus.BAD_REQUEST, "创建订单失败"),
+    ORDER_AMOUNT_MISMATCH(30410, HttpStatus.BAD_REQUEST, "订单金额校验失败"),
+
+    PAYMENT_RECORD_NOT_FOUND(30504, HttpStatus.NOT_FOUND, "支付记录不存在"),
+    PAYMENT_NOT_REFUNDABLE(30505, HttpStatus.BAD_REQUEST, "当前订单状态不可退款"),
+    REFUND_AMOUNT_INVALID(30506, HttpStatus.BAD_REQUEST, "退款金额不合法"),
+    REFUND_IN_PROGRESS(30507, HttpStatus.CONFLICT, "该订单已有退款处理中"),
+    REFUND_NOT_ALLOWED(30508, HttpStatus.BAD_REQUEST, "该订单不满足退款条件"),
 
     WAREHOUSE_NOT_FOUND(40404, HttpStatus.NOT_FOUND, "仓库不存在"),
     INVENTORY_NOT_FOUND(40405, HttpStatus.NOT_FOUND, "库存记录不存在"),

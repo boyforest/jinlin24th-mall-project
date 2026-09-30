@@ -60,6 +60,19 @@ public class InventoryServiceImpl extends ServiceImpl<InventoryMapper, Inventory
         return getById(id);
     }
 
+    /**
+     * 原子归还库存：单条 {@code UPDATE inventory SET stock = stock + ?}。
+     * <p>
+     * 数量由 MyBatis 参数绑定，不做字符串拼接；并发安全，无需 CAS 与重试。
+     */
+    @Override
+    public int incrementStock(Long id, int quantity) {
+        if (id == null || quantity <= 0) {
+            throw new IllegalArgumentException("库存归还参数非法: id=" + id + ", quantity=" + quantity);
+        }
+        return baseMapper.incrementStock(id, quantity);
+    }
+
     private java.util.List<InventoryVO> toVOList(java.util.List<Inventory> records) {
         Set<Long> warehouseIds = records.stream().map(Inventory::getWarehouseId).filter(Objects::nonNull).collect(Collectors.toSet());
         Set<Long> skuIds = records.stream().map(Inventory::getSkuId).filter(Objects::nonNull).collect(Collectors.toSet());

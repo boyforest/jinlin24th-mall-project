@@ -18,6 +18,7 @@ import com.jinlin24th.jinlin.service.OrderMasterService;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,6 +45,16 @@ public class DistributionServiceImpl extends ServiceImpl<DistributionMapper, Dis
     private final AppUserService appUserService;
     private final DistributionConfigService distributionConfigService;
     private final OrderMasterService orderMasterService;
+
+    /**
+     * 单次 CSV 导出的最大行数。
+     * <p>
+     * 原实现用 {@code list()} 一次加载全部匹配记录，财务点一次"导出"就可能把整张表
+     * 拉进内存。这里加上限；达到上限时会在 CSV 末尾写一行显眼提示，
+     * 避免财务按不完整名单打款。
+     */
+    @Value("${app.distribution.max-export-rows:10000}")
+    private long maxExportRows;
 
     public DistributionServiceImpl(AppUserService appUserService,
                                    DistributionConfigService distributionConfigService,
@@ -89,11 +100,6 @@ public class DistributionServiceImpl extends ServiceImpl<DistributionMapper, Dis
         return toVO(distribution, loadRelatedUsers(List.of(distribution)));
     }
 
-    @Override
-    public Distribution getRequired(Long id) {
-        // 简化实现：直接按 id 查询；后续可改成“不存在则抛业务异常”
-        return getById(id);
-    }
 
     @Override
     public Distribution settle(Long id) {
@@ -253,6 +259,16 @@ public class DistributionServiceImpl extends ServiceImpl<DistributionMapper, Dis
 
     /**
      * 退款成功后作废佣金记录。
+     * <p>
+     * <b>关键：必须区分"钱有没有打出去"</b>
+     * <ul>
+     *   <li>未结算(0) / 可结算(1)：钱还没付，直接作废为已退回(3)；</li>
+     *   <li>已结算(2)：佣金已按名单线下打款，**不得覆盖其状态**——那会抹掉财务的付款凭证，
+     *       让记录看起来"从未结算过"。系统里没有可扣减的余额，自动化无法收回这笔钱，
+     *       因此改为写备注 + 打 {@code [DIST-ALERT]} 告警，交财务人工追回。</li>
+     * </ul>
+     * 原实现使用 {@code ne(status, 3)}（"只要不是已退回就改成已退回"），
+     * 会把已结算记录一并改掉且不留痕迹，属于会丢失财务凭证的缺陷。
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -260,13 +276,47 @@ public class DistributionServiceImpl extends ServiceImpl<DistributionMapper, Dis
         if (orderNo == null || orderNo.isBlank()) {
             return;
         }
-        lambdaUpdate()
+
+        // 1) 只作废"钱还没打出去"的记录（正向枚举，避免误伤）
+        boolean voided = lambdaUpdate()
             .set(Distribution::getStatus, 3)
-            .set(Distribution::getRemark, "订单退款成功，佣金已退回/作废")
+            .set(Distribution::getRemark, "订单退款成功，佣金已作废（退款时尚未结算）")
             .set(Distribution::getUpdateTime, LocalDateTime.now())
             .eq(Distribution::getOrderNo, orderNo)
-            .ne(Distribution::getStatus, 3)
+            .in(Distribution::getStatus, 0, 1)
             .update();
+        if (voided) {
+            log.info("退款作废佣金记录完成: orderNo={}", orderNo);
+        }
+
+        // 2) 已结算（已打款）的佣金：保留状态，只加备注并告警，交人工追回
+        List<Distribution> settled = lambdaQuery()
+            .eq(Distribution::getOrderNo, orderNo)
+            .eq(Distribution::getStatus, 2)
+            .list();
+        if (settled == null || settled.isEmpty()) {
+            return;
+        }
+
+        BigDecimal level1Total = settled.stream()
+            .map(d -> Optional.ofNullable(d.getLevel1Amount()).orElse(BigDecimal.ZERO))
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal level2Total = settled.stream()
+            .map(d -> Optional.ofNullable(d.getLevel2Amount()).orElse(BigDecimal.ZERO))
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        String remark = "订单退款成功，但该佣金已结算打款，需人工追回";
+        for (Distribution record : settled) {
+            lambdaUpdate()
+                .set(Distribution::getRemark, remark)
+                .set(Distribution::getUpdateTime, LocalDateTime.now())
+                .eq(Distribution::getId, record.getId())
+                .update();
+        }
+
+        log.error("[DIST-ALERT] 订单退款但佣金已结算打款，需人工追回。orderNo={}, 记录数={}, "
+                + "一级佣金合计={}, 二级佣金合计={}。这些记录的状态已保留为 2（已结算）以便追溯付款凭证。",
+            orderNo, settled.size(), level1Total.toPlainString(), level2Total.toPlainString());
     }
 
     /**
@@ -281,6 +331,7 @@ public class DistributionServiceImpl extends ServiceImpl<DistributionMapper, Dis
         } else {
             matchedUserIds = resolvedUserIds;
         }
+        long limit = maxExportRows > 0 ? maxExportRows : 10_000L;
         List<Distribution> records = lambdaQuery()
             .eq(status != null, Distribution::getStatus, status)
             .like(orderNo != null && !orderNo.isBlank(), Distribution::getOrderNo, orderNo)
@@ -291,7 +342,16 @@ public class DistributionServiceImpl extends ServiceImpl<DistributionMapper, Dis
                 .or()
                 .in(Distribution::getLevel2UserId, matchedUserIds))
             .orderByDesc(Distribution::getId)
+            // 上限保护：多取 1 条用于判断"是否被截断"
+            .last("LIMIT " + (limit + 1))
             .list();
+        boolean truncated = records.size() > limit;
+        if (truncated) {
+            records = records.subList(0, (int) limit);
+            log.error("[DIST-ALERT] 佣金导出触及上限被截断，请缩小筛选范围后分批导出。"
+                    + "上限={}, status={}, orderNo={}, keyword={}",
+                limit, status, orderNo, keyword);
+        }
         Map<Long, AppUser> userMap = loadRelatedUsers(records);
 
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
@@ -301,6 +361,10 @@ public class DistributionServiceImpl extends ServiceImpl<DistributionMapper, Dis
         StringBuilder csv = new StringBuilder("\uFEFF");
         csv.append("订单号,买家ID,买家昵称,买家手机号,订单金额,一级分销员ID,一级昵称,一级手机号,一级比例,一级佣金,二级分销员ID,二级昵称,二级手机号,二级比例,二级佣金,状态,创建时间\n");
         records.forEach(record -> appendCsvRow(csv, record, userMap));
+        if (truncated) {
+            // 必须写进文件本体：财务按这份名单打款，静默截断会少发佣金且无人察觉
+            csv.append(truncationWarningRow(limit));
+        }
         response.getWriter().write(csv.toString());
     }
 
@@ -409,10 +473,44 @@ public class DistributionServiceImpl extends ServiceImpl<DistributionMapper, Dis
         return value == null ? "" : String.valueOf(value);
     }
 
+    /**
+     * CSV 单元格转义。
+     * <p>
+     * 除了常规的引号/逗号/换行转义，还必须**中和公式前缀**：
+     * 昵称、备注等字段由用户可控，若以 {@code =}、{@code +}、{@code -}、{@code @}、
+     * 制表符或回车开头，Excel / WPS 打开导出文件时会当作公式执行
+     * （可外联请求、可触发命令执行）。业界通行做法是在值前加一个单引号，
+     * 使其被当作纯文本。
+     * <p>
+     * 注意前缀必须在**双引号之内**：CSV 规范里引号内的前导单引号才会被表格软件
+     * 识别为"强制文本"。
+     */
     private String escapeCsv(String value) {
-        String escaped = value.replace("\"", "\"\"");
-        return escaped.contains(",") || escaped.contains("\n") || escaped.contains("\"")
+        if (value == null || value.isEmpty()) {
+            return "";
+        }
+
+        String sanitized = value;
+        char first = sanitized.charAt(0);
+        if (first == '=' || first == '+' || first == '-' || first == '@'
+                || first == '\t' || first == '\r') {
+            sanitized = "'" + sanitized;
+        }
+
+        String escaped = sanitized.replace("\"", "\"\"");
+        return escaped.contains(",") || escaped.contains("\n") || escaped.contains("\r")
+                || escaped.contains("\"")
             ? "\"" + escaped + "\""
             : escaped;
+    }
+
+    /**
+     * 生成"导出被截断"的显眼提示行。
+     * <p>
+     * 财务是按这份 CSV 线下打款的，静默截断会导致少发佣金且无人察觉。
+     * 因此截断时必须写进文件本体（而不只是打日志），并以 {@code #} 开头以示非数据行。
+     */
+    private String truncationWarningRow(long maxRows) {
+        return "#注意,#导出已达上限 " + maxRows + " 条,#结果可能不完整,#请缩小筛选范围后分批导出\n";
     }
 }

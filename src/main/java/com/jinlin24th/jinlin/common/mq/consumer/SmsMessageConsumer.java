@@ -49,19 +49,23 @@ public class SmsMessageConsumer implements RocketMQListener<String> {
         }
 
         String consumedKey = "mq:consumed:sms:" + dto.getMessageKey();
-        if (!redisUtil.setIfAbsentRequired(consumedKey, "1", IDEMPOTENT_TTL)) {
+
+        // 幂等短路：已成功处理过的消息跳过。标记在业务成功后才写——
+        // 先占坑再干活会在崩溃时把重投误判为重复消息而丢弃（短信就永远发不出去）。
+        if (redisUtil.exists(consumedKey)) {
             log.info("短信消息重复消费，已忽略: messageKey={}", dto.getMessageKey());
             return;
         }
 
+        // sendSms 抛异常时不写标记，让 RocketMQ 正常重试
         try {
             sendSms(dto);
         } catch (Exception e) {
-            redisUtil.delete(consumedKey);
             log.error("短信消息消费失败，等待 RocketMQ 重试: messageKey={}, phone={}",
                 dto.getMessageKey(), maskPhone(dto.getPhone()), e);
             throw e;
         }
+        redisUtil.setRequired(consumedKey, "1", IDEMPOTENT_TTL);
     }
 
     /**

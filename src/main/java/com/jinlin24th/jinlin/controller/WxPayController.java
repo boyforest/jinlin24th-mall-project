@@ -147,20 +147,28 @@ public class WxPayController {
     }
 
     /**
-     * 申请退款
+     * 申请退款。
+     * <p>
+     * 安全说明：本接口只接收订单号与退款金额。
+     * <ul>
+     *   <li>订单总金额由服务端从 {@code payment_record.pay_amount} 取，调用方无法指定；</li>
+     *   <li>退款单号由服务端按订单号确定性生成，天然防重复退款；</li>
+     *   <li>{@code refundAmount} 省略时为全额退款，传入时不得超过实付金额。</li>
+     * </ul>
      */
     @PostMapping("/admin/payment/refund")
     public Result<String> refund(
             @RequestParam String orderNo,
-            @RequestParam String refundNo,
-            @RequestParam BigDecimal totalAmount,
-            @RequestParam BigDecimal refundAmount) {
+            @RequestParam(required = false) BigDecimal refundAmount) {
         try {
-            String refundId = wxPayService.refund(orderNo, refundNo, totalAmount, refundAmount);
+            String refundId = wxPayService.refund(orderNo, refundAmount);
             return Result.success(refundId);
+        } catch (BizException e) {
+            // 业务校验失败（金额/状态/重复退款）原样抛出，消息对管理员可读
+            throw e;
         } catch (Exception e) {
-            log.error("申请退款失败", e);
-            throw BizException.of(BizCode.WECHAT_PAY_ERROR, "申请退款失败：" + e.getMessage());
+            log.error("申请退款失败，订单号：{}", orderNo, e);
+            throw BizException.of(BizCode.WECHAT_PAY_ERROR, "申请退款失败，请稍后重试或联系技术支持");
         }
     }
 

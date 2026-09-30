@@ -46,15 +46,21 @@ public interface WxPayService {
     boolean closeOrder(String outTradeNo) throws Exception;
 
     /**
-     * 申请退款
+     * 申请退款。
+     * <p>
+     * 安全约定（服务端为唯一事实来源）：
+     * <ul>
+     *   <li>订单总金额 {@code total} 一律取 {@code payment_record.pay_amount}，不接受调用方传入；</li>
+     *   <li>退款单号 {@code out_refund_no} 由服务端按订单号确定性生成，保证同一订单重复调用不产生重复退款；</li>
+     *   <li>退款金额不得超过实付金额，且仅允许订单处于已支付未完成状态时退款。</li>
+     * </ul>
+     *
      * @param outTradeNo 商户订单号
-     * @param outRefundNo 退款单号
-     * @param totalAmount 订单总金额
-     * @param refundAmount 退款金额
-     * @return 退款单号
+     * @param refundAmount 退款金额；传 {@code null} 表示全额退款
+     * @return 微信退款单号 refund_id
      * @throws Exception 退款异常
      */
-    String refund(String outTradeNo, String outRefundNo, BigDecimal totalAmount, BigDecimal refundAmount) throws Exception;
+    String refund(String outTradeNo, BigDecimal refundAmount) throws Exception;
 
     /**
      * 查询退款

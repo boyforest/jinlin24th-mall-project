@@ -51,19 +51,29 @@ public class OrderTimeoutCancelConsumer implements RocketMQListener<String> {
         }
 
         String consumedKey = "mq:consumed:order-timeout:" + dto.getOrderNo();
-        if (!redisUtil.setIfAbsentRequired(consumedKey, "1", IDEMPOTENT_TTL)) {
+
+        // 幂等短路：已经处理成功的消息直接跳过。
+        // 注意这里只用 exists 做快速判断，真正写标记放在业务成功之后——
+        // 若先占坑再干活，JVM 在两者之间崩溃会让重投被误判为"重复消息"而丢弃，
+        // 结果是订单永不取消、库存永不释放，且无处告警。
+        if (redisUtil.exists(consumedKey)) {
             log.info("订单超时取消消息重复消费，已忽略: orderNo={}", dto.getOrderNo());
             return;
         }
 
+        // 业务抛异常时不写标记，让 RocketMQ 正常重试
+        boolean cancelled;
         try {
-            boolean cancelled = orderService.cancelUnpaidOrder(dto.getOrderNo(), "订单超时未支付，系统自动取消");
-            log.info("订单超时取消处理完成: orderNo={}, cancelled={}", dto.getOrderNo(), cancelled);
+            cancelled = orderService.cancelUnpaidOrder(dto.getOrderNo(), "订单超时未支付，系统自动取消");
         } catch (Exception e) {
-            redisUtil.delete(consumedKey);
             log.error("订单超时取消消费失败，等待 RocketMQ 重试: orderNo={}", dto.getOrderNo(), e);
             throw e;
         }
+        log.info("订单超时取消处理完成: orderNo={}, cancelled={}", dto.getOrderNo(), cancelled);
+
+        // 业务已成功（cancelled=false 表示订单状态已变化、无需取消，同样算处理完成），
+        // 此时才写幂等标记。
+        redisUtil.setRequired(consumedKey, "1", IDEMPOTENT_TTL);
     }
 
     /**

@@ -3,6 +3,7 @@ package com.jinlin24th.jinlin.service.impl;
 import cn.hutool.core.util.IdUtil;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.jinlin24th.jinlin.common.constant.BizCode;
 import com.jinlin24th.jinlin.common.exception.BizException;
 import com.jinlin24th.jinlin.common.mq.OrderCreatedEvent;
 import com.jinlin24th.jinlin.common.mq.OrderCreatedSpringEvent;
@@ -16,6 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -71,6 +73,17 @@ public class OrderServiceImpl implements OrderService {
     @Autowired
     private ObjectProvider<SmsMessageProducer> smsMessageProducerProvider;
 
+    /** 会员价规则唯一事实来源（只有分销会员享受会员价）。 */
+    @Autowired
+    private EffectivePriceService effectivePriceService;
+
+    /**
+     * 订单超时判定时长（秒）。兜底任务据此计算"创建时间早于 现在-N 秒"的待付款订单。
+     * 默认 1800 秒（30 分钟），与 RocketMQ 延迟消息的延迟时长保持一致。
+     */
+    @Value("${app.order.timeout-cancel-seconds:1800}")
+    private long timeoutCancelSeconds;
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public OrderVO create(Long userId, OrderCreateDTO dto) {
@@ -86,25 +99,47 @@ public class OrderServiceImpl implements OrderService {
         }
 
         String orderNo = generateOrderNo();
+
+        // 买家只查一次：既用于会员价判定，也用于推荐官归属（避免重复查询）
+        AppUser buyer = appUserService.getById(userId);
+        boolean distributorMember = effectivePriceService.isDistributorMember(buyer);
+
         // 将 DTO items 转成订单明细（包含价格/商品名/图片等快照信息）
+        //
+        // 重要：任何一条明细不可下单都必须**明确报错**，绝不能返回 null 让上层过滤掉。
+        // 否则购物车 3 件商品有 1 件失效时会生成一张只含 2 件的订单且不报错，
+        // 用户收到的货比预期少、金额也按少的算——属于"缩水订单"，事后极难对账。
         List<OrderItem> items = dto.getItems().stream().map(i -> {
-            if (i == null || i.getSkuId() == null || i.getQuantity() == null || i.getQuantity() <= 0) {
-                return null;
+            if (i == null || i.getSkuId() == null) {
+                throw BizException.badRequest("订单明细缺少商品规格，请重新选择商品");
+            }
+            if (i.getQuantity() == null || i.getQuantity() <= 0) {
+                throw BizException.badRequest("商品数量必须大于 0");
             }
             ProductSku sku = productSkuService.getById(i.getSkuId());
             if (sku == null) {
-                return null;
+                throw BizException.of(BizCode.SKU_NOT_FOUND);
+            }
+            // 可售性校验必须在占用库存之前：否则下架/停售商品也会被扣库存。
+            // 前端隐藏入口不等于服务端安全——旧的分享链接或直接 POST skuId 都能绕过。
+            if (!Integer.valueOf(1).equals(sku.getStatus())) {
+                throw BizException.badRequest("该规格已停售，请重新选择商品");
             }
             Product product = productService.getById(sku.getProductId());
             if (product == null) {
-                return null;
+                throw BizException.of(BizCode.PRODUCT_NOT_FOUND);
+            }
+            if (!Integer.valueOf(1).equals(product.getStatus())) {
+                throw BizException.badRequest("商品已下架，无法下单：" + product.getName());
             }
 
             // 下单时先占用库存，超时未支付取消时再归还库存。
             Inventory occupiedInventory = occupyInventory(orderNo, sku.getId(), i.getQuantity());
 
-            // 价格以 SKU 的 memberPrice 优先（简化实现：未根据会员等级折扣动态计算）
-            BigDecimal price = sku.getMemberPrice() != null ? sku.getMemberPrice() : sku.getPrice();
+            // 价格由 EffectivePriceService 统一决定（唯一事实来源）：
+            // 只有分销会员享受会员价，其余人按售价。
+            // 此前是无条件取 memberPrice，等于给所有用户打折。
+            BigDecimal price = effectivePriceService.effectivePrice(sku, distributorMember);
             //乘法 → .multiply()
             //加法 → .add()
             //减法 → .subtract()
@@ -135,7 +170,7 @@ public class OrderServiceImpl implements OrderService {
             .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         // 构建订单主表（master）
-        AppUser level1Recommender = getEnabledDistributor(getUserParentId(userId));
+        AppUser level1Recommender = getEnabledDistributor(buyer == null ? null : buyer.getParentUserId());
         AppUser level2Recommender = level1Recommender == null ? null : getEnabledDistributor(level1Recommender.getParentUserId());
         OrderMaster master = new OrderMaster();
         master.setOrderNo(orderNo);
@@ -191,6 +226,62 @@ public class OrderServiceImpl implements OrderService {
         }
 
         return toVO(master, items);
+    }
+
+    /**
+     * 兜底取消超时未付款订单。
+     * <p>
+     * 与 MQ 延迟消息互补：MQ 开启时即时取消，MQ 关闭/不可用时由本方法兜底，
+     * 避免未付款订单永久占用库存。因为复用 {@link #cancelUnpaidOrder} 的状态 CAS，
+     * 两条路径同时触达也不会重复取消或重复归还库存。
+     * <p>
+     * 注意：本方法**不走事务**——每笔订单的取消由 {@code cancelUnpaidOrder} 各自成事务，
+     * 这样单个订单失败（例如库存记录缺失）只回滚它自己，不影响整批。
+     */
+    @Override
+    public int cancelTimeoutPendingOrders(int limit) {
+        if (limit <= 0) {
+            return 0;
+        }
+
+        LocalDateTime cutoff = LocalDateTime.now().minusSeconds(Math.max(timeoutCancelSeconds, 1L));
+
+        List<OrderMaster> candidates = orderMasterService.lambdaQuery()
+            .eq(OrderMaster::getStatus, STATUS_PENDING_PAY)
+            .lt(OrderMaster::getCreateTime, cutoff)
+            .orderByAsc(OrderMaster::getId)
+            .last("LIMIT " + limit)
+            .list();
+        if (candidates == null || candidates.isEmpty()) {
+            return 0;
+        }
+
+        int cancelled = 0;
+        int failed = 0;
+        for (OrderMaster candidate : candidates) {
+            String orderNo = candidate.getOrderNo();
+            if (orderNo == null || orderNo.isBlank()) {
+                continue;
+            }
+            try {
+                if (cancelUnpaidOrder(orderNo, "订单超时未支付，系统自动取消")) {
+                    cancelled++;
+                }
+            } catch (Exception e) {
+                failed++;
+                // 单笔失败（如库存记录缺失）不能中断整批，下一轮会重试这一单
+                log.error("[ORDER-ALERT] 兜底取消订单失败，将在下一轮重试: orderNo={}", orderNo, e);
+            }
+        }
+
+        if (cancelled > 0 || failed > 0) {
+            log.info("订单超时兜底取消完成: 扫描={}, 成功取消={}, 失败={}", candidates.size(), cancelled, failed);
+        }
+        if (failed > 0) {
+            log.error("[ORDER-ALERT] 本轮有 {} 笔订单兜底取消失败（多为库存记录缺失，需人工核对）：{}",
+                failed, candidates.size());
+        }
+        return cancelled;
     }
 
     /**
@@ -340,7 +431,9 @@ public class OrderServiceImpl implements OrderService {
             .last("LIMIT 1")
             .one();
         if (inventory == null) {
-            throw new IllegalArgumentException("库存不足，SKU ID：" + skuId);
+            // 售罄是可预期的业务情况，必须是 BizException（400），
+            // 否则会被全局异常处理器兜成"系统繁忙"（500），前端无法提示"库存不足"
+            throw BizException.badRequest("商品库存不足，请调整数量或稍后再试");
         }
 
         int beforeStock = inventory.getStock() == null ? 0 : inventory.getStock();
@@ -352,7 +445,8 @@ public class OrderServiceImpl implements OrderService {
             .eq(Inventory::getStock, beforeStock)
             .update();
         if (!updated) {
-            throw new IllegalArgumentException("库存繁忙，请重试，SKU ID：" + skuId);
+            // 并发抢购导致的 CAS 失败：同样是可预期情况，提示用户重试即可
+            throw BizException.badRequest("商品库存正在被其他订单占用，请重试");
         }
 
         InventoryLog logEntity = new InventoryLog();
@@ -376,52 +470,50 @@ public class OrderServiceImpl implements OrderService {
      * <p>
      * 优先按下单时快照的 warehouseId 恢复（哪仓扣的哪仓还）；
      * 历史订单没有仓库快照时，退回按 skuId 查第一条的旧逻辑。
+     * <p>
+     * 实现要点（修复"静默丢库存"）：
+     * <ul>
+     *   <li>用单条原子 SQL {@code stock = stock + N} 在数据库端自增，并发安全；</li>
+     *   <li><b>不再</b>做"读改写 + CAS + 同事务内重试"——REPEATABLE-READ 下重试会读到
+     *       同一份快照、注定失败，而失败后只打日志会导致订单已取消却不还库存；</li>
+     *   <li>任何失败（找不到库存记录 / 影响 0 行）都**抛异常**，让 {@code cancelUnpaidOrder}
+     *       事务回滚，宁可保持订单待支付也不要丢掉库存；由超时兜底任务稍后重试。</li>
+     * </ul>
      */
     private void restoreInventory(String orderNo, OrderItem item, String reason) {
-        Inventory inventory = findInventoryForRestore(item);
-        if (inventory == null) {
-            log.warn("订单取消恢复库存时未找到库存记录: orderNo={}, skuId={}, warehouseId={}", orderNo, item.getSkuId(), item.getWarehouseId());
-            return;
+        Integer quantity = item.getQuantity();
+        if (quantity == null || quantity <= 0) {
+            throw new IllegalStateException(
+                "订单取消恢复库存失败：明细数量非法，需人工核对。orderNo=" + orderNo
+                    + ", skuId=" + item.getSkuId() + ", quantity=" + quantity);
         }
 
-        int beforeStock = inventory.getStock() == null ? 0 : inventory.getStock();
-        int afterStock = beforeStock + item.getQuantity();
-        boolean updated = inventoryService.lambdaUpdate()
-            .set(Inventory::getStock, afterStock)
-            .set(Inventory::getUpdateTime, LocalDateTime.now())
-            .eq(Inventory::getId, inventory.getId())
-            .eq(Inventory::getStock, beforeStock)
-            .update();
-        if (!updated) {
-            log.warn("恢复库存CAS失败(库存已被其他操作修改), 重试中: orderNo={}, skuId={}, warehouseId={}", orderNo, item.getSkuId(), item.getWarehouseId());
-            // 重试一次：按同样的 skuId + warehouseId 条件重新读取当前库存再恢复
-            Inventory retry = findInventoryForRestore(item);
-            if (retry == null) {
-                log.error("恢复库存重试失败: 未找到库存记录 orderNo={}, skuId={}, warehouseId={}", orderNo, item.getSkuId(), item.getWarehouseId());
-                return;
-            }
-            int retryBefore = retry.getStock() == null ? 0 : retry.getStock();
-            int retryAfter = retryBefore + item.getQuantity();
-            boolean retryUpdated = inventoryService.lambdaUpdate()
-                .set(Inventory::getStock, retryAfter)
-                .set(Inventory::getUpdateTime, LocalDateTime.now())
-                .eq(Inventory::getId, retry.getId())
-                .eq(Inventory::getStock, retryBefore)
-                .update();
-            if (!retryUpdated) {
-                log.error("恢复库存CAS重试仍失败(需人工介入): orderNo={}, skuId={}, warehouseId={}", orderNo, item.getSkuId(), item.getWarehouseId());
-                return;
-            }
-            inventory = retry;
-            beforeStock = retryBefore;
-            afterStock = retryAfter;
+        Inventory inventory = findInventoryForRestore(item);
+        if (inventory == null) {
+            throw new IllegalStateException(
+                "订单取消恢复库存失败：未找到库存记录，需人工核对。orderNo=" + orderNo
+                    + ", skuId=" + item.getSkuId() + ", warehouseId=" + item.getWarehouseId());
         }
+
+        int affected = inventoryService.incrementStock(inventory.getId(), quantity);
+        if (affected == 0) {
+            throw new IllegalStateException(
+                "订单取消恢复库存失败：库存记录未更新，需人工核对。orderNo=" + orderNo
+                    + ", inventoryId=" + inventory.getId() + ", quantity=" + quantity);
+        }
+
+        // 重新读取以获得准确的归还后库存，仅用于写流水（失败也不影响归还结果）
+        Inventory latest = inventoryService.getById(inventory.getId());
+        int afterStock = (latest != null && latest.getStock() != null)
+            ? latest.getStock()
+            : (inventory.getStock() == null ? 0 : inventory.getStock()) + quantity;
+        int beforeStock = afterStock - quantity;
 
         InventoryLog logEntity = new InventoryLog();
         logEntity.setWarehouseId(inventory.getWarehouseId());
         logEntity.setSkuId(item.getSkuId());
         logEntity.setType(1);
-        logEntity.setQuantity(item.getQuantity());
+        logEntity.setQuantity(quantity);
         logEntity.setBeforeStock(beforeStock);
         logEntity.setAfterStock(afterStock);
         logEntity.setOrderNo(orderNo);
@@ -595,13 +687,6 @@ public class OrderServiceImpl implements OrderService {
         return master;
     }
 
-    private Long getUserParentId(Long userId) {
-        if (userId == null) {
-            return null;
-        }
-        AppUser user = appUserService.getById(userId);
-        return user == null ? null : user.getParentUserId();
-    }
 
     private AppUser getEnabledDistributor(Long userId) {
         if (userId == null || userId <= 0) {

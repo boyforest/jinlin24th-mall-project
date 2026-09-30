@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button, Card, Form, Input, Typography, App, Modal } from 'antd'
 import { login, changePassword } from '../api/auth'
 import { saveAuth } from '../utils/auth'
+import { safeRedirectPath } from '../utils/safeRedirect'
 
 /**
  * 登录页：使用 Ant Design Form 内置校验。
@@ -20,6 +21,9 @@ export default function LoginPage() {
   const [passwordLoading, setPasswordLoading] = useState(false)
   const [passwordForm] = Form.useForm()
 
+  // redirect 参数由攻击者可控，必须经 safeRedirectPath 白名单校验后才可跳转（防开放重定向）
+  const redirectPath = safeRedirectPath(searchParams.get('redirect'))
+
   async function submit(values) {
     setLoading(true)
     try {
@@ -30,7 +34,7 @@ export default function LoginPage() {
       } else {
         saveAuth(data)
         message.success('登录成功')
-        navigate(searchParams.get('redirect') || '/dashboard', { replace: true })
+        navigate(redirectPath, { replace: true })
       }
     } catch (error) {
       message.error(error.message)
@@ -46,7 +50,7 @@ export default function LoginPage() {
       saveAuth(data)
       setShowPasswordModal(false)
       message.success('密码修改成功')
-      navigate(searchParams.get('redirect') || '/dashboard', { replace: true })
+      navigate(redirectPath, { replace: true })
     } catch (error) {
       message.error(error.message)
     } finally {

@@ -11,8 +11,12 @@ export interface CartVO {
   productMainImage?: string
   skuName?: string
   skuImage?: string
+  /** 原价（仅供展示划线价） */
   price?: number
+  /** 会员价（仅供展示营销提示） */
   memberPrice?: number
+  /** 实际成交单价（后端按身份算好），显示与合计一律用它 */
+  effectivePrice?: number
   stock?: number
 }
 

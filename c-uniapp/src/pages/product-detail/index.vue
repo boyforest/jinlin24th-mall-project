@@ -43,7 +43,12 @@
               <text class="sku-name">{{ sku.skuName }}</text>
               <text class="sku-stock">余量 {{ sku.stock || 0 }}</text>
             </view>
-            <text class="price ink-price">¥{{ money(sku.memberPrice || sku.price) }}</text>
+            <view class="price-col">
+              <text class="price ink-price">¥{{ money(sku.effectivePrice ?? sku.price) }}</text>
+              <!-- 方案①：会员价作为营销钩子展示，但只有分销会员按它成交。
+                   当前已是会员价时不再重复提示，避免"自己给自己打广告"。 -->
+              <text v-if="memberHint(sku)" class="member-hint">分销会员 ¥{{ money(sku.memberPrice) }}</text>
+            </view>
           </view>
         </view>
 
@@ -76,6 +81,17 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * 是否展示"分销会员 ¥X"提示。
+ * 只在「确实有优惠」且「当前用户拿到的不是这个价」时展示。
+ */
+function memberHint(sku: any) {
+  const member = Number(sku?.memberPrice ?? 0)
+  const list = Number(sku?.price ?? 0)
+  const effective = Number(sku?.effectivePrice ?? list)
+  return member > 0 && member < list && effective !== member
+}
+
 import { onLoad } from '@dcloudio/uni-app'
 import { computed, ref } from 'vue'
 import { getProduct, listProductSkus, type ProductSkuVO, type ProductVO } from '@/api/product'
@@ -290,6 +306,17 @@ onLoad((options) => {
   opacity: 0.45;
 }
 .sku-name,
+.price-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.member-hint {
+  font-size: 22rpx;
+  color: #b8860b;
+}
+
 .price {
   display: block;
   font-size: 28rpx;

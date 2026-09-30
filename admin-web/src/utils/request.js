@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { App } from 'antd'
 import { clearAuth, getToken } from './auth'
+import { shouldRedirectToLogin } from './authRedirect'
 
 let messageApi = null
 
@@ -46,12 +47,21 @@ request.interceptors.response.use(
   error => {
     const status = error.response?.status
     const message = error.response?.data?.message || error.message || '请求失败'
-    if (status === 401) {
+    // 401 的跳转判定见 authRedirect.js：登录/改密接口自身的 401（密码错误）以及
+    // 已经停留在 /login 时都不跳转，否则整页刷新会把错误提示冲掉，用户只看到表单被重置。
+    if (shouldRedirectToLogin({ status, url: error.config?.url, pathname: window.location.pathname })) {
       clearAuth()
       window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname)}`
     }
-    messageApi?.error(message)
-    return Promise.reject(new Error(message))
+    // 调用方（如退款按钮）可选择自行提示，避免与全局提示重复
+    if (!error.config?.skipErrorMessage) {
+      messageApi?.error(message)
+    }
+    const wrapped = new Error(message)
+    // 保留 HTTP 状态码与后端业务码，供调用方区分 404（接口未启用）与具体业务错误
+    wrapped.status = status
+    wrapped.code = error.response?.data?.code
+    return Promise.reject(wrapped)
   }
 )
 

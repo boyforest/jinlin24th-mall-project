@@ -72,8 +72,10 @@
         </view>
         <view class="ink-line"></view>
         <view class="row">
+          <!-- 推荐官手机号由服务端脱敏（138****8000）：下游用户无权获取他人完整号码。
+               若产品上需要"联系推荐官"，应改用客服会话/拨号能力，而不是展示明文号码。 -->
           <text class="label">推荐官电话</text>
-          <text class="value">{{ profile?.parentUserPhone || '-' }}</text>
+          <text class="value">{{ profile?.parentUserPhone ? profile.parentUserPhone + '（已脱敏）' : '-' }}</text>
         </view>
         <view v-if="profile?.isDistributor === 1" class="share-box">
           <text class="share-tip">把你的专属邀请链接分享给好友，好友首次登录后会自动绑定到你名下。</text>

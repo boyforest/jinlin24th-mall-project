@@ -28,7 +28,7 @@
             <text class="name ink-title">{{ item.productName }}</text>
             <text class="sku">{{ item.skuName }}</text>
             <view class="bottom">
-              <text class="price ink-price">¥{{ money(item.memberPrice || item.price) }}</text>
+              <text class="price ink-price">¥{{ money(item.effectivePrice ?? item.price) }}</text>
               <view class="stepper">
                 <text class="step" @click="changeQty(item, -1)">-</text>
                 <text class="qty">{{ item.quantity }}</text>
@@ -64,7 +64,8 @@ const items = ref<CartVO[]>([])
 const loading = ref(false)
 
 const totalAmount = computed(() =>
-  items.value.reduce((sum, item) => sum + Number(item.memberPrice || item.price || 0) * item.quantity, 0),
+  // 合计必须与后端结算口径一致：用 effectivePrice
+  items.value.reduce((sum, item) => sum + Number(item.effectivePrice ?? item.price ?? 0) * item.quantity, 0),
 )
 
 async function load() {

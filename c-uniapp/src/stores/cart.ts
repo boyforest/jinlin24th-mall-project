@@ -21,7 +21,8 @@ export const useCartStore = defineStore('cart', {
     },
     checkedAmount(): number {
       return this.checkedItems.reduce(
-        (sum, item) => sum + Number(item.memberPrice || item.price || 0) * Number(item.quantity || 0),
+        // 成交价用后端算好的 effectivePrice（会员价只对分销会员生效，前端不得自行判断）
+        (sum, item) => sum + Number(item.effectivePrice ?? item.price ?? 0) * Number(item.quantity || 0),
         0,
       )
     },

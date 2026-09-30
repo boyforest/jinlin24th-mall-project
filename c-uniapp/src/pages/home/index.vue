@@ -111,6 +111,7 @@
                 <text class="goods-sub">{{ item.subtitle || '顺时滋补，草本新养' }}</text>
                 <text class="goods-spec">{{ item.defaultSku?.skuName || '默认规格' }} · 库存 {{ item.defaultSku?.stock ?? '-' }}</text>
                 <text class="goods-price ink-price">¥{{ skuPrice(item) }}</text>
+                <text v-if="memberHint(item)" class="goods-member-hint">分销会员 ¥{{ money(item.defaultSku?.memberPrice) }}</text>
               </view>
               <button class="add-btn" @click.stop="quickAdd(item)">+</button>
             </view>
@@ -135,7 +136,7 @@
           <view class="drawer-meta">
             <text class="drawer-name">{{ item.productName }}</text>
             <text class="drawer-spec">{{ item.skuName }}</text>
-            <text class="drawer-price ink-price">¥{{ money(item.memberPrice || item.price) }}</text>
+            <text class="drawer-price ink-price">¥{{ money(item.effectivePrice ?? item.price) }}</text>
           </view>
           <view class="drawer-stepper">
             <text class="step" @click="changeCartQty(item, -1)">-</text>
@@ -326,8 +327,21 @@ function goDetail(id: number) {
   uni.navigateTo({ url: `/pages/product-detail/index?id=${id}` })
 }
 
+/**
+ * 是否展示"分销会员 ¥X"提示（方案①的营销钩子）。
+ * 只在确实有优惠、且当前用户拿到的不是会员价时展示。
+ */
+function memberHint(item: ProductWithSku) {
+  const sku = item.defaultSku
+  const member = Number(sku?.memberPrice ?? 0)
+  const list = Number(sku?.price ?? 0)
+  const effective = Number(sku?.effectivePrice ?? list)
+  return member > 0 && member < list && effective !== member
+}
+
 function skuPrice(item: ProductWithSku) {
-  return money(item.defaultSku?.memberPrice || item.defaultSku?.price)
+  // 成交价一律用后端下发的 effectivePrice；memberPrice 只用于展示会员价提示
+  return money(item.defaultSku?.effectivePrice ?? item.defaultSku?.price)
 }
 
 async function quickAdd(item: ProductWithSku) {
@@ -749,6 +763,12 @@ onReachBottom(loadMore)
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.goods-member-hint {
+  display: block;
+  font-size: 20rpx;
+  color: #b8860b;
+}
+
 .goods-price {
   display: block;
   margin-top: 12rpx;

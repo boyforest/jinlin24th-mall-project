@@ -1,10 +1,11 @@
 import React, { useMemo, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { Breadcrumb, Button, Layout, Menu, Modal, Typography } from 'antd'
+import { App, Breadcrumb, Button, Layout, Menu, Typography } from 'antd'
 import { LogoutOutlined, MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons'
 import { adminRoutes } from '../router/routes.jsx'
 import { adminMenuGroups } from '../utils/adminUi.jsx'
 import { clearAuth, getUsername } from '../utils/auth'
+import { logout as logoutApi } from '../api/auth'
 
 const { Header, Sider, Content } = Layout
 
@@ -12,6 +13,7 @@ const { Header, Sider, Content } = Layout
  * 标准后台布局：侧边栏、顶部栏、面包屑、主内容区。
  */
 export default function AdminLayout() {
+  const { modal } = App.useApp()
   const [collapsed, setCollapsed] = useState(false)
   const location = useLocation()
   const navigate = useNavigate()
@@ -53,15 +55,24 @@ export default function AdminLayout() {
 
   /**
    * 退出登录前统一确认，替代原生 confirm。
+   * <p>
+   * 先调用后端 /admin/logout 注销服务端 jti，再清本地登录态并跳转；
+   * 即使注销接口失败（网络异常 / token 已失效）也必须完成本地清理，避免用户卡在“看起来已登录”的状态。
    */
   function logout() {
-    Modal.confirm({
+    modal.confirm({
       title: '确认退出登录？',
       okText: '退出',
       cancelText: '取消',
-      onOk: () => {
-        clearAuth()
-        navigate('/login', { replace: true })
+      onOk: async () => {
+        try {
+          await logoutApi()
+        } catch (error) {
+          // 全局响应拦截器已提示错误，这里只需保证本地登录态一定被清除
+        } finally {
+          clearAuth()
+          navigate('/login', { replace: true })
+        }
       }
     })
   }

@@ -13,6 +13,7 @@ export function requireLogin(redirectUrl?: string): boolean {
   if (getToken()) {
     return true
   }
+  if (getCurrentPages().some((page: any) => page.route === PAGE_URLS.login.slice(1))) return false
   const redirect = redirectUrl ? `?redirect=${encodeURIComponent(redirectUrl)}` : ''
   uni.navigateTo({ url: `${PAGE_URLS.login}${redirect}` })
   return false

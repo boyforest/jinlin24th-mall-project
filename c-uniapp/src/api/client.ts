@@ -1,4 +1,6 @@
 import { API_BASE_URL } from '@/config/app'
+import { requireLogin } from '@/utils/auth'
+import { currentPageUrl } from '@/utils/navigation'
 import { clearToken, clearUserId, getToken } from '@/utils/storage'
 
 export interface ApiResult<T> {
@@ -12,11 +14,12 @@ export interface RequestOptions {
   data?: any
   auth?: boolean
   headers?: Record<string, string>
+  redirectOnUnauthorized?: boolean
   showErrorToast?: boolean
 }
 
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { method = 'GET', data, auth = true, headers = {}, showErrorToast = false } = options
+  const { method = 'GET', data, auth = true, headers = {}, showErrorToast = false, redirectOnUnauthorized = true } = options
 
   const token = getToken()
   if (auth && !token) {
@@ -42,10 +45,10 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     const body = (res as any)?.data ?? (res as any)?.[1]?.data
 
     if (httpStatus && httpStatus !== 200) {
-      if (httpStatus === 401) {
+      if (httpStatus === 401 && auth && getToken() === token) {
         clearToken()
         clearUserId()
-        uni.reLaunch({ url: '/pages/login/index' })
+        if (redirectOnUnauthorized) requireLogin(currentPageUrl())
       }
       throw new Error(body?.message || `HTTP ${httpStatus}`)
     }

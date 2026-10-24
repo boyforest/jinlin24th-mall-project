@@ -1,3 +1,4 @@
+import { useCartStore } from '@/stores/cart'
 import { defineStore } from 'pinia'
 import { login, me, updateProfile, type AppUserVO } from '@/api/user'
 import { clearInviterUserId, getInviterUserId, getToken, getUserId, setToken, setUserId } from '@/utils/storage'
@@ -65,6 +66,7 @@ export const useAuthStore = defineStore('auth', {
     },
 
     logout() {
+      useCartStore().$reset()
       this.token = ''
       this.userId = 0
       this.profile = null

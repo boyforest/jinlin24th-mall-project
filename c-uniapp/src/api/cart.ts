@@ -28,7 +28,7 @@ export interface CartDTO {
 }
 
 export function listCart() {
-  return apiRequest<CartVO[]>('/user/cart/list')
+  return apiRequest<CartVO[]>('/user/cart/list', { redirectOnUnauthorized: false })
 }
 
 export function addCart(data: CartDTO) {

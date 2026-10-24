@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { addCart, deleteCart, listCart, updateCart, type CartVO } from '@/api/cart'
 import { money, requireLogin } from '@/utils/auth'
+import { getToken } from '@/utils/storage'
 
 export interface CheckoutItem {
   skuId: number
@@ -35,10 +36,15 @@ export const useCartStore = defineStore('cart', {
   },
   actions: {
     async refresh(redirectUrl = '/pages/home/index') {
-      if (!requireLogin(redirectUrl)) return
+      if (!getToken()) {
+        this.$reset()
+        return
+      }
+      const token = getToken()
       this.loading = true
       try {
-        this.items = await listCart()
+        const items = await listCart()
+        if (getToken() === token) this.items = items
       } finally {
         this.loading = false
       }

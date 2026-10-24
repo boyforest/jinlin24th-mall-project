@@ -28,7 +28,7 @@
           />
         </view>
 
-        <button class="ink-btn-primary" :loading="auth.loading" @click="doLogin">微信一键登录</button>
+        <button class="ink-btn-primary" :loading="loggingIn" :disabled="loggingIn" @click="doLogin">微信一键登录</button>
       </view>
     </view>
   </view>
@@ -39,9 +39,10 @@ import { onLoad } from '@dcloudio/uni-app'
 import { ref } from 'vue'
 import { PAGE_URLS, API_BASE_URL } from '@/config/app'
 import { useAuthStore } from '@/stores/auth'
-import { safeNavigateBack } from '@/utils/navigation'
+import { canReturnToPrevious, safeNavigateBack } from '@/utils/navigation'
 
 const auth = useAuthStore()
+const loggingIn = ref(false)
 const redirect = ref('')
 const nickname = ref('')
 const avatarPath = ref('')
@@ -70,6 +71,8 @@ async function uploadAvatarAfterLogin() {
 }
 
 async function doLogin() {
+  if (loggingIn.value) return
+  loggingIn.value = true
   try {
     await auth.loginWithWeixinProfile({
       nickname: nickname.value || undefined,
@@ -84,7 +87,9 @@ async function doLogin() {
 
     uni.showToast({ title: '登录成功', icon: 'success' })
     if (redirect.value) {
-      if (isTabBarPage(redirect.value)) {
+      if (canReturnToPrevious(redirect.value)) {
+        uni.navigateBack()
+      } else if (isTabBarPage(redirect.value)) {
         uni.switchTab({ url: redirect.value })
       } else {
         uni.redirectTo({ url: redirect.value })
@@ -102,6 +107,8 @@ async function doLogin() {
       })
     }
     uni.showToast({ title: e?.message || '登录失败', icon: 'none', duration: 3000 })
+  } finally {
+    loggingIn.value = false
   }
 }
 

@@ -326,8 +326,12 @@ async function quickAdd(item: ProductWithSku) {
     uni.showToast({ title: '暂无可售规格', icon: 'none' })
     return
   }
-  const ok = await cart.add(item.id, skuId, 1, '/pages/home/index')
-  if (ok) uni.showToast({ title: '已加入一篮养物', icon: 'success' })
+  try {
+    const ok = await cart.add(item.id, skuId, 1, '/pages/home/index')
+    if (ok) uni.showToast({ title: '已加入一篮养物', icon: 'success' })
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '加入失败，请重试', icon: 'none' })
+  }
 }
 
 async function changeCartQty(item: CartVO, delta: number) {
@@ -362,7 +366,7 @@ onShow(() => {
       popupVisible.value = true
       uni.setStorageSync('popup_login_shown', '1')
     }
-  })
+  }).catch(() => {})
   cart.refresh('/pages/home/index').catch(() => {})
 })
 

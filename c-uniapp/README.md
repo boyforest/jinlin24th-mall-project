@@ -73,6 +73,13 @@ VITE_API_BASE_URL=http://172.24.132.15:7878 npm run dev:mp-weixin
 - `src/utils/auth.ts`：页面登录守卫和金额格式化。
 - `src/pages`：页面组件。
 
+## 节气展示
+
+首页节气区由 `src/components/SolarTermHero.vue` 展示，沿用绿色背景和现有汇文明朝字形。
+墨字图片位于 `src/static/solar-terms`，随小程序打包，无需网络下载或运行时 Canvas。
+如需重新生成肌理，准备 Playwright 和 Chrome 后运行 `node scripts/generate-solar-ink.cjs`；生成结果固定可复现。
+季节序号、跨年倒计时及全部墨字资源可用 Node.js 22.18+ 执行 `npm run test:solar-terms` 验证。
+
 ## 下一步建议
 
 - 补收货地址管理。

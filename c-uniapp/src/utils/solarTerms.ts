@@ -127,6 +127,20 @@ export function formatSolarTermDate(term: SolarTerm, now: Date | LocalDateTime =
   return `${toLocalDateTime(now).year}.${term.dateText}`
 }
 
+export function formatSolarTermPosition(term: SolarTerm) {
+  const index = SOLAR_TERMS.findIndex(item => item.name === term.name)
+  if (index < 0) return term.name
+  // Calendar order starts at 小寒; seasonal order starts at 立春 (index 2).
+  const seasonalIndex = (index + SOLAR_TERMS.length - 2) % SOLAR_TERMS.length
+  const seasons = ['春季', '夏季', '秋季', '冬季']
+  const ordinals = ['一', '二', '三', '四', '五', '六']
+  return `${term.name} · ${seasons[Math.floor(seasonalIndex / 6)]}第${ordinals[seasonalIndex % 6]}个节气`
+}
+
+export function formatSolarTermCountdown(info: SolarTermInfo) {
+  return `距${info.nextTerm.name}还有 ${info.daysUntilNext} 天`
+}
+
 export function formatSolarTermInterval(info: SolarTermInfo) {
   const nextText = info.daysUntilNext === 1 ? `明日${info.nextTerm.name}` : `距${info.nextTerm.name} ${info.daysUntilNext} 天`
   if (info.isCurrentTermDay) {

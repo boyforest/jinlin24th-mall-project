@@ -1,28 +1,7 @@
 <template>
   <view class="page home-page">
     <view class="ink-page-content">
-      <view class="hero">
-        <view class="brand-row">
-          <image class="official-logo" src="/static/brand/official-logo.png" mode="widthFix" />
-        </view>
-        <view class="solar-term">
-          <text class="lunar-date">{{ currentTerm.seasonText }}</text>
-          <text class="solar-date">{{ currentTermDate }}</text>
-          <view class="term-center">
-            <text class="term-cn ink-title">{{ currentTerm.chars[0] }}</text>
-            <text class="term-en">{{ currentTerm.english }}</text>
-            <view class="term-bottom">
-              <text class="term-cn ink-title">{{ currentTerm.chars[1] }}</text>
-              <text class="term-stamp">节气</text>
-            </view>
-          </view>
-          <view class="term-copy">
-            <text class="term-poem">{{ currentTerm.poem }}</text>
-            <text class="term-time">{{ currentTermIntervalText }}</text>
-            <text class="term-poem-en">{{ currentTerm.poemEn }}</text>
-          </view>
-        </view>
-      </view>
+      <SolarTermHero :now="localNow" />
 
       <view class="ink-search search-bar">
         <text class="ink-search-icon">茶</text>
@@ -178,14 +157,15 @@
 
 <script setup lang="ts">
 import { onPullDownRefresh, onReachBottom, onShow } from '@dcloudio/uni-app'
-import { computed, ref } from 'vue'
+import { ref } from 'vue'
+import SolarTermHero from '@/components/SolarTermHero.vue'
 import { listProducts, listProductSkus, type ProductSkuVO, type ProductVO } from '@/api/product'
 import { listCategories, type ProductCategoryVO } from '@/api/category'
 import { listMarketingActivities, type MarketingActivityVO } from '@/api/marketing'
 import type { CartVO } from '@/api/cart'
 import { useCartStore } from '@/stores/cart'
 import { money, requireLogin } from '@/utils/auth'
-import { formatSolarTermInterval, getCurrentSolarTermInfo, getLocalDateTime } from '@/utils/solarTerms'
+import { getLocalDateTime } from '@/utils/solarTerms'
 
 type ProductWithSku = ProductVO & { defaultSku?: ProductSkuVO }
 
@@ -207,10 +187,6 @@ const loginPopup = ref<MarketingActivityVO | null>(null)
 const popupVisible = ref(false)
 const cart = useCartStore()
 const localNow = ref(getLocalDateTime())
-const currentTermInfo = computed(() => getCurrentSolarTermInfo(localNow.value))
-const currentTerm = computed(() => currentTermInfo.value.currentTerm)
-const currentTermDate = computed(() => currentTermInfo.value.currentDateText)
-const currentTermIntervalText = computed(() => formatSolarTermInterval(currentTermInfo.value))
 
 async function ensureCategories() {
   if (categories.value.length === 0) {
@@ -397,142 +373,6 @@ onReachBottom(loadMore)
 <style scoped>
 .home-page {
   padding-bottom: 154rpx;
-}
-.hero {
-  min-height: 1040rpx;
-  padding: 52rpx 34rpx 60rpx;
-  border-radius: 30rpx;
-  background:
-    radial-gradient(circle at 18% 7%, rgba(255, 255, 255, 0.95), transparent 34%),
-    radial-gradient(circle at 88% 5%, rgba(172, 219, 160, 0.36), transparent 32%),
-    linear-gradient(180deg, rgba(238, 248, 232, 0.72), rgba(255, 255, 255, 0.9) 76%),
-    #f4f9f0;
-  box-shadow: 0 14rpx 42rpx rgba(79, 123, 66, 0.13);
-  overflow: hidden;
-  position: relative;
-  margin-bottom: 28rpx;
-}
-.hero::before {
-  content: "";
-  position: absolute;
-  right: -260rpx;
-  top: 92rpx;
-  width: 960rpx;
-  height: 1360rpx;
-  border-radius: 46% 54% 44% 56%;
-  background:
-    linear-gradient(118deg, transparent 4%, rgba(255, 255, 255, 0.18) 24%, rgba(113, 177, 94, 0.26) 42%, rgba(225, 242, 218, 0.46) 56%, rgba(255, 255, 255, 0.28) 69%, transparent 94%),
-    linear-gradient(142deg, transparent 0%, rgba(255, 255, 255, 0.34) 46%, rgba(79, 123, 66, 0.08) 56%, transparent 100%);
-  transform: rotate(31deg);
-}
-.hero::after {
-  content: "";
-  position: absolute;
-  left: 78rpx;
-  bottom: 154rpx;
-  width: 530rpx;
-  height: 160rpx;
-  border-bottom: 3rpx solid rgba(45, 45, 45, 0.1);
-  border-radius: 50%;
-  transform: rotate(-9deg);
-}
-.brand-row,
-.solar-term,
-.term-center,
-.term-copy {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-.brand-row {
-  opacity: 0.92;
-}
-.official-logo {
-  width: 540rpx;
-  opacity: 0.88;
-}
-.solar-term {
-  margin-top: 148rpx;
-}
-.lunar-date {
-  color: rgba(45, 45, 45, 0.8);
-  font-family: "LXGW Heart Serif", "Songti SC", "STSong", "SimSun", serif;
-  font-size: 24rpx;
-  letter-spacing: 4rpx;
-  margin-bottom: 10rpx;
-}
-.solar-date {
-  color: #2d2d2d;
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 42rpx;
-  font-weight: 600;
-  letter-spacing: 4rpx;
-}
-.term-center {
-  margin-top: 154rpx;
-}
-.term-cn {
-  color: #101410;
-  font-family: "Huiwen Mincho Solar", "LXGW Heart Serif", "Songti SC", "STSong", serif;
-  font-size: 132rpx;
-  font-weight: 700;
-  line-height: 0.92;
-  text-shadow: 0 2rpx 8rpx rgba(79, 123, 66, 0.12);
-  animation: term-float 4s ease-in-out infinite;
-}
-
-@keyframes term-float {
-  0%, 100% { transform: translateY(0); }
-  50%      { transform: translateY(-6rpx); }
-}
-.term-en {
-  margin: 24rpx 0 20rpx;
-  color: #111;
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 44rpx;
-  letter-spacing: 2rpx;
-}
-.term-bottom {
-  display: flex;
-  align-items: center;
-}
-.term-stamp {
-  margin-left: 14rpx;
-  width: 42rpx;
-  height: 64rpx;
-  border: 2rpx solid #b0493f;
-  border-radius: 6rpx;
-  color: #b0493f;
-  font-family: "Songti SC", "STSong", serif;
-  font-size: 20rpx;
-  line-height: 30rpx;
-  text-align: center;
-}
-.term-copy {
-  margin-top: 210rpx;
-}
-.term-poem {
-  color: #2d2d2d;
-  font-family: "LXGW Heart Serif", "Songti SC", "STSong", serif;
-  font-size: 28rpx;
-  letter-spacing: 14rpx;
-}
-.term-time {
-  display: block;
-  margin-top: 18rpx;
-  color: rgba(79, 123, 66, 0.72);
-  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", Arial, sans-serif;
-  font-size: 24rpx;
-  letter-spacing: 2rpx;
-}
-.term-poem-en {
-  margin-top: 24rpx;
-  color: rgba(45, 45, 45, 0.46);
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 22rpx;
-  text-align: center;
 }
 .search-bar {
   margin-bottom: 24rpx;

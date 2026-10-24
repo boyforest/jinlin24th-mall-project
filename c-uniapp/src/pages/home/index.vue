@@ -92,7 +92,7 @@
                 <text class="goods-price ink-price">¥{{ skuPrice(item) }}</text>
                 <text v-if="memberHint(item)" class="goods-member-hint">分销会员 ¥{{ money(item.defaultSku?.memberPrice) }}</text>
               </view>
-              <button class="add-btn" @click.stop="quickAdd(item)">+</button>
+              <button class="add-btn" :disabled="cart.busy || cart.loading || !(item.defaultSku?.stock)" :aria-label="item.defaultSku?.stock ? '加入购物车' : '暂时售罄'" @click.stop="quickAdd(item)">+</button>
             </view>
             <view v-if="loadingMore" class="more-tip">继续整理养物中...</view>
             <view v-else-if="finished" class="more-tip">已展示全部养物</view>
@@ -105,38 +105,23 @@
     <view class="cart-drawer" :class="{ open: cartOpen }">
       <view class="drawer-head">
         <text class="drawer-title ink-title">一篮养物</text>
-        <text class="drawer-action" @click="toggleAll">{{ cart.allChecked ? '取消全选' : '全选' }}</text>
+        <button class="drawer-action drawer-select" :disabled="cart.busy || cart.loading || !!cart.error" @click="toggleAll">{{ cart.allChecked ? '取消全选' : '全选' }}</button>
       </view>
       <scroll-view class="drawer-list" scroll-y>
-        <view v-if="cart.items.length === 0" class="drawer-empty">暂无养物</view>
-        <view v-for="item in cart.items" :key="item.id" class="drawer-item">
-          <text class="check" :class="{ checked: item.checked !== 0 }" @click="cart.setChecked(item, item.checked === 0 ? 1 : 0)">✓</text>
-          <image v-if="item.productMainImage" class="drawer-cover" :src="item.productMainImage" mode="aspectFill" lazy-load />
-          <view class="drawer-meta">
-            <text class="drawer-name">{{ item.productName }}</text>
-            <text class="drawer-spec">{{ item.skuName }}</text>
-            <text class="drawer-price ink-price">¥{{ money(item.effectivePrice ?? item.price) }}</text>
-          </view>
-          <view class="drawer-stepper">
-            <text class="step" @click="changeCartQty(item, -1)">-</text>
-            <text class="qty">{{ item.quantity }}</text>
-            <text class="step" @click="changeCartQty(item, 1)">+</text>
-          </view>
-          <text class="remove" @click="cart.remove(item.id)">删</text>
-        </view>
+        <CartItems compact @browse="cartOpen = false" />
       </scroll-view>
     </view>
 
-    <view class="floating-cart" @click="cartOpen = true">
+    <view class="floating-cart" @click="openCart">
       <view class="basket-mark">
         <text>篮</text>
         <text v-if="cart.totalCount" class="basket-count">{{ cart.totalCount }}</text>
       </view>
       <view class="basket-copy">
         <text class="basket-title">一篮养物</text>
-        <text class="basket-sub">已选 {{ cart.checkedCount }} 件 · ¥{{ cart.checkedAmountText }}</text>
+        <text class="basket-sub">{{ cart.busy ? '正在更新养物…' : cart.error ? '养物加载失败，点击重试' : `已选 ${cart.checkedCount} 件 · ¥${cart.checkedAmountText}` }}</text>
       </view>
-      <button class="checkout-btn" @click.stop="goCheckout">去结算</button>
+      <button class="checkout-btn" :disabled="cart.busy || cart.loading || !!cart.error" @click.stop="goCheckout">去结算</button>
     </view>
 
     <view v-if="popupVisible && loginPopup" class="popup-mask" @click="popupVisible = false">
@@ -156,13 +141,13 @@
 </template>
 
 <script setup lang="ts">
+import CartItems from '@/components/CartItems.vue'
 import { onPullDownRefresh, onReachBottom, onShow } from '@dcloudio/uni-app'
 import { ref } from 'vue'
 import SolarTermHero from '@/components/SolarTermHero.vue'
 import { listProducts, listProductSkus, type ProductSkuVO, type ProductVO } from '@/api/product'
 import { listCategories, type ProductCategoryVO } from '@/api/category'
 import { listMarketingActivities, type MarketingActivityVO } from '@/api/marketing'
-import type { CartVO } from '@/api/cart'
 import { useCartStore } from '@/stores/cart'
 import { money, requireLogin } from '@/utils/auth'
 import { getLocalDateTime } from '@/utils/solarTerms'
@@ -321,8 +306,9 @@ function skuPrice(item: ProductWithSku) {
 }
 
 async function quickAdd(item: ProductWithSku) {
+  if (cart.busy || cart.loading) return
   const skuId = item.defaultSku?.id
-  if (!skuId) {
+  if (!skuId || !item.defaultSku?.stock) {
     uni.showToast({ title: '暂无可售规格', icon: 'none' })
     return
   }
@@ -334,28 +320,19 @@ async function quickAdd(item: ProductWithSku) {
   }
 }
 
-async function changeCartQty(item: CartVO, delta: number) {
-  const max = item.stock != null ? item.stock : 9999
-  const next = Math.min(max, Math.max(1, Number(item.quantity || 1) + delta))
-  if (next <= 0) {
-    await cart.remove(item.id)
-    return
-  }
-  await cart.setQuantity(item, next)
+function openCart() {
+  if (!requireLogin('/pages/home/index')) return
+  cartOpen.value = true
+  cart.refresh()
 }
 
-function toggleAll() {
-  cart.setAllChecked(cart.allChecked ? 0 : 1)
-}
+function toggleAll() { cart.setAllChecked(cart.allChecked ? 0 : 1) }
 
 function goCheckout() {
-  if (!requireLogin('/pages/home/index')) return
-  if (!cart.checkedItems.length) {
-    uni.showToast({ title: '请先选择养物', icon: 'none' })
-    return
+  if (cart.prepareCheckout('/pages/home/index')) {
+    cartOpen.value = false
+    uni.navigateTo({ url: '/pages/order-create/index' })
   }
-  cart.setCheckoutItems(cart.checkedItems.map((i) => ({ skuId: i.skuId, quantity: i.quantity })))
-  uni.navigateTo({ url: '/pages/order-create/index' })
 }
 
 onShow(() => {
@@ -375,6 +352,10 @@ onReachBottom(loadMore)
 </script>
 
 <style scoped>
+.drawer-select { margin: 0; padding: 8rpx 0 8rpx 20rpx; background: transparent; line-height: 1.5; }
+.drawer-select::after { border: 0; }
+button[disabled] { opacity: .45; }
+
 .home-page {
   padding-bottom: 154rpx;
 }
@@ -654,7 +635,7 @@ onReachBottom(loadMore)
   position: fixed;
   left: 0;
   right: 0;
-  bottom: 0;
+  bottom: var(--window-bottom, 0px);
   z-index: 21;
   height: 0;
   padding: 0 32rpx;
@@ -685,78 +666,11 @@ onReachBottom(loadMore)
 .drawer-list {
   height: 520rpx;
 }
-.drawer-item {
-  display: flex;
-  align-items: center;
-  padding: 18rpx 0;
-  border-bottom: 1rpx solid rgba(111, 159, 88, 0.12);
-}
-.check {
-  width: 38rpx;
-  height: 38rpx;
-  margin-right: 12rpx;
-  border-radius: 50%;
-  border: 2rpx solid rgba(111, 159, 88, 0.38);
-  color: transparent;
-  font-size: 24rpx;
-  line-height: 34rpx;
-  text-align: center;
-}
-.check.checked {
-  color: #fff;
-  background: #5f8f4b;
-}
-.drawer-cover {
-  width: 92rpx;
-  height: 92rpx;
-  border-radius: 12rpx;
-  background: #eef6eb;
-  flex: none;
-}
-.drawer-meta {
-  min-width: 0;
-  flex: 1;
-  padding-left: 14rpx;
-}
-.drawer-name,
-.drawer-spec,
-.drawer-price {
-  display: block;
-}
-.drawer-name {
-  font-size: 26rpx;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.drawer-spec {
-  color: #6f7b68;
-  font-size: 22rpx;
-  margin: 4rpx 0;
-}
-.drawer-stepper {
-  display: flex;
-  align-items: center;
-  border: 1rpx solid rgba(111, 159, 88, 0.25);
-  border-radius: 999rpx;
-}
-.step,
-.qty {
-  min-width: 44rpx;
-  height: 44rpx;
-  line-height: 44rpx;
-  text-align: center;
-}
-.remove {
-  margin-left: 10rpx;
-  color: #b0493f;
-  font-size: 22rpx;
-}
 .floating-cart {
   position: fixed;
   left: 28rpx;
   right: 28rpx;
-  bottom: 28rpx;
+  bottom: calc(28rpx + var(--window-bottom, 0px));
   z-index: 30;
   height: 108rpx;
   padding: 12rpx 18rpx 12rpx 14rpx;

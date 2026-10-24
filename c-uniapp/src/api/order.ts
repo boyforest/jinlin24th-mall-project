@@ -58,3 +58,15 @@ export function getOrder(id: number) {
 export function receiveOrder(id: number) {
   return apiRequest<OrderVO>(`/user/order/${id}/receive`, { method: 'POST' })
 }
+
+export interface OrderPreviewVO {
+  items: Array<NonNullable<OrderVO['items']>[number] & { stock: number; quantity: number }>
+  totalAmount: number
+  freightAmount: number
+  discountAmount: number
+  payAmount: number
+}
+
+export function previewOrder(items: OrderCreateDTO['items']) {
+  return apiRequest<OrderPreviewVO>('/user/order/preview', { method: 'POST', data: { items } })
+}

@@ -15,24 +15,34 @@
       </view>
 
       <view class="card ink-card">
-        <view class="title ink-title">商品</view>
-        <view v-for="(item, idx) in checkoutItems" :key="idx" class="item-row">
-          <view class="row">
-            <text>SKU ID</text>
-            <text>{{ item.skuId }}</text>
-          </view>
-          <view class="row">
-            <text>数量</text>
-            <view class="stepper">
-              <text class="step" @click="changeItemQty(idx, -1)">-</text>
-              <text class="qty">{{ item.quantity }}</text>
-              <text class="step" @click="changeItemQty(idx, 1)">+</text>
-            </view>
-          </view>
-          <view class="ink-line"></view>
+        <view class="title ink-title">本次养物 <text class="hint">共 {{ totalQuantity }} 件</text></view>
+        <view v-if="quoteLoading" class="quote-state">正在核对商品与金额…</view>
+        <view v-else-if="quoteError" class="quote-state">
+          <text>{{ quoteError }}</text>
+          <button class="ink-btn-secondary" @click="loadQuote">重新核对</button>
         </view>
-        <view class="row">
-          <text>共 {{ totalQuantity }} 件</text>
+        <view v-for="(item, idx) in quote?.items || []" :key="item.skuId" class="review-item">
+          <image v-if="item.productImage" class="product-image" :src="item.productImage" mode="aspectFill" />
+          <view v-else class="product-image placeholder">养</view>
+          <view class="product-meta">
+            <text class="product-name">{{ item.productName }}</text>
+            <text class="hint">{{ item.skuName || '默认规格' }}</text>
+            <text class="unit-price">单价 ¥{{ money(item.price) }}</text>
+            <view class="row">
+              <text class="ink-price">¥{{ money(item.totalPrice) }}</text>
+              <view class="stepper">
+                <button class="step" :disabled="quoteLoading || submitting || orderCreated || item.quantity <= 1" @click="changeItemQty(idx, -1)">−</button>
+                <text class="qty">{{ item.quantity }}</text>
+                <button class="step" :disabled="quoteLoading || submitting || orderCreated || item.quantity >= item.stock" @click="changeItemQty(idx, 1)">+</button>
+              </view>
+            </view>
+            <text v-if="item.stock < item.quantity" class="stock-warning">{{ item.stock ? `仅余 ${item.stock} 件，请减少数量` : '暂时售罄，请返回重新选择' }}</text>
+          </view>
+        </view>
+        <view v-if="quote && !quoteLoading && !quoteError" class="amount-details">
+          <view class="row"><text>商品金额</text><text>¥{{ money(quote.totalAmount) }}</text></view>
+          <view class="row"><text>运费</text><text>{{ Number(quote.freightAmount) === 0 ? '免运费' : `¥${money(quote.freightAmount)}` }}</text></view>
+          <view v-if="Number(quote.discountAmount) > 0" class="row"><text>优惠</text><text>−¥{{ money(quote.discountAmount) }}</text></view>
         </view>
       </view>
 
@@ -61,15 +71,19 @@
         </view>
       </view>
 
-      <button class="ink-btn-primary" :loading="submitting" @click="submit">提交并支付</button>
+    </view>
+    <view class="submit-bar">
+      <view class="payable"><text class="hint">应付 · {{ totalQuantity }} 件</text><text class="payable-price ink-price">{{ quoteLoading ? '核对中…' : quoteError || !quote ? '待核对' : `¥${money(quote.payAmount)}` }}</text></view>
+      <button class="ink-btn-primary" :loading="submitting" :disabled="!canSubmit" @click="submit">{{ orderCreated ? '订单已提交' : '提交订单' }}</button>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
 import { onLoad } from '@dcloudio/uni-app'
-import { reactive, ref } from 'vue'
-import { createOrder } from '@/api/order'
+import { computed, reactive, ref } from 'vue'
+import { createOrder, previewOrder, type OrderPreviewVO } from '@/api/order'
+import { money } from '@/utils/auth'
 import { createOrderPayment, requestMiniAppPayment } from '@/api/payment'
 import { bindRecommender, getRecommender, type AppUserVO } from '@/api/user'
 import { useCartStore } from '@/stores/cart'
@@ -78,7 +92,26 @@ import { safeNavigateBack } from '@/utils/navigation'
 const cartStore = useCartStore()
 const checkoutItems = ref<Array<{ skuId: number; quantity: number }>>([])
 const submitting = ref(false)
-const totalQuantity = ref(0)
+const totalQuantity = computed(() => checkoutItems.value.reduce((sum, item) => sum + item.quantity, 0))
+const quote = ref<OrderPreviewVO | null>(null)
+const quoteLoading = ref(false)
+const quoteError = ref('')
+const orderCreated = ref(false)
+const canSubmit = computed(() => !!quote.value && !quoteLoading.value && !quoteError.value && !submitting.value && !orderCreated.value && quote.value.items.every(item => item.stock >= item.quantity))
+
+async function loadQuote() {
+  if (quoteLoading.value || !checkoutItems.value.length) return
+  quoteLoading.value = true
+  quoteError.value = ''
+  try {
+    quote.value = await previewOrder(checkoutItems.value)
+  } catch (e: any) {
+    quote.value = null
+    quoteError.value = e?.message || '金额核对失败，请重试'
+  } finally {
+    quoteLoading.value = false
+  }
+}
 const binding = ref(false)
 const recommender = ref<AppUserVO | null>(null)
 const recommenderInput = ref('')
@@ -90,9 +123,13 @@ const form = reactive({
 })
 
 function changeItemQty(idx: number, delta: number) {
-  const next = Math.max(1, checkoutItems.value[idx].quantity + delta)
-  checkoutItems.value[idx] = { ...checkoutItems.value[idx], quantity: next }
-  totalQuantity.value = checkoutItems.value.reduce((sum, item) => sum + item.quantity, 0)
+  if (quoteLoading.value || submitting.value || orderCreated.value) return
+  const current = checkoutItems.value[idx]
+  const stock = quote.value?.items[idx]?.stock ?? 0
+  const next = Math.max(1, current.quantity + delta)
+  if (next === current.quantity || (delta > 0 && next > stock)) return
+  checkoutItems.value[idx] = { ...current, quantity: next }
+  loadQuote()
 }
 
 async function loadRecommender() {
@@ -122,6 +159,7 @@ async function bind() {
 }
 
 async function submit() {
+  if (!canSubmit.value) return
   if (!checkoutItems.value.length) {
     uni.showToast({ title: '暂无商品', icon: 'none' })
     return
@@ -143,8 +181,16 @@ async function submit() {
       remark: form.remark,
       items: checkoutItems.value.map((i) => ({ skuId: i.skuId, quantity: i.quantity })),
     })
+    orderCreated.value = true
     cartStore.clearCheckoutItems()
     try {
+      if (money(order.payAmount ?? order.totalAmount) !== money(quote.value?.payAmount)) {
+        const decision = await uni.showModal({ title: '订单金额已更新', content: `当前应付 ¥${money(order.payAmount ?? order.totalAmount)}，是否继续支付？`, confirmText: '继续支付', cancelText: '查看订单' })
+        if (!decision.confirm) {
+          uni.redirectTo({ url: `/pages/order-detail/index?id=${order.id}` })
+          return
+        }
+      }
       const payParams = await createOrderPayment(order.id)
       await requestMiniAppPayment(payParams)
       uni.showToast({ title: '支付完成', icon: 'success' })
@@ -160,6 +206,7 @@ async function submit() {
     }
   } catch (e: any) {
     uni.showToast({ title: e?.message || '提交失败', icon: 'none' })
+    await loadQuote()
   } finally {
     submitting.value = false
   }
@@ -173,12 +220,32 @@ onLoad(() => {
     return
   }
   checkoutItems.value = items.map((i) => ({ ...i }))
-  totalQuantity.value = checkoutItems.value.reduce((sum, item) => sum + item.quantity, 0)
+  loadQuote()
   loadRecommender()
 })
 </script>
 
 <style scoped>
+.page { padding-bottom: calc(180rpx + env(safe-area-inset-bottom)); }
+.review-item { position: relative; z-index: 1; display: flex; gap: 20rpx; padding: 24rpx 0; border-bottom: 1rpx solid rgba(111,159,88,.15); }
+.product-image { width: 136rpx; height: 136rpx; flex-shrink: 0; border-radius: 16rpx; background: #eef5e9; }
+.placeholder { display: flex; align-items: center; justify-content: center; color: #668c52; font-size: 42rpx; }
+.product-meta { flex: 1; min-width: 0; }
+.product-name { display: block; font-size: 29rpx; line-height: 1.5; overflow-wrap: anywhere; }
+.unit-price { display: block; font-size: 24rpx; color: #6d7c67; margin: 10rpx 0; }
+.amount-details { position: relative; z-index: 1; padding-top: 16rpx; font-size: 26rpx; color: #6d7c67; }
+.amount-details .row { margin-top: 14rpx; }
+.stock-warning { display: block; color: #af5145; font-size: 23rpx; margin-top: 12rpx; }
+.quote-state { position: relative; z-index: 1; color: #6d7c67; padding: 20rpx 0; font-size: 26rpx; }
+.quote-state button { margin-top: 20rpx; }
+.submit-bar { position: fixed; z-index: 50; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 24rpx; padding: 20rpx 32rpx calc(20rpx + env(safe-area-inset-bottom)); background: #fcfdf9; border-top: 1rpx solid #dde7d6; box-shadow: 0 -8rpx 28rpx rgba(57,83,43,.06); }
+.payable { flex: 1; min-width: 0; }
+.payable-price { display: block; font-size: 38rpx; margin-top: 4rpx; }
+.submit-bar button { margin: 0; width: 280rpx; flex-shrink: 0; }
+.stepper button.step { padding: 0; margin: 0; border: 0; border-radius: 0; font-size: 28rpx; background: transparent; }
+.stepper button::after { border: 0; }
+button[disabled] { opacity: .48; }
+
 .page-head {
   margin-bottom: 28rpx;
 }
@@ -262,6 +329,7 @@ onLoad(() => {
 }
 .textarea {
   padding: 18rpx;
+  height: 120rpx;
   min-height: 120rpx;
   line-height: 1.5;
 }

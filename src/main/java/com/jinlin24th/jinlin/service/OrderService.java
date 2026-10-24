@@ -4,8 +4,11 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.jinlin24th.jinlin.pojo.dto.OrderCreateDTO;
 import com.jinlin24th.jinlin.pojo.entity.OrderMaster;
 import com.jinlin24th.jinlin.pojo.vo.OrderVO;
+import com.jinlin24th.jinlin.pojo.vo.OrderPreviewVO;
 
 public interface OrderService {
+    OrderPreviewVO preview(Long userId, OrderCreateDTO dto);
+
     OrderVO create(Long userId, OrderCreateDTO dto);
 
     /**

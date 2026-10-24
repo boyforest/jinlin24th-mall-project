@@ -12,6 +12,7 @@ import com.jinlin24th.jinlin.common.mq.producer.SmsMessageProducer;
 import com.jinlin24th.jinlin.pojo.dto.OrderCreateDTO;
 import com.jinlin24th.jinlin.pojo.entity.*;
 import com.jinlin24th.jinlin.pojo.vo.OrderVO;
+import com.jinlin24th.jinlin.pojo.vo.OrderPreviewVO;
 import com.jinlin24th.jinlin.service.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -83,6 +84,54 @@ public class OrderServiceImpl implements OrderService {
      */
     @Value("${app.order.timeout-cancel-seconds:1800}")
     private long timeoutCancelSeconds;
+
+    @Autowired
+    private SkuStockQueryService skuStockQueryService;
+
+    @Override
+    public OrderPreviewVO preview(Long userId, OrderCreateDTO dto) {
+        if (dto == null || dto.getItems() == null || dto.getItems().isEmpty()) {
+            throw BizException.badRequest("请先选择商品");
+        }
+        boolean member = effectivePriceService.isDistributorMember(appUserService.getById(userId));
+        Set<Long> seen = new java.util.HashSet<>();
+        List<OrderPreviewVO.Item> items = new ArrayList<>();
+        for (OrderCreateDTO.Item input : dto.getItems()) {
+            if (input == null || input.getSkuId() == null || input.getQuantity() == null || input.getQuantity() <= 0) {
+                throw BizException.badRequest("请检查商品规格与数量");
+            }
+            if (!seen.add(input.getSkuId())) {
+                throw BizException.badRequest("请勿重复提交相同规格");
+            }
+            ProductSku sku = productSkuService.getById(input.getSkuId());
+            if (sku == null) throw BizException.of(BizCode.SKU_NOT_FOUND);
+            if (!Integer.valueOf(1).equals(sku.getStatus())) {
+                throw BizException.badRequest("该规格已停售，请重新选择商品");
+            }
+            Product product = productService.getById(sku.getProductId());
+            if (product == null) throw BizException.of(BizCode.PRODUCT_NOT_FOUND);
+            if (!Integer.valueOf(1).equals(product.getStatus())) {
+                throw BizException.badRequest("商品已下架，无法下单：" + product.getName());
+            }
+            OrderPreviewVO.Item item = new OrderPreviewVO.Item();
+            item.setProductId(product.getId());
+            item.setSkuId(sku.getId());
+            item.setProductName(product.getName());
+            item.setSkuName(sku.getSkuName());
+            item.setProductImage(product.getMainImage());
+            item.setQuantity(input.getQuantity());
+            item.setPrice(effectivePriceService.effectivePrice(sku, member));
+            item.setTotalPrice(item.getPrice().multiply(BigDecimal.valueOf(input.getQuantity())));
+            items.add(item);
+        }
+        Map<Long, Integer> stocks = skuStockQueryService.stockBySkuIds(seen);
+        items.forEach(item -> item.setStock(Math.max(0, stocks.getOrDefault(item.getSkuId(), 0))));
+        OrderPreviewVO result = new OrderPreviewVO();
+        result.setItems(items);
+        result.setTotalAmount(items.stream().map(OrderPreviewVO.Item::getTotalPrice).reduce(BigDecimal.ZERO, BigDecimal::add));
+        result.setPayAmount(result.getTotalAmount());
+        return result;
+    }
 
     @Override
     @Transactional(rollbackFor = Exception.class)

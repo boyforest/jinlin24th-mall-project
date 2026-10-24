@@ -39,8 +39,8 @@ page {
 }
 
 @keyframes page-enter {
-  from { opacity: 0; transform: translateY(12rpx); }
-  to   { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 /* 文字选中色 */
@@ -79,6 +79,10 @@ button::after {
     radial-gradient(circle at 16% 78%, rgba(227, 241, 220, 0.72), transparent 30%),
     linear-gradient(180deg, #f4f9f0 0%, #fbfdf8 54%, #fdfdfb 100%);
   overflow: hidden;
+  /* #ifdef H5 */
+  /* 裁剪装饰但不创建可被聚焦操作横向滚动的容器。 */
+  overflow: clip;
+  /* #endif */
 }
 
 .page::before {

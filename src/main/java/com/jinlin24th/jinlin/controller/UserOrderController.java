@@ -7,6 +7,7 @@ import com.jinlin24th.jinlin.common.exception.BizException;
 import com.jinlin24th.jinlin.common.result.Result;
 import com.jinlin24th.jinlin.pojo.dto.OrderCreateDTO;
 import com.jinlin24th.jinlin.pojo.vo.OrderVO;
+import com.jinlin24th.jinlin.pojo.vo.OrderPreviewVO;
 import com.jinlin24th.jinlin.pojo.vo.WxPayParamsVO;
 import com.jinlin24th.jinlin.service.OrderService;
 import com.jinlin24th.jinlin.service.WxPayService;
@@ -25,6 +26,11 @@ public class UserOrderController {
 
     @Autowired
     private ObjectProvider<WxPayService> wxPayServiceProvider;
+
+    @PostMapping("/preview")
+    public Result<OrderPreviewVO> preview(@CurrentUserId Long userId, @RequestBody OrderCreateDTO dto) {
+        return Result.success(orderService.preview(userId, dto));
+    }
 
     @PostMapping("/create")
     public Result<OrderVO> create(@CurrentUserId Long userId, @RequestBody OrderCreateDTO dto) {

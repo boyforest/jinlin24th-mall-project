@@ -2,7 +2,7 @@
   <view class="cart-items" :class="{ compact }">
     <view v-if="cart.loading" class="ink-loading"><view class="ink-loading-mark"></view><text>正在整理养物…</text></view>
     <view v-else-if="cart.error" class="ink-empty state-card">
-      <text class="ink-empty-title">养物暂时未能加载</text>
+      <text class="ink-empty-title">购物车暂时未能同步</text>
       <text class="ink-empty-sub">{{ cart.error }}</text>
       <button class="ink-btn-secondary state-action" @click="cart.refresh()">重新加载</button>
     </view>

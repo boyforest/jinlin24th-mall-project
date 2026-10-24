@@ -19,10 +19,17 @@
         <view class="ink-loading-mark"></view>
         <text>翻阅清单中...</text>
       </view>
+      <view v-else-if="error" class="ink-empty ink-card">
+        <text class="ink-empty-title">清单暂时未能加载</text>
+        <text class="ink-empty-sub">{{ error }}</text>
+        <button class="ink-btn-secondary state-action" @click="load">重新加载</button>
+      </view>
       <view v-else-if="orders.length === 0" class="ink-empty ink-card">
         <view class="ink-empty-art"></view>
-        <text class="ink-empty-title">暂无内容</text>
-        <text class="ink-empty-sub">还没有养物清单</text>
+        <text class="ink-empty-title">{{ status === undefined ? '还没有养物清单' : '暂无此状态的订单' }}</text>
+        <text class="ink-empty-sub">{{ status === undefined ? '寻一味当季好物，开启顺时滋养' : '可以查看全部订单，或继续挑选养物' }}</text>
+        <button v-if="status !== undefined" class="ink-btn-secondary state-action" @click="selectStatus(undefined)">查看全部订单</button>
+        <button v-else class="ink-btn-primary state-action" @click="goHome">去逛逛</button>
       </view>
 
       <view v-else class="list">
@@ -36,7 +43,7 @@
             <text class="item-name">{{ item.productName }}</text>
             <text class="item-qty">x{{ item.quantity }}</text>
           </view>
-          <view class="amount">实付 <text class="ink-price">¥{{ money(order.payAmount || order.totalAmount) }}</text></view>
+          <view class="amount">{{ order.status === 0 ? '应付' : '订单金额' }} <text class="ink-price">¥{{ money(order.payAmount ?? order.totalAmount) }}</text></view>
         </view>
       </view>
     </view>
@@ -52,18 +59,22 @@ import { statusText } from '@/constants/orderStatus'
 
 const orders = ref<OrderVO[]>([])
 const loading = ref(false)
+const error = ref('')
+let requestId = 0
 const status = ref<number | undefined>(undefined)
 
 async function load() {
   if (!requireLogin('/pages/orders/index')) return
+  const currentRequest = ++requestId
   loading.value = true
+  error.value = ''
   try {
     const data = await listOrders({ page: 1, size: 20, status: status.value })
-    orders.value = data.records || []
+    if (currentRequest === requestId) orders.value = data.records || []
   } catch (e: any) {
-    uni.showToast({ title: e?.message || '加载失败', icon: 'none' })
+    if (currentRequest === requestId) error.value = e?.message || '网络暂时不通，请稍后重试'
   } finally {
-    loading.value = false
+    if (currentRequest === requestId) loading.value = false
   }
 }
 
@@ -71,6 +82,8 @@ function selectStatus(next?: number) {
   status.value = next
   load()
 }
+
+function goHome() { uni.switchTab({ url: '/pages/home/index' }) }
 
 function goDetail(id: number) {
   uni.navigateTo({ url: `/pages/order-detail/index?id=${id}` })
@@ -80,6 +93,7 @@ onShow(load)
 </script>
 
 <style scoped>
+.state-action { margin-top: 26rpx; min-width: 240rpx; }
 .page-head {
   margin-bottom: 24rpx;
 }

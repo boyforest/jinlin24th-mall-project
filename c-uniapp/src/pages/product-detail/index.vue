@@ -5,7 +5,11 @@
         <view class="ink-loading-mark"></view>
         <text>水墨晕染中...</text>
       </view>
-      <view v-else-if="error" class="hint error">{{ error }}</view>
+      <view v-else-if="error" class="ink-empty ink-card">
+        <text class="ink-empty-title">养物暂时未能加载</text>
+        <text class="ink-empty-sub">{{ error }}</text>
+        <button class="ink-btn-secondary retry-button" @click="load">重新加载</button>
+      </view>
 
       <view v-else class="content">
         <view class="gallery ink-card">
@@ -192,6 +196,7 @@ onLoad((options) => {
 </script>
 
 <style scoped>
+.retry-button { margin-top: 26rpx; min-width: 240rpx; }
 .page { padding-bottom: calc(240rpx + env(safe-area-inset-bottom)); }
 .purchase-bar { position: fixed; z-index: 50; left: 0; right: 0; bottom: 0; background: #fcfdf9; padding: 18rpx 32rpx calc(20rpx + env(safe-area-inset-bottom)); border-top: 1rpx solid #dde7d6; box-shadow: 0 -8rpx 28rpx rgba(57,83,43,.06); }
 .purchase-summary { display: flex; align-items: center; gap: 24rpx; justify-content: space-between; margin-bottom: 14rpx; }

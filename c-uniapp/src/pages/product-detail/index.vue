@@ -41,7 +41,7 @@
           >
             <view>
               <text class="sku-name">{{ sku.skuName }}</text>
-              <text class="sku-stock">余量 {{ sku.stock || 0 }}</text>
+              <text class="sku-stock">{{ (sku.stock || 0) > 0 ? `余量 ${sku.stock}` : '暂时售罄' }}</text>
             </view>
             <view class="price-col">
               <text class="price ink-price">¥{{ money(sku.effectivePrice ?? sku.price) }}</text>
@@ -71,10 +71,16 @@
           <rich-text :nodes="product.detail" />
         </view>
 
-        <view class="actions">
-          <button class="ink-btn-secondary" @click="addToCart">加入一篮养物</button>
-          <button class="ink-btn-primary" @click="goOrderCreate">立即购买</button>
-        </view>
+      </view>
+    </view>
+    <view v-if="!loading && !error && product" class="purchase-bar">
+      <view class="purchase-summary">
+        <text class="purchase-price ink-price">{{ selectedSku ? `¥${money(selectedSku.effectivePrice ?? selectedSku.price)}` : '暂无报价' }}</text>
+        <text class="selected-label">{{ available ? `已选 · ${selectedSku?.skuName || '默认规格'}` : '暂时售罄' }}</text>
+      </view>
+      <view class="actions">
+        <button class="ink-btn-secondary" :disabled="!available || adding || buying" :loading="adding" @click="addToCart">加入一篮养物</button>
+        <button class="ink-btn-primary" :disabled="!available || adding || buying" @click="goOrderCreate">{{ available ? '立即购买' : '暂时售罄' }}</button>
       </view>
     </view>
   </view>
@@ -105,6 +111,10 @@ const selectedSkuId = ref<number>(0)
 const loading = ref(false)
 const error = ref('')
 const cart = useCartStore()
+const adding = ref(false)
+const buying = ref(false)
+const selectedSku = computed(() => skus.value.find(sku => sku.id === selectedSkuId.value))
+const available = computed(() => !!selectedSku.value && (selectedSku.value.stock || 0) > 0 && selectedSku.value.status !== 0 && product.value?.status !== 0)
 const galleryImages = computed(() => {
   const images = String(product.value?.images || '')
     .split(',')
@@ -134,7 +144,7 @@ async function load() {
 
 function selectSku(skuId: number) {
   const sku = skus.value.find((item) => item.id === skuId)
-  if (!sku || !sku.stock) return
+  if (!sku || !sku.stock || adding.value || buying.value) return
   selectedSkuId.value = skuId
 }
 
@@ -146,27 +156,33 @@ function previewImage(current: string) {
 }
 
 async function addToCart() {
+  if (!available.value || adding.value || buying.value) return
   if (!requireLogin(`/pages/product-detail/index?id=${id.value}`)) return
   if (!selectedSkuId.value) {
     uni.showToast({ title: '请选择规格', icon: 'none' })
     return
   }
+  adding.value = true
   try {
-    await cart.add(id.value, selectedSkuId.value, 1, `/pages/product-detail/index?id=${id.value}`)
-    uni.showToast({ title: '已加入一篮养物', icon: 'success' })
+    const added = await cart.add(id.value, selectedSkuId.value, 1, `/pages/product-detail/index?id=${id.value}`)
+    if (added) uni.showToast({ title: '已加入一篮养物', icon: 'success' })
   } catch (e: any) {
     uni.showToast({ title: e?.message || '加入失败', icon: 'none' })
+  } finally {
+    adding.value = false
   }
 }
 
 function goOrderCreate() {
+  if (!available.value || adding.value || buying.value) return
   if (!requireLogin(`/pages/product-detail/index?id=${id.value}`)) return
   if (!selectedSkuId.value) {
     uni.showToast({ title: '请选择规格', icon: 'none' })
     return
   }
   cart.setCheckoutItems([{ skuId: selectedSkuId.value, quantity: 1 }])
-  uni.navigateTo({ url: '/pages/order-create/index' })
+  buying.value = true
+  uni.navigateTo({ url: '/pages/order-create/index', complete: () => { buying.value = false } })
 }
 
 onLoad((options) => {
@@ -176,6 +192,15 @@ onLoad((options) => {
 </script>
 
 <style scoped>
+.page { padding-bottom: calc(240rpx + env(safe-area-inset-bottom)); }
+.purchase-bar { position: fixed; z-index: 50; left: 0; right: 0; bottom: 0; background: #fcfdf9; padding: 18rpx 32rpx calc(20rpx + env(safe-area-inset-bottom)); border-top: 1rpx solid #dde7d6; box-shadow: 0 -8rpx 28rpx rgba(57,83,43,.06); }
+.purchase-summary { display: flex; align-items: center; gap: 24rpx; justify-content: space-between; margin-bottom: 14rpx; }
+.purchase-price { font-size: 38rpx; flex-shrink: 0; }
+.selected-label { min-width: 0; text-align: right; font-size: 24rpx; color: #6f7b68; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.purchase-bar .actions { margin-top: 0; }
+.actions button { width: 100%; font-size: 28rpx; padding: 0 12rpx; }
+.actions button[disabled] { opacity: .48; }
+
 .hint {
   padding: 24rpx;
   color: #6f7b68;

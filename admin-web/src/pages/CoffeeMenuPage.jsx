@@ -10,34 +10,37 @@ const statusOptions = [{ value: 1, label: '启用' }, { value: 0, label: '停用
 const required = [{ required: true, message: '请填写此项', whitespace: true }]
 const integerRules = [{ required: true, type: 'integer', min: 0, max: Number.MAX_SAFE_INTEGER, message: '请输入非负安全整数' }]
 export default function CoffeeMenuPage() {
-  const access = useCoffeeAccess(), { message } = App.useApp()
+  const access = useCoffeeAccess(), { message, modal } = App.useApp()
   const [store, setStore] = useState(null), [menu, setMenu] = useState({ categories: [], products: [] })
   const [loading, setLoading] = useState(false), [error, setError] = useState(''), [editor, setEditor] = useState(null), [saving, setSaving] = useState(false), [uploading, setUploading] = useState(false)
   const [form] = Form.useForm(), revision = useRef(0), savingRef = useRef(false)
-  const storeId = access.context?.stores?.[0]?.id
+  const storeId = access.storeId
   async function load() {
     if (!storeId || !access.canRead) return
     const requestId = ++revision.current, token = getToken()
     setLoading(true); setError('')
     try {
       const [nextStore, nextMenu] = await Promise.all([getCoffeeStore(storeId), getCoffeeMenu(storeId)])
-      if (requestId === revision.current && token === getToken()) { setStore(nextStore); setMenu(nextMenu) }
-    } catch (e) { if (requestId === revision.current && token === getToken()) setError(e.message || '菜单加载失败') }
+      if (requestId === revision.current && token === getToken()) { setStore(nextStore); setMenu(nextMenu); access.setConnection({ ok: true, lastSuccess: new Date().toISOString() }) }
+    } catch (e) { if (requestId === revision.current && token === getToken()) { setError(e.message || '菜单加载失败'); access.setConnection(c => ({ ...c, ok: false })) } }
     finally { if (requestId === revision.current) setLoading(false) }
   }
   useEffect(() => { load(); return () => { ++revision.current } }, [storeId, access.canRead])
   function open(type, data) {
-    if (!access.canWrite) return
+    if (type === 'store' ? !(storeId ? access.canStore : access.canCreateStore) : !access.canWrite) return
     setEditor({ type, data })
     form.resetFields()
     form.setFieldsValue(data || (type === 'store' ? { businessStatus: 'CLOSED' } : type === 'category' ? { sort: 0, status: 1 } : { sort: 0, status: 1, description: '', skus: [{ name: '热 · 标准糖', temperature: 'HOT', sugar: 'REGULAR', priceCent: undefined, status: 1, available: true }] }))
   }
   async function save() {
-    if (!access.canWrite || savingRef.current || uploading) return
+    if ((editor?.type === 'store' ? !(storeId ? access.canStore : access.canCreateStore) : !access.canWrite) || savingRef.current || uploading) return
     let values
     try { values = await form.validateFields() } catch { return }
     savingRef.current = true; setSaving(true)
     try {
+      if (editor.type === 'store' && storeId && values.businessStatus === 'PAUSED' && store?.businessStatus !== 'PAUSED') {
+        if (!await modal.confirm({ title: '暂停接单？', content: '已有支付订单和暂停前有效待支付订单付款后仍需人工处理，不会清空队列。' })) return
+      }
       if (editor.type === 'store') {
         const { name, address, openingHours, businessStatus, announcement } = values
         await saveCoffeeStore(storeId, { name: name.trim(), address: address.trim(), openingHours: openingHours.trim(), businessStatus, announcement: announcement || null })
@@ -47,20 +50,37 @@ export default function CoffeeMenuPage() {
         await saveCoffeeProduct(storeId, editor.data?.id, coffeeProductPayload(values, editor.data?.skus))
       }
       message.success('保存成功'); setEditor(null)
-      if (!storeId) await access.refresh()
-      else await load()
-    } catch (e) { message.error(e.message || '保存未完成，请重试'); if (storeId) await load() }
+      if (!storeId) await access.refreshAdmin()
+      else { await load(); if (editor.type === "store") await access.refreshStore() }
+    } catch (e) {
+      if (!e.status) { setEditor(null); form.resetFields(); message.warning('提交结果尚未确认，正在重新查询，请核对菜单后再操作。') }
+      else message.error(e.message)
+      if (storeId) await load(); else await access.refreshAdmin()
+    }
     finally { setSaving(false); savingRef.current = false }
+  }
+  async function toggleSku(row, sku) {
+    if (!access.canWrite || savingRef.current) return
+    savingRef.current = true; setSaving(true)
+    try {
+      const latestMenu = await getCoffeeMenu(storeId)
+      const latest = latestMenu.products.find(p => p.id === row.id)
+      if (!latest) throw new Error('饮品已变化，请刷新')
+      const next = { ...latest, skus: latest.skus.map(s => s.id === sku.id ? { ...s, available: !sku.available } : s) }
+      await saveCoffeeProduct(storeId, row.id, coffeeProductPayload(next, latest.skus))
+      message.success(sku.available ? '已标为售罄' : '已恢复供应')
+    } catch (e) { message.error(e.status ? e.message : '保存结果未确认，已重新查询菜单，请核对状态。') }
+    finally { await load(); savingRef.current = false; setSaving(false) }
   }
   if (access.loading) return <Spin tip="正在确认咖啡菜单权限"><div style={{ minHeight: 180 }} /></Spin>
   if (access.error) return <Result status={access.error.status === 403 ? '403' : 'error'} title={access.error.status === 403 ? '无咖啡菜单维护权限' : '咖啡管理暂不可用'} subTitle={access.error.message} extra={<Button onClick={access.refresh}>重新检查</Button>} />
   if (!access.canRead) return <Result status="403" title="无咖啡菜单维护权限" />
-  const editButton = (type, row) => access.canWrite ? <Button type="link" disabled={loading || !!error} onClick={() => open(type, row)}>编辑</Button> : null
+  const editButton = (type, row) => (type === 'store' ? access.canStore : access.canWrite) ? <Button type="link" disabled={saving || loading || !!error} onClick={() => open(type, row)}>编辑</Button> : null
   return <Space orientation="vertical" size="large" style={{ width: '100%' }}>
     <div><Typography.Title level={3}>咖啡菜单</Typography.Title><Typography.Text type="secondary">维护门店资料、分类与饮品规格。点单筹备中，可先浏览与加购。</Typography.Text></div>
     <Alert type="info" showIcon title="首版仅开放目录和独立购物篮，暂未开放线上下单与支付。" />
     {error && <Alert type="error" showIcon title="咖啡菜单加载失败" description={error} action={<Button onClick={load}>重新加载</Button>} />}
-    {!storeId ? <Card><Empty description="尚未建立咖啡门店">{access.canWrite && <Button type="primary" onClick={() => open('store')}>建立首个门店</Button>}</Empty></Card> : <>
+    {!storeId ? <Card><Empty description="尚未建立咖啡门店">{access.canCreateStore && <Button type="primary" onClick={() => open('store')}>建立首个门店</Button>}</Empty></Card> : <>
       <Card title={store?.name || '门店资料'} extra={<Space><Button onClick={load} loading={loading}>刷新</Button>{store && editButton('store', store)}</Space>} loading={loading && !store}>
         {store && <Space orientation="vertical"><span>{store.address}</span><span>营业时间：{store.openingHours}（Asia/Shanghai）</span><span>营业状态：{{ OPEN: '营业中', CLOSED: '休息中', PAUSED: '暂停营业' }[store.businessStatus]}</span><span>公告：{store.announcement || '无'}</span></Space>}
       </Card>
@@ -68,10 +88,10 @@ export default function CoffeeMenuPage() {
         <Table rowKey="id" dataSource={menu.categories} loading={loading} pagination={false} columns={[{ title: '分类名称', dataIndex: 'name' }, { title: '排序', dataIndex: 'sort' }, { title: '状态', dataIndex: 'status', render: value => <Tag color={value === 1 ? 'green' : 'default'}>{value === 1 ? '启用' : '停用'}</Tag> }, { title: '操作', render: (_, row) => editButton('category', row) }]} />
       </Card>
       <Card title="饮品与规格" extra={access.canWrite && <Button icon={<PlusOutlined />} disabled={loading || !!error || !menu.categories.length} onClick={() => open('product')}>新增饮品</Button>}>
-        <Table rowKey="id" dataSource={menu.products} loading={loading} pagination={{ pageSize: 10 }} columns={[{ title: '饮品', dataIndex: 'name' }, { title: '分类', dataIndex: 'categoryId', render: id => menu.categories.find(c => c.id === id)?.name || id }, { title: '状态', dataIndex: 'status', render: value => value === 1 ? '上架' : '下架' }, { title: '规格', render: (_, row) => row.skus.map(sku => <div key={sku.id}>{sku.name} · ¥{(sku.priceCent / 100).toFixed(2)} · {sku.status === 0 ? '已停用' : sku.available ? '可售' : '售罄'}</div>) }, { title: '操作', render: (_, row) => editButton('product', row) }]} />
+        <Table rowKey="id" dataSource={menu.products} loading={loading} pagination={{ pageSize: 10 }} columns={[{ title: '饮品', dataIndex: 'name', render: (name, row) => <Space>{row.imageUrl && <img src={row.imageUrl} alt="" style={{ width: 48, height: 48, objectFit: 'cover' }} />}{name}</Space> }, { title: '分类', dataIndex: 'categoryId', render: id => menu.categories.find(c => c.id === id)?.name || id }, { title: '状态', dataIndex: 'status', render: value => value === 1 ? '上架' : '下架' }, { title: '规格', render: (_, row) => row.skus.map(sku => <div key={sku.id}>{sku.name} · ¥{(sku.priceCent / 100).toFixed(2)} · {sku.status === 0 ? '已停用' : sku.available ? '可售' : '售罄'}{access.canWrite && sku.status !== 0 && <Button size="small" disabled={saving || loading || !!error} onClick={() => toggleSku(row, sku)}>{sku.available ? '售罄' : '恢复供应'}</Button>}</div>) }, { title: '操作', render: (_, row) => editButton('product', row) }]} />
       </Card>
     </>}
-    <Modal title={editor?.type === 'store' ? (storeId ? '编辑门店' : '建立首个门店') : editor?.type === 'category' ? '编辑分类' : '编辑饮品与规格'} open={!!editor} width={editor?.type === 'product' ? 900 : 560} confirmLoading={saving} okButtonProps={{ disabled: !access.canWrite || uploading }} cancelButtonProps={{ disabled: saving }} onOk={save} onCancel={() => { if (!saving) setEditor(null) }} maskClosable={!saving} destroyOnHidden>
+    <Modal title={editor?.type === 'store' ? (storeId ? '编辑门店' : '建立首个门店') : editor?.type === 'category' ? '编辑分类' : '编辑饮品与规格'} open={!!editor} width={editor?.type === 'product' ? 900 : 560} confirmLoading={saving} okButtonProps={{ disabled: (editor?.type === 'store' ? !(storeId ? access.canStore : access.canCreateStore) : !access.canWrite) || uploading }} cancelButtonProps={{ disabled: saving }} onOk={save} onCancel={() => { if (!saving) setEditor(null) }} maskClosable={!saving} destroyOnHidden>
       <Form form={form} layout="vertical">
         <Form.Item name="name" label="名称" rules={required}><Input maxLength={100} disabled={saving} /></Form.Item>
         {editor?.type === 'store' ? <>

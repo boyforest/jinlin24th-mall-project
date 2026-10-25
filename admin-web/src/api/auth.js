@@ -32,3 +32,5 @@ export function logout() {
 export function listAdminOptions(params) {
   return request.get('/admin/admins/options', { params })
 }
+
+export const getAdminContext = () => request.get('/admin/auth/context', { skipErrorMessage: true })

@@ -3,6 +3,7 @@ import { Tag } from 'antd'
 import { commonStatus, distributionStatus, distributorStatus, formatDateTime, formatMoney, orderStatus } from './format'
 
 export const adminMenuGroups = [
+  { key: 'system', label: '系统管理', children: ['/system/accounts'] },
   {
     key: 'overview',
     label: '概览',
@@ -11,7 +12,7 @@ export const adminMenuGroups = [
   {
     key: 'goods',
     label: '商品中心',
-    children: ['/products', '/skus', '/categories', '/coffee-menu']
+    children: ['/products', '/skus', '/categories']
   },
   {
     key: 'trade',

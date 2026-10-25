@@ -1,132 +1,243 @@
-# 金霖二十四养品牌私域商城系统
+<p align="center">
+  <img src="docs/assets/readme-cover.svg" alt="金霖二十四养：节气为序，日常为养" width="100%" />
+</p>
 
-这是一个软工学生从 0 开始学习和完善的全栈项目，目标是逐步做成一套商用上线形态的私域电商系统。
-当前仓库采用 monorepo 方式管理，包含 Spring Boot 后端、React 管理端和 uni-app 微信小程序端。
+<h1 align="center">金霖二十四养</h1>
+<p align="center"><strong>品牌私域商城 × 咖啡门店运营 · 三端一体的全栈实践</strong></p>
+<p align="center">Spring Boot 后端 · React 管理端 · uni-app 微信小程序</p>
 
-## 三端概览
+<p align="center">
+  <img src="https://img.shields.io/badge/Java-17-315747?style=flat-square" alt="Java 17" />
+  <img src="https://img.shields.io/badge/Spring_Boot-3.2.5-315747?style=flat-square" alt="Spring Boot 3.2.5" />
+  <img src="https://img.shields.io/badge/React-19-315747?style=flat-square" alt="React 19" />
+  <img src="https://img.shields.io/badge/Vue-3-315747?style=flat-square" alt="Vue 3" />
+  <img src="https://img.shields.io/badge/uni--app-WeChat_Mini_Program-b58d57?style=flat-square" alt="uni-app 微信小程序" />
+  <a href="https://github.com/boyforest/jinlin24th-mall-project/stargazers"><img src="https://img.shields.io/github/stars/boyforest/jinlin24th-mall-project?style=flat-square&color=b58d57&label=Stars" alt="GitHub Stars" /></a>
+</p>
 
-### 后端服务
+<p align="center">
+  <a href="#界面预览">界面预览</a> ·
+  <a href="#功能版图">功能版图</a> ·
+  <a href="#系统架构">系统架构</a> ·
+  <a href="#本地运行">本地运行</a> ·
+  <a href="#文档导航">文档导航</a>
+</p>
 
-后端位于 `src/main/java/com/jinlin24th/jinlin`，基于 Spring Boot 3.2 + MyBatis-Plus，负责提供管理端和小程序端共用的业务接口。
+## 关于这个项目
 
-当前后端覆盖：
+这是一个软件工程学生从零开始、随着真实业务需求持续迭代的全栈项目。最初是一套品牌私域商城，如今逐步扩展为同时服务**商品零售与咖啡门店**的业务系统。
 
-- 用户登录、JWT 登录态、Redis 会话增强。
-- 商品、分类、SKU、购物车、订单、库存、优惠券等商城基础能力。
-- 管理端 RBAC、管理员登录、角色权限、操作日志。
-- 微信小程序登录、微信支付预下单、支付/退款回调。
-- 二级推荐官/分销 MVP：邀请绑定、推荐官资格、订单佣金、退款回退、佣金导出。
-- Redis 缓存、接口限流、短信验证码缓存。
-- RocketMQ 示例能力：短信、订单超时取消、操作日志异步处理。
+小程序以二十四节气组织品牌表达，将草木绿、纵向墨字与轻动效融入购物体验；管理端则按角色区分商品运营与咖啡制作，让不同岗位进入适合自己的工作界面。三端代码、数据库迁移和实施文档集中在同一个 Monorepo 中维护。
 
-### 管理端
+**适合关注这些方向的朋友：** Java 全栈实战、微信小程序、新中式界面设计、RBAC 权限、支付退款，以及从单一商城演进到双业务的架构设计。
 
-管理端位于 `admin-web`，基于 React 19 + Vite + React Router + Ant Design。
+## 界面预览
 
-当前管理端覆盖：
+<table>
+  <tr>
+    <td width="28%" valign="top">
+      <strong>节气品牌首页</strong><br />
+      <sub>纵向墨字 · 双业务入口 · 运营推荐</sub><br /><br />
+      <img src="docs/next-version/frontend-evidence/home-recommend-6-fixture.png" alt="节气首页与最多六项运营推荐" width="100%" />
+    </td>
+    <td width="72%" valign="top">
+      <strong>咖啡制作工作台</strong><br />
+      <sub>人工接单 · 四列状态看板 · 制作与取餐</sub><br /><br />
+      <img src="docs/next-version/frontend-evidence/coffee-workbench-wide-fixture.png" alt="咖啡制作工作台的待接单、待制作、制作中和待取餐四列界面" width="100%" /><br /><br />
+      <strong>账号与权限</strong><br />
+      <sub>超管维护账号 · 业务角色分权 · 门店授权</sub><br /><br />
+      <img src="docs/next-version/frontend-evidence/admin-accounts-fixture.png" alt="超级管理员的账号与权限管理页面" width="100%" />
+    </td>
+  </tr>
+</table>
 
-- 管理员登录和基础后台布局。
-- 商品、SKU、分类、订单、用户、客户、仓储等运营管理页面。
-- 分销管理：分销配置、佣金记录、CSV 导出、手动结算。
-- 用户分销资格开关：可将用户开通为推荐官/分销员。
-- 仪表盘统计和常用业务入口。
+<sub>以上为当前代码的本地回归截图，使用示例数据和占位素材。更多真实服务联调截图与验证边界见[最终验收记录](docs/next-version/acceptance-final-20261026.md)。</sub>
 
-### 小程序端
+## 值得一看的实现
 
-小程序端位于 `c-uniapp`，基于 uni-app + Vue 3 + Pinia，目标平台为微信小程序。
+| 方向 | 具体做法 |
+| --- | --- |
+| **有品牌感的小程序** | 二十四节气展示、墨字肌理、本地打包的字形资源、节气倒计时；保留内容可读性，让动效服务品牌表达 |
+| **商品与咖啡各自成体系** | 共用品牌首页与用户身份，分别维护菜单/商品、购物车与交易数据；订单入口按业务分类汇总 |
+| **岗位决定工作界面** | 商品管理员使用常规运营后台，咖啡管理员进入制作工作台；服务端同时检查模块权限与门店范围 |
+| **面向店员的操作流程** | 人工确认接单与开始制作分开，规格和备注直接可见；状态冲突后刷新最新订单，避免重复处理 |
+| **交易状态有依据** | 服务端报价、订单快照、稳定支付/退款单号、回调验签与金额核对；咖啡交易保留事件和恢复任务 |
+| **小规模也能运营** | 复用现有广告数据与接口，实现首页单张主推、最多六项推荐、有效期与排序；推荐官佣金采用线下结算 |
 
-当前小程序端覆盖：
+## 功能版图
 
-- 微信登录、本地 token 管理、邀请参数捕获。
-- 首页新中式草本视觉、二十四节气动态展示。
-- 养物归集商品列表：左侧分类、右侧商品、商品详情、加入一篮养物。
-- 全局购物车状态、底部悬浮购物车栏、抽屉式购物车面板。
-- 订单创建、订单列表、订单详情。
-- 推荐官确认 MVP：结算页展示当前推荐官，未绑定时可填写推荐官 ID 绑定。
+| 业务 | 当前代码包含 |
+| --- | --- |
+| 品牌与运营 | 节气首页、商品/咖啡双入口、公告与弹窗、首页主推与推荐养护 |
+| 商品商城 | 分类、商品与 SKU、固定购买栏、独立购物车、服务端订单核对、订单列表与详情、微信支付接口 |
+| 用户与推荐官 | 微信登录、会员与积分、邀请绑定、推荐官快照、佣金记录、退款回退、CSV 导出与线下结算登记 |
+| 商品运营后台 | 商品、规格、分类、订单、优惠券、用户、客户跟进、仓储与库存、分销管理 |
+| 咖啡目录 | 门店、分类、饮品与规格、可售状态、独立购物篮与版本冲突处理 |
+| 咖啡工作台 | 人工接单/拒单、待制作/制作中/待取餐、整单取餐、全额退款、订单事件、订单与流水查询 |
+| 账号与分权 | 三种固定角色、账号启停、授权与门店绑定、重置密码、首次改密、旧会话撤销与操作审计 |
+| 提醒服务 | 制作完成事件与持久化订阅消息任务、发送状态记录、失败与不确定结果区分 |
 
-## 功能范围
+> **当前交付边界：** 咖啡交易后端、工作台及提醒服务已实现并完成代码级验收；顾客侧咖啡结算、订阅授权和真实微信交易仍需后续接入与验收。咖啡下单/支付开关默认关闭，不将接口实现等同于线上交易已经开放。
 
-- C 端微信小程序 API：商品浏览、购物车、在线下单、会员体系、推荐官邀请。
-- B 端商家管理后台：商品、分类、订单、用户、分销、仓储、客户管理。
-- 微信小程序端：新中式草本视觉、二十四节气首页、养物归集、全局购物车、推荐官确认。
-- 管理端登录：数据库管理员档案 + BCrypt 密码哈希 + JWT + Redis 登录态。
-- Redis 能力：登录态增强、登录限流、接口限流、商品缓存、验证码缓存。
-- RocketMQ 能力：短信验证码异步发送、订单超时取消、操作日志异步记录。
-- 分销能力：分销商资格开关、支付成功生成佣金、退款回退、佣金导出。
-- 统一状态码和业务码：`Result`、`BizCode`、`GlobalExceptionHandler`。
+### 三种角色，两类工作界面
 
-## 技术栈
+| 角色 | 工作范围 | 默认界面 |
+| --- | --- | --- |
+| 超级管理员 `SUPER_ADMIN` | 全局业务、账号与授权、公共首页运营 | 管理后台，可进入咖啡工作台 |
+| 商品管理员 `GOODS_ADMIN` | 商品业务及对应运营模块 | 商品运营后台 |
+| 咖啡管理员 `COFFEE_ADMIN` | 获授权门店的菜单、制作、订单与流水 | 咖啡工作台 |
 
-- Java 17
-- Spring Boot 3.2
-- MyBatis-Plus
-- MySQL 8
-- Redis
-- RocketMQ
-- React 19 + Vite + React Router v6
-- Ant Design v5
-- uni-app + Vue 3 + Pinia
-- 微信小程序
+前端按服务端权限上下文显示菜单与路由；后端独立校验请求。隐藏菜单之外，直接请求无权接口同样受到约束。
+
+## 系统架构
+
+项目采用 **Monorepo + Spring Boot 单体后端 + 按业务分开的前端与数据模型**。商品和咖啡复用基础设施，咖啡订单、支付与退款独立建模，沿用现有底座扩展门店业务。
+
+```mermaid
+flowchart TB
+    subgraph Clients["访问端"]
+        Mini["微信小程序 · uni-app / Vue 3"]
+        Admin["管理后台 · React 19"]
+    end
+
+    Gateway["Nginx · HTTPS / 静态资源 / API 代理"]
+
+    subgraph Server["Spring Boot 3.2 · 单体服务"]
+        Auth["JWT + Redis 会话 / RBAC / 门店授权"]
+        Goods["商品域 · 商品 / 购物车 / 订单 / 库存 / 推荐官"]
+        Coffee["咖啡域 · 菜单 / 购物篮 / 交易 / 制作 / 流水"]
+        Marketing["运营域 · 公告 / 首页主推 / 推荐"]
+        Tasks["恢复任务 / 超时扫描 / 提醒任务"]
+        Channel["微信渠道适配 · 商品与咖啡独立商户配置"]
+        Auth --> Goods
+        Auth --> Coffee
+        Auth --> Marketing
+        Coffee --> Tasks
+        Goods --> Channel
+        Coffee --> Channel
+    end
+
+    Mini --> Gateway
+    Admin --> Gateway
+    Gateway --> Auth
+    Goods --> MySQL[("MySQL 8 · 业务数据与交易记录")]
+    Coffee --> MySQL
+    Marketing --> MySQL
+    Tasks --> MySQL
+    Auth --> Redis[("Redis · 会话 / 缓存 / 限流")]
+    Goods --> Redis
+    Goods -. "可选异步能力" .-> MQ["RocketMQ · 默认关闭"]
+    Channel <--> WeChat["微信支付 / 小程序 API"]
+    Tasks --> WeChat
+```
+
+### 关键技术方案
+
+- **双业务隔离：** 商品与咖啡分别使用 API、购物车状态和交易记录；统一订单查询按业务类型呈现。咖啡商户使用独立的 `COFFEE_PAY_*` 配置，不复用商品的 `WX_PAY_*`。
+- **服务端定价与并发：** 商品确认订单先请求只读报价，正式提交重新检查金额与库存；咖啡操作携带版本号和请求键，冲突时回读服务端状态。
+- **支付与退款：** 保存稳定渠道单号，校验通知签名及交易事实。咖啡先持久化退款意图再请求渠道，申请受理与退款成功分开记录，状态不确定时按原单号查询。
+- **咖啡履约：** 付款确认 → 待接单 → 待制作 → 制作中 → 待取餐 → 已取餐。整单制作、整单取餐、整单全额退款；不自动接单。
+- **持久化恢复：** 咖啡定时任务扫描未付款单、待查询支付、退款和提醒；进程重启后继续处理。提醒失败不回滚制作完成，发送结果不确定时不盲目重发。
+- **可选消息队列：** RocketMQ 提供商品订单超时、操作日志等异步路径；默认不启用，商品订单保留定时超时取消兜底。短信消费者目前为模拟日志。
+
+### 技术栈
+
+| 层次 | 选型 |
+| --- | --- |
+| 后端 | Java 17 · Spring Boot 3.2.5 · MyBatis-Plus 3.5.5 · Maven Wrapper |
+| 数据与会话 | MySQL 8 · Redis · JWT · BCrypt |
+| 管理端 | React 19 · Vite 7 · React Router 7 · Ant Design 6 · Axios |
+| 小程序 | uni-app · Vue 3 · TypeScript · Pinia · Vite 5 |
+| 微信接入 | WxJava MiniApp SDK · 微信支付 API v3 |
+| 可选异步 | RocketMQ Spring Boot Starter |
+| 部署 | Docker Compose · Nginx · 环境变量配置 |
+| 验证 | JUnit / Spring Boot Test · MySQL 集成测试 · Node Test Runner · Playwright |
 
 ## 项目结构
 
 ```text
 .
-├── src/main/java/com/jinlin24th/jinlin   # Spring Boot 后端源码
-├── src/main/resources                    # 后端配置
-├── sql                                   # 初始化 SQL 与数据库文档
-├── admin-web                             # React 管理后台
-├── c-uniapp                              # uni-app 微信小程序端
-└── docs                                  # Demo 文档和接口示例
+├── src/main/java/com/jinlin24th/jinlin/
+│   ├── common/             # 鉴权、权限、配置、缓存、错误码等
+│   ├── controller/         # 小程序、管理端与渠道回调入口
+│   ├── service/            # 商品、咖啡、运营与交易服务
+│   ├── mapper/             # MyBatis-Plus 数据访问
+│   ├── pojo/               # Entity / DTO / VO
+│   └── task/               # 订单超时与咖啡恢复任务
+├── src/test/               # 后端单元与集成测试
+├── admin-web/              # React 商品后台与咖啡工作台
+├── c-uniapp/               # uni-app 小程序与 H5 验证入口
+├── sql/                    # 新安装结构、增量迁移、可选演示数据
+├── deploy/                 # Nginx 与 MySQL 初始化配置
+├── scripts/                # 开发、备份、MQ 与专项验证脚本
+├── docs/                   # 方案、契约、实施与验收记录
+└── docker-compose.yml      # MySQL / Redis / 后端 / 管理端 / Nginx
 ```
 
-## 本地启动
+## 本地运行
 
-1. 初始化数据库：
+准备 **JDK 17、Node.js 22.18+、MySQL 8、Redis** 和微信开发者工具。Maven 由仓库 Wrapper 提供；基础开发不需要启动 RocketMQ。
+
+### 1. 拉取与配置
 
 ```bash
+git clone https://github.com/boyforest/jinlin24th-mall-project.git
+cd jinlin24th-mall-project
+
+# 仅用于新建数据库；已有数据请按部署文档执行增量迁移
 mysql -uroot -p < sql/jinlin24th_init.sql
-```
 
-2. 准备本地配置：
-
-```bash
 cp src/main/resources/application-dev.example.yml src/main/resources/application-dev.yml
 ```
 
-然后修改 `application-dev.yml` 中的 MySQL、Redis、JWT、微信配置。这个文件已被 `.gitignore` 忽略，不要提交真实密码或密钥。
+填写本地 MySQL、Redis 连接和至少32字节的 JWT 密钥；真实微信登录还需使用自己的 AppID / Secret。`application-dev.yml` 不提交到仓库，管理账号以数据库为准。
 
-3. 启动后端：
+### 2. 启动后端
 
 ```bash
-mvn spring-boot:run
+./mvnw spring-boot:run
 ```
 
-后端默认端口：
+默认地址 `http://localhost:7878`；dev 配置开启的接口文档位于 `http://localhost:7878/swagger-ui/index.html`。
 
-```text
-http://localhost:7878
-```
+新安装的初始账号为 `admin` / `123123`，首次登录须修改密码。旧库升级保留原账号和密码，不会自动重置为该初始值。
 
-4. 启动管理后台：
+### 3. 启动管理端
+
+在新终端中执行：
 
 ```bash
 cd admin-web
-npm install
+npm ci
 npm run dev
 ```
 
-前端默认地址：
+访问 `http://localhost:5173`，开发代理默认将 `/admin` 转发至后端；可用 `VITE_API_TARGET` 覆盖后端地址。
 
-```text
-http://localhost:5173
+### 4. 启动微信小程序
+
+在另一个终端中执行，先将 `c-uniapp/src/manifest.json` 与开发者工具项目配置中的 AppID 改为自己的：
+
+```bash
+cd c-uniapp
+npm ci
+VITE_API_BASE_URL=http://127.0.0.1:7878 npm run dev:mp-weixin
 ```
 
-Vite 会把 `/admin/**` 请求代理到 `http://localhost:7878`。
+微信开发者工具导入 **`c-uniapp/dist/dev/mp-weixin/`**。真机联调请将 API 地址换成手机能访问的局域网地址或已配置的 HTTPS 域名。
 
-## 快速启动脚本
+正式构建需要 HTTPS API 地址：
 
-根目录提供了三个本地开发脚本，适合不用 IDEA 时快速检查前后端联通状态：
+```bash
+VITE_API_BASE_URL=https://your-api-domain.example.com npm run build:mp-weixin
+```
+
+此时导入 **`c-uniapp/dist/build/mp-weixin/`**。dev 与 build 是不同目录，切勿在修改源码后仍编译另一份旧产物。历史 WXSS 和开发者工具问题见[小程序回归必查项](docs/next-version/miniprogram-regression.md)。
+
+<details>
+<summary><strong>开发脚本与 Docker 部署</strong></summary>
+
+配置与依赖就绪后，可在根目录使用开发脚本：
 
 ```bash
 ./scripts/dev-up.sh
@@ -134,159 +245,70 @@ Vite 会把 `/admin/**` 请求代理到 `http://localhost:7878`。
 ./scripts/dev-down.sh
 ```
 
-说明：
+Docker Compose 包含 MySQL、Redis、后端、管理端与 HTTPS Nginx。部署前复制并填写 `.env.example`，同时按自己的域名和证书调整 `deploy/nginx/nginx.conf`；当前 Nginx 配置使用本项目域名与证书路径，不能原样当作通用本地演示环境。
 
-- `dev-up.sh`：尝试启动后端 `7878` 和管理端 `5173`
-- `dev-status.sh`：查看两个端口当前是谁在监听
-- `dev-down.sh`：只关闭脚本自己拉起的进程，不会主动杀掉 IDEA 已经启动的 Java 进程
+生产数据库密码从 `DB_PASSWORD` 环境变量读取；Compose 将 `MYSQL_APP_PASSWORD` 映射为后端的 `DB_PASSWORD`。MySQL、Redis、JWT、CORS 和微信配置以 [.env.example](.env.example) 为准。存量升级前先备份，按[咖啡工作台部署交接](docs/next-version/backend-deployment.md)执行增量迁移，不对已有库重跑初始化文件。
 
-如果 `7878` 已经被 IDEA 占用，脚本会直接提示当前进程，而不是重复拉起第二份后端。
+</details>
 
-5. 启动或构建小程序端：
+## 测试与验收
 
-```bash
-cd c-uniapp
-npm install
-npm run dev:mp-weixin
-```
+2026-10-26 的[最终代码验收](docs/next-version/acceptance-final-20261026.md)记录：
 
-微信开发者工具导入：
+| 层次 | 结果 |
+| --- | --- |
+| 后端测试 | 269项通过 |
+| MySQL 专项 | 71项通过，覆盖存量迁移、重复执行及新安装 |
+| 实际 prod JAR 的 HTTP 检查 | 31项通过 |
+| 管理端单元测试 | 36项通过 |
+| 浏览器交互回归 | 工作台20 / 首页运营12 / 双业务27 / 原购物18个场景通过 |
+| 构建与类型检查 | 管理端构建、小程序类型检查、H5 与 mp-weixin 构建通过 |
 
-```text
-c-uniapp/dist/dev/mp-weixin
-```
+上述结果为该次验收快照；浏览器回归含契约夹具，原生、真机、真实支付和订阅授权另行验收。
 
-需要生成构建产物时：
-
-```bash
-npm run build:mp-weixin
-```
-
-构建产物目录：
-
-```text
-c-uniapp/dist/build/mp-weixin
-```
-
-## 默认后台账号
-
-初始化 SQL 会写入一个默认超级管理员：
-
-```text
-账号：admin
-密码：123123
-```
-
-密码在数据库中使用 BCrypt 哈希存储，不保存明文。正式部署或演示前请第一时间修改默认密码。
-
-## 环境变量
-
-生产或共享环境建议使用环境变量覆盖敏感配置：
+在根目录执行常用检查：
 
 ```bash
-export DB_URL='jdbc:mysql://localhost:3306/jinlin24th?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false'
-export DB_USERNAME='root'
-export DB_PASSWORD='your-password'
-export REDIS_HOST='localhost'
-export REDIS_PORT='6379'
-export JWT_SECRET='replace-with-a-strong-secret-at-least-32-bytes'
+./mvnw test
+npm --prefix admin-web test
+npm --prefix admin-web run build
+npm --prefix c-uniapp run type-check
+npm --prefix c-uniapp run test:solar-terms
 ```
 
-管理端账号不再通过配置文件维护，而是存储在 `sys_admin`、`sys_role`、`sys_permission` 等 RBAC 表中。
-
-## RocketMQ 说明
-
-本地开发默认不强制启动 RocketMQ：
-
-```yaml
-app:
-  mq:
-    enabled: false
-```
-
-需要联调消息能力时，先准备 RocketMQ NameServer 和 Broker。仓库已经提供了一份基于官方 Docker 镜像的本地编排文件：
+需要 Docker、Python 3 和 `rg` 的隔离 MySQL / HTTP 验证：
 
 ```bash
-./scripts/mq-up.sh
-./scripts/mq-status.sh
-./scripts/mq-down.sh
+./mvnw -DskipTests clean package
+COFFEE_HTTP_JAR=target/jinlin24th-1.0.0.jar bash scripts/test-coffee-mysql.sh
 ```
 
-上面的脚本依赖本机已安装 Docker Desktop。如果本机还没有 `docker` 命令，需要先安装 Docker。
+脚本创建并清理专用测试容器，不读取应用的原数据库配置。Playwright 场景的启动端口、依赖与环境变量见[前端验证记录](docs/next-version/frontend-verification.md)。
 
-RocketMQ 的 Docker Compose 参考了 Apache RocketMQ 官方文档的单机部署方式：
-- [Run RocketMQ with Docker Compose](https://rocketmq.apache.org/docs/quickStart/03quickstartWithDockercompose/)
+## 文档导航
 
-Spring Boot 侧启用方式：
+| 想了解什么 | 从这里开始 |
+| --- | --- |
+| 双业务如何拆分与兼容 | [双业务方案与接口契约](docs/dual-business/README.md) |
+| 分权、工作台和运营的产品取舍 | [产品讨论稿](docs/next-version/coffee-workbench-rbac-discussion.md) |
+| 前后端如何协作实现 | [实施文档入口](docs/next-version/README.md) · [共用契约](docs/next-version/implementation-contract.md) |
+| 数据迁移、配置与恢复 | [后端部署交接](docs/next-version/backend-deployment.md) |
+| 本轮究竟验证了什么 | [最终验收记录](docs/next-version/acceptance-final-20261026.md) |
+| 小程序编译、WXSS 与旧包排查 | [历史问题与回归清单](docs/next-version/miniprogram-regression.md) |
+| 推荐官与佣金如何运营 | [管理端操作说明](docs/admin-operation-guide.md) |
 
-```bash
-SPRING_PROFILES_ACTIVE=dev,mq \
-ROCKETMQ_ENABLED=true \
-ROCKETMQ_NAME_SERVER=localhost:9876 \
-./mvnw spring-boot:run
-```
+## 接下来的方向
 
-如果你用 IDEA 启动，请在 Run Configuration 里补上环境变量：
+- [ ] 顾客侧咖啡结算、支付与订单体验，完成真实商户及 iOS / Android 验收。
+- [ ] 接通取餐订阅授权，验证模板、消息发送与订单展示的完整体验。
+- [ ] 持续优化门店工作台、异常订单处理和首页内容运营。
+- [ ] 美团 / 抖音团购券核销，待商家接入条件确认后推进。
+- [ ] 品牌虚拟形象 AI 助手，作为后续独立探索。
 
-```text
-SPRING_PROFILES_ACTIVE=dev,mq
-ROCKETMQ_ENABLED=true
-ROCKETMQ_NAME_SERVER=localhost:9876
-```
+## 交流与参与
 
-当前项目里 RocketMQ 的实际落地点：
+欢迎通过 [Issues](https://github.com/boyforest/jinlin24th-mall-project/issues) 提交问题、分享使用体验或讨论改进，也欢迎围绕具体问题提交 PR。复现问题时附上运行环境、操作步骤和日志，会更容易定位。
 
-- 下单后发送订单超时取消延迟消息，消费者会自动关闭超时未支付订单并恢复库存
-- 后台 `POST/PUT/DELETE` 请求异步写入操作日志
+项目尚未指定统一开源许可证；品牌素材及随附字体按各自权利与许可使用，复用前请确认授权范围。
 
-## Docker Compose 部署
-
-项目已提供一键部署编排：
-
-```bash
-cp .env.example .env
-docker compose up -d --build
-```
-
-部署会启动 MySQL、Redis、后端和管理后台 Nginx。宝塔服务器详细操作见：
-
-```text
-docs/docker-deploy.md
-```
-- 短信验证码和下单成功短信会进入 MQ，但目前消费者还是“模拟发送短信日志”，还没接真实短信平台
-- 订单创建事件已接入 MQ 骨架，目前消费端主要用于日志和后续扩展
-
-建议的验证顺序：
-
-1. 启动 Redis、MySQL、RocketMQ
-2. 按上面的环境变量方式启动 Spring Boot
-3. 创建一个待支付订单，确认 30 分钟后会自动取消
-4. 在管理端新增或修改商品，确认 `sys_operation_log` 有异步落库记录
-5. 调用验证码接口，确认后端日志里出现短信消息消费记录
-
-## 开源安全说明
-
-本仓库不应提交以下内容：
-
-- `application-dev.yml`、`application-prod.yml`
-- `.env` / `.env.*`
-- 微信支付证书、私钥、商户号密钥
-- 数据库真实密码
-- 个人学习笔记和草稿
-- 构建产物、IDE 配置、日志文件
-
-如果真实密钥曾经进入 Git 历史，请先清理历史或轮换密钥后再公开仓库。
-
-## 版本重点
-
-- `v0.1.0-mvp`：三端跑通版本，后端、管理端、小程序端进入同一仓库管理。
-- 新增 uni-app 微信小程序端，完成首页、商品、购物车、订单和推荐官确认 MVP。
-- 小程序首页接入品牌 Logo、新中式草本视觉和二十四节气动态展示。
-- 商品列表升级为“养物归集”形态，支持分类切换、商品详情和全局购物车抽屉。
-- 新增推荐官确认/绑定接口，订单保存推荐官快照，支付成功后继续复用分销佣金逻辑。
-- 重构管理后台为 React Router 多页面模式，并接入 Ant Design。
-- 新增分销管理页面和管理端分销接口联调能力。
-- 管理端登录从配置账号升级为数据库管理员档案。
-- 完善 Redis 登录态、限流、缓存工具和商品缓存策略。
-- 补齐 RocketMQ 核心 Demo：短信、订单超时、操作日志。
-- 完善数据库初始化脚本，补齐管理员、角色、权限、分销字段。
+如果这个项目的视觉、业务设计或全栈实践对你有帮助，欢迎点一颗 **Star**，陪它继续长大。🌿

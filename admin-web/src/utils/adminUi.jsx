@@ -11,7 +11,7 @@ export const adminMenuGroups = [
   {
     key: 'goods',
     label: '商品中心',
-    children: ['/products', '/skus', '/categories']
+    children: ['/products', '/skus', '/categories', '/coffee-menu']
   },
   {
     key: 'trade',

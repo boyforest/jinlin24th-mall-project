@@ -1,7 +1,6 @@
-import { useCartStore } from '@/stores/cart'
 import { defineStore } from 'pinia'
 import { login, me, updateProfile, type AppUserVO } from '@/api/user'
-import { clearInviterUserId, getInviterUserId, getToken, getUserId, setToken, setUserId } from '@/utils/storage'
+import { clearToken, clearInviterUserId, getInviterUserId, getToken, getUserId, setToken, setUserId } from '@/utils/storage'
 import { STORAGE_KEYS } from '@/config/app'
 
 export const useAuthStore = defineStore('auth', {
@@ -33,8 +32,8 @@ export const useAuthStore = defineStore('auth', {
 
         this.token = res.token
         this.userId = res.userId
-        setToken(res.token)
         setUserId(res.userId)
+        setToken(res.token)
         clearInviterUserId()
 
         if (import.meta.env.DEV) console.log('[Auth] 步骤3/3：调用 /user/appUser/me 获取用户信息...')
@@ -54,19 +53,21 @@ export const useAuthStore = defineStore('auth', {
     },
 
     async refreshMe() {
+      const token = getToken()
       const info = await me()
-      this.profile = info
+      if (getToken() === token) this.profile = info
       return info
     },
 
     async saveProfile(nickname?: string, avatar?: string) {
+      const token = getToken()
       const updated = await updateProfile({ nickname, avatar })
-      this.profile = updated
+      if (getToken() === token) this.profile = updated
       return updated
     },
 
     logout() {
-      useCartStore().$reset()
+      clearToken()
       this.token = ''
       this.userId = 0
       this.profile = null

@@ -9,6 +9,13 @@ export interface ApiResult<T> {
   data: T
 }
 
+export class ApiError extends Error {
+  constructor(message: string, public code?: number, public status?: number) {
+    super(message)
+    this.name = 'ApiError'
+  }
+}
+
 export interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
   data?: any
@@ -23,7 +30,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
 
   const token = getToken()
   if (auth && !token) {
-    throw new Error('请先登录')
+    throw new ApiError('请先登录', 40100, 401)
   }
 
   const finalHeaders: Record<string, string> = { ...headers }
@@ -50,7 +57,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
         clearUserId()
         if (redirectOnUnauthorized) requireLogin(currentPageUrl())
       }
-      throw new Error(body?.message || `HTTP ${httpStatus}`)
+      throw new ApiError(body?.message || `HTTP ${httpStatus}`, body?.code, httpStatus)
     }
 
     if (!body) {
@@ -58,7 +65,12 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     }
     if (body.code !== 0 && body.code !== 200) {
       // 业务错误
-      throw new Error(body.message || `业务错误 ${body.code}`)
+      if (body.code === 40100 && auth && getToken() === token) {
+        clearToken()
+        clearUserId()
+        if (redirectOnUnauthorized) requireLogin(currentPageUrl())
+      }
+      throw new ApiError(body.message || `业务错误 ${body.code}`, body.code, httpStatus)
     }
     return body.data
   } catch (error: any) {

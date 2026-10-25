@@ -1,5 +1,5 @@
 <template>
-  <view class="hero">
+  <view class="hero" :class="{ paused: active === false }">
     <view class="brand-row">
       <image class="official-logo" src="/static/brand/official-logo.png" mode="widthFix" />
     </view>
@@ -35,7 +35,7 @@
 import { computed, ref } from 'vue'
 import { formatSolarTermCountdown, formatSolarTermPosition, getCurrentSolarTermInfo, type LocalDateTime } from '@/utils/solarTerms'
 
-const props = defineProps<{ now: LocalDateTime }>()
+const props = defineProps<{ now: LocalDateTime; active?: boolean }>()
 const info = computed(() => getCurrentSolarTermInfo(props.now))
 const term = computed(() => info.value.currentTerm)
 const positionText = computed(() => formatSolarTermPosition(term.value))
@@ -219,4 +219,20 @@ function markMissing(character: string) {
   .term-character,
   .term-character::before { animation: none; }
 }
+.hero { min-height: 0; padding: 20rpx 0 28rpx; border-radius: 0; background: transparent; box-shadow: none; margin-bottom: 0; }
+.hero::before, .hero::after { display: none; }
+.official-logo { width: 410rpx; }
+.solar-term { margin-top: 22rpx; }
+.term-position { font-size: 21rpx; line-height: 30rpx; }
+.solar-date { font-size: 23rpx; margin-top: 5rpx; line-height: 28rpx; }
+.term-center { margin-top: 18rpx; }
+.term-character { width: 130rpx; height: 122rpx; animation-duration: 260ms; }
+.term-ink { width: 130rpx; height: 130rpx; }
+.term-cn { font-size: 112rpx; line-height: 122rpx; }
+.term-en { font-size: 22rpx; line-height: 26rpx; margin: 6rpx 0; }
+.term-copy { margin-top: 22rpx; }
+.term-poem { font-size: 24rpx; line-height: 34rpx; }
+.term-time { margin-top: 4rpx; font-size: 21rpx; line-height: 30rpx; }
+.term-poem-en { margin-top: 6rpx; font-size: 18rpx; line-height: 24rpx; }
+.paused .term-character, .paused .term-character::before { animation-play-state: paused; }
 </style>

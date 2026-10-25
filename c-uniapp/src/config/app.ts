@@ -14,6 +14,8 @@ export const STORAGE_KEYS = {
 export const PAGE_URLS = {
   login: '/pages/login/index',
   home: '/pages/home/index',
+  goods: '/pages/goods/index',
+  coffee: '/pages/coffee/index',
   cart: '/pages/cart/index',
   orders: '/pages/orders/index',
   my: '/pages/my/index',

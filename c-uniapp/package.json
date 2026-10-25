@@ -36,7 +36,8 @@
     "build:quickapp-webview-union": "uni build -p quickapp-webview-union",
     "type-check": "vue-tsc --noEmit",
     "test:solar-terms": "node --test tests/solarTerms.test.mjs",
-    "test:shopping-ux": "node tests/shopping-ux.cjs"
+    "test:shopping-ux": "node tests/shopping-ux.cjs",
+    "test:dual-business-ux": "node tests/dual-business-ux.cjs"
   },
   "dependencies": {
     "@dcloudio/uni-app": "3.0.0-4080420251103001",

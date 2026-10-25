@@ -1,6 +1,7 @@
 import React, { Suspense } from 'react'
 import { createBrowserRouter, Navigate, useLocation } from 'react-router-dom'
 import { Spin } from 'antd'
+import { CoffeeAccessProvider } from '../components/CoffeeAccess'
 import AdminLayout from '../layouts/AdminLayout.jsx'
 import LoginPage from '../pages/LoginPage.jsx'
 import { getToken } from '../utils/auth'
@@ -44,7 +45,7 @@ const router = createBrowserRouter([
     element: (
       <ProtectedRoute>
         <RequestMessageBinder />
-        <AdminLayout />
+        <CoffeeAccessProvider><AdminLayout /></CoffeeAccessProvider>
       </ProtectedRoute>
     ),
     children: [

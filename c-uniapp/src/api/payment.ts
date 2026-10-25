@@ -10,7 +10,7 @@ export interface WxPayParamsVO {
   prepayId?: string
 }
 
-export function createOrderPayment(orderId: number) {
+export function createOrderPayment(orderId: number | string) {
   return apiRequest<WxPayParamsVO>(`/user/order/${orderId}/pay`, { method: 'POST' })
 }
 

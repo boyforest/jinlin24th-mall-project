@@ -39,3 +39,8 @@ admin:
 app:
   mq:
     enabled: false
+
+# 咖啡阶段 A：先执行 sql/migrations/20261024_coffee_catalog_cart.sql，
+# 再以 SUPER_ADMIN 维护真实门店/菜单，设置环境变量 COFFEE_CATALOG_ENABLED=true。
+# 默认 false；仅开放浏览/加购，不存在开启咖啡下单或支付的配置。
+# GOODS_STORE_NAME 用于统一订单列表的商品商城展示名。

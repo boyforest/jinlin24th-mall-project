@@ -55,6 +55,15 @@ public enum BizCode {
     DISTRIBUTION_NOT_FOUND(70404, HttpStatus.NOT_FOUND, "分销记录不存在"),
     CART_RECORD_NOT_FOUND(80404, HttpStatus.NOT_FOUND, "购物车记录不存在"),
 
+    COFFEE_STORE_NOT_FOUND(90401, HttpStatus.NOT_FOUND, "咖啡门店未配置或未开放"),
+    COFFEE_SKU_NOT_FOUND(90402, HttpStatus.NOT_FOUND, "咖啡规格不存在"),
+    COFFEE_SKU_UNAVAILABLE(90403, HttpStatus.CONFLICT, "咖啡规格当前不可售"),
+    COFFEE_CART_NOT_FOUND(90404, HttpStatus.NOT_FOUND, "咖啡购物车记录不存在"),
+    COFFEE_CART_VERSION_CONFLICT(90409, HttpStatus.CONFLICT, "咖啡购物车已更新，请重新读取"),
+    COFFEE_ORDERING_DISABLED(90410, HttpStatus.CONFLICT, "暂未开放咖啡点单"),
+    COFFEE_STORE_CLOSED(90411, HttpStatus.CONFLICT, "咖啡门店当前不接单"),
+    COFFEE_STORE_ALREADY_EXISTS(90415, HttpStatus.CONFLICT, "首版仅支持一家咖啡门店"),
+
     CART_ADD_FAILED(80400, HttpStatus.BAD_REQUEST, "加入购物车失败"),
     SALES_REQUIRED(20400, HttpStatus.BAD_REQUEST, "请指定销售人员"),
     DISTRIBUTION_SETTLE_FAILED(70400, HttpStatus.BAD_REQUEST, "结算失败");

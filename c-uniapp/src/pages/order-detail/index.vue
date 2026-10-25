@@ -68,7 +68,7 @@ import { createOrderPayment, requestMiniAppPayment } from '@/api/payment'
 import { money } from '@/utils/auth'
 import { statusText } from '@/constants/orderStatus'
 
-const id = ref<number>(0)
+const id = ref('')
 const order = ref<OrderVO | null>(null)
 const loading = ref(false)
 const paying = ref(false)
@@ -90,7 +90,7 @@ async function payNow() {
   if (!order.value?.id) return
   paying.value = true
   try {
-    const payParams = await createOrderPayment(order.value.id)
+    const payParams = await createOrderPayment(id.value)
     await requestMiniAppPayment(payParams)
     uni.showToast({ title: '支付完成', icon: 'success' })
     await load()
@@ -117,7 +117,7 @@ function confirmReceive() {
       if (!res.confirm || !order.value?.id) return
       receiving.value = true
       try {
-        order.value = await receiveOrder(order.value.id)
+        order.value = await receiveOrder(id.value)
         uni.showToast({ title: '订单已完成', icon: 'success' })
       } catch (e: any) {
         uni.showToast({ title: e?.message || '确认失败', icon: 'none' })
@@ -129,7 +129,7 @@ function confirmReceive() {
 }
 
 onLoad((options) => {
-  id.value = Number((options as any)?.id || 0)
+  id.value = String((options as any)?.id || '')
   load()
 })
 </script>

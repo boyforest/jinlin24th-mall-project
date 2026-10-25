@@ -1,187 +1,92 @@
 <template>
-  <view class="page">
+  <view class="page business-page">
     <view class="ink-page-content">
-      <view class="page-head">
-        <text class="kicker">ORDERS</text>
-        <text class="title ink-title">养物清单</text>
-      </view>
-
-      <view class="tabs">
-        <view class="tab" :class="{ active: status === undefined }" @click="selectStatus(undefined)">全部</view>
-        <view class="tab" :class="{ active: status === 0 }" @click="selectStatus(0)">待支付</view>
-        <view class="tab" :class="{ active: status === 10 }" @click="selectStatus(10)">待发货</view>
-        <view class="tab" :class="{ active: status === 20 }" @click="selectStatus(20)">待收货</view>
-        <view class="tab" :class="{ active: status === 30 }" @click="selectStatus(30)">已完成</view>
-        <view class="tab" :class="{ active: status === 40 }" @click="selectStatus(40)">已取消</view>
-      </view>
-
-      <view v-if="loading" class="ink-loading">
-        <view class="ink-loading-mark"></view>
-        <text>翻阅清单中...</text>
-      </view>
-      <view v-else-if="error" class="ink-empty ink-card">
-        <text class="ink-empty-title">清单暂时未能加载</text>
-        <text class="ink-empty-sub">{{ error }}</text>
-        <button class="ink-btn-secondary state-action" @click="load">重新加载</button>
-      </view>
-      <view v-else-if="orders.length === 0" class="ink-empty ink-card">
-        <view class="ink-empty-art"></view>
-        <text class="ink-empty-title">{{ status === undefined ? '还没有养物清单' : '暂无此状态的订单' }}</text>
-        <text class="ink-empty-sub">{{ status === undefined ? '寻一味当季好物，开启顺时滋养' : '可以查看全部订单，或继续挑选养物' }}</text>
-        <button v-if="status !== undefined" class="ink-btn-secondary state-action" @click="selectStatus(undefined)">查看全部订单</button>
-        <button v-else class="ink-btn-primary state-action" @click="goHome">去逛逛</button>
-      </view>
-
+      <view class="page-head"><text class="title ink-title">我的订单</text><text class="page-description">养物与日常，悉心收好</text></view>
+      <BusinessTabs :model-value="business" :tabs="businessTabs" @update:model-value="selectBusiness" />
+      <scroll-view scroll-x class="status-scroll"><view class="tabs"><button v-for="filter in filters" :key="filter.value" class="tab" :class="{ active: selected === filter.value }" @click="selectStatus(filter.value)">{{ filter.label }}</button></view></scroll-view>
+      <view v-if="loading && !orders.length" class="ink-loading"><view class="ink-loading-mark" /><text>翻阅清单中…</text></view>
+      <view v-else-if="error" class="ink-empty ink-card"><text class="ink-empty-title">清单暂时未能加载</text><text class="ink-empty-sub">{{ error }}</text><button class="ink-btn-secondary state-action" @click="load(page === 1)">重新加载</button></view>
+      <view v-else-if="!orders.length" class="ink-empty ink-card"><text class="ink-empty-title">{{ selected !== 'ALL' ? '暂无此状态的订单' : business === 'COFFEE' ? '暂时还没有点单订单' : '还没有养物清单' }}</text><text class="ink-empty-sub">{{ business === 'COFFEE' ? '点单筹备中，可先浏览与加购' : '可以查看全部订单，或继续挑选养物' }}</text><button v-if="selected !== 'ALL'" class="ink-btn-secondary state-action" @click="selectStatus('ALL')">查看全部订单</button><button v-else class="ink-btn-primary state-action" @click="goBrowse">{{ business === 'COFFEE' ? '去选饮品' : '去逛逛' }}</button></view>
       <view v-else class="list">
-        <view v-for="order in orders" :key="order.id" class="order-card ink-card" @click="goDetail(order.id)">
-          <view class="row">
-            <text class="order-no">{{ order.orderNo }}</text>
-            <text class="ink-tag">{{ statusText(order.status) }}</text>
-          </view>
-          <view class="ink-line order-line"></view>
-          <view v-for="item in order.items || []" :key="item.skuId" class="item">
-            <text class="item-name">{{ item.productName }}</text>
-            <text class="item-qty">x{{ item.quantity }}</text>
-          </view>
-          <view class="amount">{{ order.status === 0 ? '应付' : '订单金额' }} <text class="ink-price">¥{{ money(order.payAmount ?? order.totalAmount) }}</text></view>
+        <view v-for="order in orders" :key="`${order.businessType}:${order.id}`" class="order-card ink-card" @click="goDetail(order)">
+          <view class="row"><text class="store-name">{{ order.storeName }} · {{ order.businessType === 'GOODS' ? '商品配送' : '到店自取' }}</text><text class="order-status">{{ businessOrderStatusText[order.status] }}</text></view>
+          <text class="order-no">{{ order.orderNo }}</text>
+          <view v-for="(item, index) in order.summaryItems" :key="`${item.skuId}:${index}`" class="order-item"><image v-if="imageUrl(item.imageUrl)" class="item-cover" :src="imageUrl(item.imageUrl)" mode="aspectFill" /><view v-else class="item-cover placeholder">{{ order.businessType === 'GOODS' ? '养' : '饮' }}</view><view class="item-copy"><text class="item-name">{{ item.productName }}</text><text class="item-spec">{{ item.specName }} × {{ item.quantity }}</text></view><text class="ink-price">¥{{ cents(item.lineTotalCent) }}</text></view>
+          <view class="order-bottom"><text>共 {{ order.itemCount }} {{ order.businessType === 'GOODS' ? '件' : '杯' }}</text><text class="amount">{{ order.amounts.paidAmountCent === null ? '应付' : '实付' }} <text class="ink-price">¥{{ cents(order.amounts.paidAmountCent ?? order.amounts.payableAmountCent) }}</text></text></view>
+          <text v-if="order.businessType === 'GOODS'" class="detail-hint">查看详情{{ order.status === 'PENDING_PAY' ? ' · 继续付款' : order.status === 'PENDING_RECEIVE' ? ' · 确认收货' : '' }} →</text>
         </view>
+        <button v-if="!finished" class="ink-btn-secondary load-more" :disabled="loading" @click="load(false)">{{ loading ? '加载中…' : '加载更多' }}</button><text v-else class="end-note">已展示全部订单</text>
       </view>
     </view>
   </view>
 </template>
-
 <script setup lang="ts">
-import { onShow } from '@dcloudio/uni-app'
-import { ref } from 'vue'
-import { listOrders, type OrderVO } from '@/api/order'
-import { money, requireLogin } from '@/utils/auth'
-import { statusText } from '@/constants/orderStatus'
-
-const orders = ref<OrderVO[]>([])
-const loading = ref(false)
-const error = ref('')
+import { computed, ref, watch } from 'vue'
+import { onShow, onReachBottom, onHide } from '@dcloudio/uni-app'
+import BusinessTabs from '@/components/BusinessTabs.vue'
+import { listBusinessOrders, type BusinessOrderSummary } from '@/api/businessOrder'
+import { businessOrderStatusText, statusGroupText, goodsStatuses, coffeeStatuses, type BusinessOrderStatus, type StatusGroup } from '@/constants/businessOrderStatus'
+import { requireLogin } from '@/utils/auth'
+import { useAuthStore } from '@/stores/auth'
+import { getToken } from '@/utils/storage'
+import { cents, imageUrl } from '@/utils/coffee'
+import type { BusinessType } from '@/stores/businessContext'
+const business = ref<'ALL' | BusinessType>('ALL'), selected = ref('ALL'), orders = ref<BusinessOrderSummary[]>([])
+const loading = ref(false), error = ref(''), page = ref(1), finished = ref(false)
 let requestId = 0
-const status = ref<number | undefined>(undefined)
-
-async function load() {
-  if (!requireLogin('/pages/orders/index')) return
-  const currentRequest = ++requestId
-  loading.value = true
-  error.value = ''
+const auth = useAuthStore()
+watch(() => auth.token, () => { ++requestId; orders.value = []; error.value = ''; loading.value = false; page.value = 1; finished.value = false })
+const businessTabs = [{ value: 'ALL', label: '全部' }, { value: 'GOODS', label: '商品订单' }, { value: 'COFFEE', label: '点单订单' }]
+const filters = computed(() => business.value === 'ALL' ? Object.entries(statusGroupText).map(([value, label]) => ({ value, label })) : [{ value: 'ALL', label: '全部' }, ...(business.value === 'GOODS' ? goodsStatuses : coffeeStatuses).map(value => ({ value, label: businessOrderStatusText[value] }))])
+async function load(reset = true) {
+  if (!requireLogin('/pages/orders/index')) { orders.value = []; return }
+  if (!reset && (loading.value || finished.value)) return
+  const currentRequest = ++requestId, token = getToken()
+  if (reset) { page.value = 1; finished.value = false; orders.value = [] }
+  loading.value = true; error.value = ''
   try {
-    const data = await listOrders({ page: 1, size: 20, status: status.value })
-    if (currentRequest === requestId) orders.value = data.records || []
-  } catch (e: any) {
-    if (currentRequest === requestId) error.value = e?.message || '网络暂时不通，请稍后重试'
-  } finally {
-    if (currentRequest === requestId) loading.value = false
-  }
+    const data = await listBusinessOrders({ page: page.value, size: 20, businessType: business.value === 'ALL' ? undefined : business.value,
+      statusGroup: business.value === 'ALL' ? selected.value as StatusGroup : undefined,
+      status: business.value !== 'ALL' && selected.value !== 'ALL' ? selected.value as BusinessOrderStatus : undefined })
+    if (currentRequest !== requestId || getToken() !== token) return
+    orders.value = reset ? data.records : [...orders.value, ...data.records]
+    finished.value = data.current >= data.pages || orders.value.length >= data.total
+    page.value = data.current + 1
+  } catch (e: any) { if (currentRequest === requestId && getToken() === token) error.value = e?.message || '网络暂时不通，请稍后重试' }
+  finally { if (currentRequest === requestId) { loading.value = false; if (getToken() !== token) orders.value = [] } }
 }
-
-function selectStatus(next?: number) {
-  status.value = next
-  load()
-}
-
-function goHome() { uni.switchTab({ url: '/pages/home/index' }) }
-
-function goDetail(id: number) {
-  uni.navigateTo({ url: `/pages/order-detail/index?id=${id}` })
-}
-
-onShow(load)
+function selectBusiness(value: string) { business.value = value as 'ALL' | BusinessType; selected.value = 'ALL'; load() }
+function selectStatus(value: string) { selected.value = value; load() }
+function goBrowse() { uni.navigateTo({ url: business.value === 'COFFEE' ? '/pages/coffee/index' : '/pages/goods/index' }) }
+function goDetail(order: BusinessOrderSummary) { if (order.businessType === 'GOODS') uni.navigateTo({ url: `/pages/order-detail/index?id=${encodeURIComponent(order.id)}` }) }
+onShow(() => load())
+onHide(() => { ++requestId; loading.value = false; if (!getToken()) orders.value = [] })
+onReachBottom(() => load(false))
 </script>
-
 <style scoped>
-.state-action { margin-top: 26rpx; min-width: 240rpx; }
-.page-head {
-  margin-bottom: 24rpx;
-}
-.kicker {
-  display: block;
-  color: #7f9f52;
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 20rpx;
-  margin-bottom: 6rpx;
-}
-.title {
-  display: block;
-  font-size: 40rpx;
-}
-.tabs {
-  display: flex;
-  gap: 12rpx;
-  overflow-x: auto;
-  margin-bottom: 28rpx;
-}
-.tab {
-  flex: 0 0 auto;
-  padding: 12rpx 24rpx;
-  border: 1rpx solid rgba(111, 159, 88, 0.24);
-  border-radius: 16rpx;
-  background: rgba(255, 255, 255, 0.82);
-  color: #2d2d2d;
-  font-family: "Songti SC", "STSong", serif;
-  font-size: 26rpx;
-  transition: all 0.22s cubic-bezier(0.22, 0.61, 0.36, 1);
-}
-.tab.active {
-  border-color: transparent;
-  background: linear-gradient(135deg, #5f8f4b, #86c166 72%, #cfe2c8);
-  color: #fff;
-}
-.hint {
-  color: #6f7b68;
-}
-.list {
-  display: flex;
-  flex-direction: column;
-  gap: 24rpx;
-}
-.order-card {
-  padding: 26rpx;
-  animation: order-in 0.4s cubic-bezier(0.22, 0.61, 0.36, 1) both;
-}
-.order-card:nth-child(1) { animation-delay: 0.03s; }
-.order-card:nth-child(2) { animation-delay: 0.08s; }
-.order-card:nth-child(3) { animation-delay: 0.13s; }
-.order-card:nth-child(4) { animation-delay: 0.18s; }
-
-@keyframes order-in {
-  from { opacity: 0; transform: translateY(14rpx); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-.row,
-.item {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  justify-content: space-between;
-}
-.order-no {
-  font-size: 26rpx;
-  color: #2d2d2d;
-  font-family: Georgia, "Times New Roman", serif;
-}
-.order-line {
-  position: relative;
-  z-index: 1;
-  margin: 18rpx 0;
-}
-.item {
-  margin-top: 14rpx;
-  color: #6f7b68;
-  font-size: 26rpx;
-}
-.item-name {
-  max-width: 520rpx;
-}
-.amount {
-  position: relative;
-  z-index: 1;
-  margin-top: 18rpx;
-  text-align: right;
-  color: #6f7b68;
-  font-size: 30rpx;
-}
+.page-head { margin-bottom: 24rpx; }
+.title { display: block; font-size: 40rpx; }
+.page-description { display: block; margin-top: 12rpx; color: #65755d; font-size: 23rpx; }
+.status-scroll { margin-bottom: 26rpx; }
+.tabs { display: flex; gap: 12rpx; }
+.tab { flex: none; padding: 12rpx 22rpx; line-height: 1.5; border-radius: 14rpx; color: #65755d; background: transparent; font-size: 25rpx; }
+.tab.active { color: #435b34; background: #e8efdf; }
+.list { display: flex; flex-direction: column; gap: 24rpx; }
+.order-card { padding: 25rpx; animation: order-in 210ms ease-out; }
+.row { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; }
+.store-name { font-size: 26rpx; flex: 1; }
+.order-status { font-size: 25rpx; color: #637f51; }
+.order-no { display: block; margin: 12rpx 0 20rpx; font-size: 21rpx; color: #65755d; overflow-wrap: anywhere; }
+.order-item { display: flex; gap: 18rpx; align-items: center; margin-bottom: 18rpx; font-size: 25rpx; }
+.item-cover { width: 98rpx; height: 110rpx; flex: none; border-radius: 12rpx; background: #edf2e6; }
+.placeholder { display: flex; align-items: center; justify-content: center; color: #637f51; font-size: 30rpx; }
+.item-copy { flex: 1; min-width: 0; }
+.item-name, .item-spec { display: block; }
+.item-spec { margin-top: 8rpx; font-size: 22rpx; color: #65755d; }
+.order-bottom { border-top: 1rpx solid #e5ebdf; padding-top: 20rpx; display: flex; justify-content: space-between; align-items: center; font-size: 23rpx; color: #65755d; }
+.amount .ink-price { font-size: 34rpx; }
+.detail-hint { display: block; text-align: right; color: #637f51; font-size: 23rpx; margin-top: 18rpx; }
+.state-action { margin-top: 24rpx; }
+.end-note { text-align: center; font-size: 23rpx; color: #65755d; }
+@keyframes order-in { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
 </style>

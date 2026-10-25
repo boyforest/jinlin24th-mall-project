@@ -51,11 +51,11 @@ export function listOrders(params: { page?: number; size?: number; status?: numb
   return apiRequest<PageResult<OrderVO>>(`/user/order/list${buildQuery(params)}`)
 }
 
-export function getOrder(id: number) {
+export function getOrder(id: number | string) {
   return apiRequest<OrderVO>(`/user/order/${id}`)
 }
 
-export function receiveOrder(id: number) {
+export function receiveOrder(id: number | string) {
   return apiRequest<OrderVO>(`/user/order/${id}/receive`, { method: 'POST' })
 }
 

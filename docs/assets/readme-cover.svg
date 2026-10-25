@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="400" viewBox="0 0 1280 400" role="img" aria-labelledby="title desc">
+  <title id="title">金霖二十四养 · 节气为序，日常为养</title>
+  <desc id="desc">草木绿色品牌封面，以二十四个节气刻度、叶片与金色圆环呼应节气主题。商品零售、咖啡门店、品牌运营。</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#183b30"/>
+      <stop offset="1" stop-color="#315747"/>
+    </linearGradient>
+    <radialGradient id="glow">
+      <stop offset="0" stop-color="#a2b58c" stop-opacity=".2"/>
+      <stop offset="1" stop-color="#a2b58c" stop-opacity="0"/>
+    </radialGradient>
+    <path id="tick" d="M 0 -143 L 0 -153"/>
+    <path id="quarter" d="M 0 -138 L 0 -158"/>
+  </defs>
+  <rect width="1280" height="400" rx="20" fill="url(#background)"/>
+  <circle cx="1050" cy="185" r="280" fill="url(#glow)"/>
+  <path d="M 0 350 Q 430 245 800 360 T 1280 325" fill="none" stroke="#9fb28d" stroke-opacity=".13"/>
+  <path d="M 0 368 Q 430 263 800 378 T 1280 343" fill="none" stroke="#9fb28d" stroke-opacity=".08"/>
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif">
+    <text x="76" y="71" fill="#c6ac7c" font-size="13" letter-spacing="4">JINLIN · HEALTH NOURISH</text>
+    <text x="71" y="155" fill="#f2f2e7" font-size="52" font-weight="600" letter-spacing="8">金霖二十四养</text>
+    <text x="76" y="214" fill="#d0dbc5" font-size="24" letter-spacing="5">节气为序，日常为养。</text>
+    <path d="M 76 249 H 132" stroke="#c6ac7c" stroke-width="2"/>
+    <text x="76" y="288" fill="#e1e7d9" font-size="16" letter-spacing="2">商品零售 / 咖啡门店 / 品牌运营</text>
+    <text x="76" y="344" fill="#a6bbae" font-size="12" letter-spacing="1.8">SPRING BOOT + REACT + UNI-APP</text>
+  </g>
+  <g transform="translate(1040 199)" fill="none">
+    <circle r="174" stroke="#a6bb9b" stroke-opacity=".15"/>
+    <circle r="125" stroke="#c6ac7c" stroke-opacity=".45"/>
+    <circle r="115" stroke="#a6bb9b" stroke-opacity=".12"/>
+    <g stroke="#c6ac7c" stroke-opacity=".65">
+      <use href="#quarter"/><use href="#tick" transform="rotate(15)"/>
+      <use href="#tick" transform="rotate(30)"/><use href="#tick" transform="rotate(45)"/>
+      <use href="#tick" transform="rotate(60)"/><use href="#tick" transform="rotate(75)"/>
+      <use href="#quarter" transform="rotate(90)"/><use href="#tick" transform="rotate(105)"/>
+      <use href="#tick" transform="rotate(120)"/><use href="#tick" transform="rotate(135)"/>
+      <use href="#tick" transform="rotate(150)"/><use href="#tick" transform="rotate(165)"/>
+      <use href="#quarter" transform="rotate(180)"/><use href="#tick" transform="rotate(195)"/>
+      <use href="#tick" transform="rotate(210)"/><use href="#tick" transform="rotate(225)"/>
+      <use href="#tick" transform="rotate(240)"/><use href="#tick" transform="rotate(255)"/>
+      <use href="#quarter" transform="rotate(270)"/><use href="#tick" transform="rotate(285)"/>
+      <use href="#tick" transform="rotate(300)"/><use href="#tick" transform="rotate(315)"/>
+      <use href="#tick" transform="rotate(330)"/><use href="#tick" transform="rotate(345)"/>
+    </g>
+    <path d="M -17 73 C -23 15 -6 -38 49 -75 C 70 -13 32 40 -17 73 Z" fill="#b4c49a" fill-opacity=".16" stroke="#b4c49a" stroke-opacity=".55"/>
+    <path d="M -17 73 Q 10 -3 49 -75" stroke="#c6ac7c" stroke-opacity=".6"/>
+    <path d="M -17 73 C -60 37 -72 -2 -59 -49 C -17 -27 -3 19 -17 73 Z" fill="#b4c49a" fill-opacity=".09" stroke="#b4c49a" stroke-opacity=".35"/>
+    <path d="M -17 73 Q -43 17 -59 -49" stroke="#b4c49a" stroke-opacity=".35"/>
+    <circle r="3" cy="-125" fill="#c6ac7c"/>
+  </g>
+</svg>

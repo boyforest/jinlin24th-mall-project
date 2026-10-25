@@ -75,8 +75,23 @@ jwt:
 
 app:
   coffee:
-    # 先执行咖啡增量 SQL 并配置真实门店再启用；阶段 A 下单/支付始终关闭。
+    # 先迁移与联调；开放点单需要顾客入口和真实渠道验收。
     catalog-enabled: ${COFFEE_CATALOG_ENABLED:false}
+    ordering-enabled: ${COFFEE_ORDERING_ENABLED:false}
+    payment-enabled: ${COFFEE_PAYMENT_ENABLED:false}
+    mch-id: ${COFFEE_PAY_MCH_ID:}
+    app-id: ${COFFEE_PAY_APP_ID:}
+    api-v3-key: ${COFFEE_PAY_API_V3_KEY:}
+    serial-no: ${COFFEE_PAY_SERIAL_NO:}
+    platform-public-key-id: ${COFFEE_PAY_PLATFORM_PUBLIC_KEY_ID:}
+    private-key-path: ${COFFEE_PAY_PRIVATE_KEY_PATH:}
+    platform-public-key-path: ${COFFEE_PAY_PLATFORM_PUBLIC_KEY_PATH:}
+    notify-url: ${COFFEE_PAY_NOTIFY_URL:}
+    refund-notify-url: ${COFFEE_PAY_REFUND_NOTIFY_URL:}
+    ready-template-id: ${COFFEE_READY_TEMPLATE_ID:}
+    ready-pickup-field: ${COFFEE_READY_PICKUP_FIELD:character_string1}
+    ready-store-field: ${COFFEE_READY_STORE_FIELD:thing2}
+    ready-time-field: ${COFFEE_READY_TIME_FIELD:time3}
   business-order:
     goods-store-name: ${GOODS_STORE_NAME:金霖二十四养}
   cors:

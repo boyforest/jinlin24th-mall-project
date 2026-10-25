@@ -30,6 +30,10 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
 public class CoffeeCatalogServiceImpl implements CoffeeCatalogService {
+    @org.springframework.beans.factory.annotation.Value("${app.coffee.ordering-enabled:false}")
+    private boolean orderingEnabled;
+    @org.springframework.beans.factory.annotation.Value("${app.coffee.payment-enabled:false}")
+    private boolean paymentEnabled;
     private final CoffeeStoreMapper storeMapper;
     private final CoffeeCategoryMapper categoryMapper;
     private final CoffeeProductMapper productMapper;
@@ -120,11 +124,9 @@ public class CoffeeCatalogServiceImpl implements CoffeeCatalogService {
     public CoffeeAdminContextVO context(Long adminId) {
         access.requireAccess(adminId);
         CoffeeAdminContextVO result = new CoffeeAdminContextVO();
-        result.setPermissions(List.of("coffee:menu:read", "coffee:menu:write"));
+        result.setPermissions(access.permissions(adminId));
         result.setStores(
-                storeMapper
-                        .selectList(
-                                Wrappers.<CoffeeStore>lambdaQuery().orderByAsc(CoffeeStore::getId))
+                access.stores(adminId)
                         .stream()
                         .map(
                                 s -> {
@@ -141,6 +143,7 @@ public class CoffeeCatalogServiceImpl implements CoffeeCatalogService {
     @Override
     public CoffeeStoreVO adminStore(Long adminId, Long storeId) {
         access.requireAccess(adminId);
+        access.requireStore(adminId, storeId, "coffee:menu:read");
         return storeVO(support.store(storeId, false));
     }
 
@@ -150,6 +153,7 @@ public class CoffeeCatalogServiceImpl implements CoffeeCatalogService {
         access.requireAccess(adminId);
         CoffeeStore store;
         if (storeId == null) {
+            access.requireSuper(adminId);
             if (storeMapper.selectCount(Wrappers.<CoffeeStore>lambdaQuery()) > 0) {
                 throw BizException.of(BizCode.COFFEE_STORE_ALREADY_EXISTS);
             }
@@ -158,6 +162,7 @@ public class CoffeeCatalogServiceImpl implements CoffeeCatalogService {
             store.setStatus(1);
             store.setTimeZone("Asia/Shanghai");
         } else {
+            access.requireStore(adminId, storeId, "coffee:store:write");
             store = support.store(storeId, true);
         }
         BeanUtils.copyProperties(dto, store);
@@ -186,6 +191,7 @@ public class CoffeeCatalogServiceImpl implements CoffeeCatalogService {
     @Override
     public CoffeeAdminMenuVO adminMenu(Long adminId, Long storeId) {
         access.requireAccess(adminId);
+        access.requireStore(adminId,storeId,"coffee:menu:read");
         support.store(storeId, false);
         CoffeeAdminMenuVO result = new CoffeeAdminMenuVO();
         result.setStoreId(storeId.toString());
@@ -206,9 +212,10 @@ public class CoffeeCatalogServiceImpl implements CoffeeCatalogService {
         access.requireAccess(adminId);
         CoffeeCategory category = id == null ? new CoffeeCategory() : categoryMapper.selectById(id);
         if (category == null) {
-            throw CoffeeValues.invalid("咖啡分类不存在");
+            throw BizException.of(BizCode.NOT_FOUND);
         }
         Long targetStore = id == null ? storeId : category.getStoreId();
+        access.requireStore(adminId,targetStore,"coffee:menu:write");
         support.store(targetStore, true);
         if (dto.getStatus() == 0
                 && id != null
@@ -236,9 +243,10 @@ public class CoffeeCatalogServiceImpl implements CoffeeCatalogService {
         access.requireAccess(adminId);
         CoffeeProduct product = id == null ? new CoffeeProduct() : productMapper.selectById(id);
         if (product == null) {
-            throw CoffeeValues.invalid("咖啡饮品不存在");
+            throw BizException.of(BizCode.NOT_FOUND);
         }
         Long targetStore = id == null ? storeId : product.getStoreId();
+        access.requireStore(adminId,targetStore,"coffee:menu:write");
         support.store(targetStore, true);
         CoffeeCategory category = categoryMapper.selectById(CoffeeValues.id(dto.getCategoryId()));
         if (category == null || !targetStore.equals(category.getStoreId())) {
@@ -387,8 +395,9 @@ public class CoffeeCatalogServiceImpl implements CoffeeCatalogService {
         CoffeeStoreVO.Capabilities caps = new CoffeeStoreVO.Capabilities();
         caps.setBrowse(support.browsable(store));
         caps.setAddToCart(support.browsable(store));
-        caps.setPlaceOrder(false);
-        caps.setPayOnline(false);
+        boolean ordering = support.browsable(store) && orderingEnabled && paymentEnabled && "OPEN".equals(store.getBusinessStatus());
+        caps.setPlaceOrder(ordering);
+        caps.setPayOnline(ordering);
         vo.setCapabilities(caps);
         vo.setOrderUnavailableReason(
                 !support.browsable(store)
@@ -397,7 +406,7 @@ public class CoffeeCatalogServiceImpl implements CoffeeCatalogService {
                                 ? "STORE_CLOSED"
                                 : "PAUSED".equals(store.getBusinessStatus())
                                         ? "STORE_PAUSED"
-                                        : "PAYMENT_NOT_READY");
+                                        : !orderingEnabled ? "ORDERING_DISABLED" : paymentEnabled ? null : "PAYMENT_NOT_READY");
         return vo;
     }
 

@@ -97,7 +97,8 @@ class ApplicationConfigSecurityTest {
     @Test
     @DisplayName("dev profile 可以反向开启调试开关（仅本地开发）")
     void devProfileMayEnableDebugSwitches() throws IOException {
-        Map<String, Object> dev = load("application-dev.yml");
+        // 新检出和 CI 使用已提交的 dev 示例，不依赖个人未入库的数据库配置。
+        Map<String, Object> dev = load("application-dev.example.yml");
 
         assertEquals("org.apache.ibatis.logging.stdout.StdOutImpl",
             nested(dev, "mybatis-plus", "configuration", "log-impl"),

@@ -57,8 +57,8 @@ class CoffeeHttpContractTest extends CoffeeDatabaseTestSupport {
         }
 
         @Bean
-        AdminJwtInterceptor admin(JwtUtil jwt, AuthSessionService sessions) {
-            return new AdminJwtInterceptor(jwt, sessions);
+        AdminJwtInterceptor admin(JwtUtil jwt, AuthSessionService sessions, AdminPermissionService permissions) {
+            return new AdminJwtInterceptor(jwt, sessions, permissions);
         }
 
         @Bean

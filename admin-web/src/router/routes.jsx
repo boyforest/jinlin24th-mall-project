@@ -15,7 +15,8 @@ import {
   TeamOutlined
 } from '@ant-design/icons'
 
-const CoffeeMenuPage = lazy(() => import('../pages/CoffeeMenuPage.jsx'))
+const AdminAccountsPage = lazy(() => import('../pages/AdminAccountsPage.jsx'))
+import { routePermissions } from '../utils/adminAccess'
 const DashboardPage = lazy(() => import('../pages/DashboardPage.jsx'))
 const ProductPage = lazy(() => import('../pages/ProductPage.jsx'))
 const SkuPage = lazy(() => import('../pages/SkuPage.jsx'))
@@ -37,7 +38,7 @@ const MarketingActivityPage = lazy(() => import('../pages/MarketingActivityPage.
  * 菜单、面包屑、子路由均从这里生成，新增页面时只需要补一项。
  */
 export const adminRoutes = [
-  { path: '/coffee-menu', group: 'goods', label: '咖啡菜单', icon: <ShoppingOutlined />, element: <CoffeeMenuPage />, coffeePermission: 'coffee:menu:read' },
+  { path: '/system/accounts', group: 'system', label: '账号与权限', icon: <TeamOutlined />, element: <AdminAccountsPage /> },
   {
     path: '/dashboard',
     group: 'overview',
@@ -136,4 +137,4 @@ export const adminRoutes = [
     icon: <CommentOutlined />,
     element: <FollowRecordPage />
   }
-]
+].map(route => ({ ...route, permission: routePermissions[route.path] }))

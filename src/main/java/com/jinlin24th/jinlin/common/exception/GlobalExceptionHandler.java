@@ -39,7 +39,8 @@ public class GlobalExceptionHandler {
             MethodArgumentTypeMismatchException.class
     })
     public ResponseEntity<Result<Void>> handleValidException(Exception e) {
-        log.warn("请求参数异常：{}", e.getMessage());
+        // 验证异常的 message 可能包含被拒绝的临时密码，日志只保留异常类型。
+        log.warn("请求参数异常：{}", e.getClass().getSimpleName());
         return response(BizCode.PARAM_INVALID);
     }
 

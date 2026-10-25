@@ -42,5 +42,17 @@ app:
 
 # 咖啡阶段 A：先执行 sql/migrations/20261024_coffee_catalog_cart.sql，
 # 再以 SUPER_ADMIN 维护真实门店/菜单，设置环境变量 COFFEE_CATALOG_ENABLED=true。
-# 默认 false；仅开放浏览/加购，不存在开启咖啡下单或支付的配置。
+# 下单默认关闭；本轮执行 20261026_coffee_workbench_rbac.sql 后增加独立交易能力。
+# COFFEE_ORDERING_ENABLED=false；COFFEE_PAYMENT_ENABLED=false。
+# 独立商户和提醒环境变量见 .env.example，不复用商品商户。
 # GOODS_STORE_NAME 用于统一订单列表的商品商城展示名。
+
+# 本地调试；生产配置始终保持关闭。
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true

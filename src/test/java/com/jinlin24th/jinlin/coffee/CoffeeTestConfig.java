@@ -6,7 +6,7 @@ import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.config.GlobalConfig;
 import com.baomidou.mybatisplus.core.toolkit.GlobalConfigUtils;
 import com.baomidou.mybatisplus.extension.spring.MybatisSqlSessionFactoryBean;
-import com.jinlin24th.jinlin.common.auth.CoffeeAdminAccessService;
+import com.jinlin24th.jinlin.common.auth.*;
 import com.jinlin24th.jinlin.common.config.AutoFillHandler;
 import com.jinlin24th.jinlin.common.config.MybatisPlusConfig;
 import com.jinlin24th.jinlin.mapper.*;
@@ -168,8 +168,12 @@ public class CoffeeTestConfig {
     }
 
     @Bean
-    CoffeeAdminAccessService access(SysAdminService admins) {
-        return new CoffeeAdminAccessService(admins);
+    AdminPermissionService permissions(SysAdminService admins,CoffeeStoreMapper stores) {
+        return new AdminPermissionService(admins,mock(SysAdminCoffeeStoreMapper.class),stores);
+    }
+    @Bean
+    CoffeeAdminAccessService access(AdminPermissionService permissions) {
+        return new CoffeeAdminAccessService(permissions);
     }
 
     @Bean

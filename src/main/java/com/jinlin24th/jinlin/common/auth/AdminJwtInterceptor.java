@@ -12,10 +12,12 @@ public class AdminJwtInterceptor implements HandlerInterceptor {
 
     private final JwtUtil jwtUtil;
     private final AuthSessionService authSessionService;
+    private final AdminPermissionService permissions;
 
-    public AdminJwtInterceptor(JwtUtil jwtUtil, AuthSessionService authSessionService) {
+    public AdminJwtInterceptor(JwtUtil jwtUtil, AuthSessionService authSessionService, AdminPermissionService permissions) {
         this.jwtUtil = jwtUtil;
         this.authSessionService = authSessionService;
+        this.permissions = permissions;
     }
 
     @Override
@@ -49,11 +51,21 @@ public class AdminJwtInterceptor implements HandlerInterceptor {
         String jti = jwtUtil.getJtiFromToken(token);
         authSessionService.validateAdmin(adminName, jti);
 
+        if (!adminName.equals(permissions.enabled(adminId).getUsername())) {
+            throw BizException.unauthorized("管理员身份已失效，请重新登录");
+        }
+        permissions.authorize(adminId, request.getMethod(), requestUri.substring(request.getContextPath().length()));
+
         // 写入 ThreadLocal，供 @CurrentAdminId 注解使用
         CurrentUserContext.setAdminId(adminId);
         CurrentUserContext.setAdminName(adminName);
 
         return true;
+    }
+
+    @Override
+    public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) {
+        CurrentUserContext.clear();
     }
 
     private static String extractBearerToken(String authorization) {

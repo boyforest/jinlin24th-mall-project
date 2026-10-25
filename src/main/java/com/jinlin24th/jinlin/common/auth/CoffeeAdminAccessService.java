@@ -1,21 +1,37 @@
 package com.jinlin24th.jinlin.common.auth;
 
-import com.jinlin24th.jinlin.common.exception.BizException;
-import com.jinlin24th.jinlin.service.SysAdminService;
+import com.jinlin24th.jinlin.pojo.entity.CoffeeStore;
 
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.stereotype.Service;
 
-/** 阶段 A 仅向启用 SUPER_ADMIN 角色的平台管理员开放。 */
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class CoffeeAdminAccessService {
-    private final SysAdminService sysAdminService;
+    private final AdminPermissionService permissions;
 
     public void requireAccess(Long adminId) {
-        if (adminId == null || !sysAdminService.getRoleCodes(adminId).contains("SUPER_ADMIN")) {
-            throw BizException.forbidden("仅平台超级管理员可维护咖啡菜单");
-        }
+        permissions.require(adminId, "coffee:menu:read");
+    }
+
+    public void requireStore(Long adminId, Long storeId, String permission) {
+        permissions.requireStore(adminId, storeId, permission);
+    }
+
+    public void requireSuper(Long adminId) {
+        permissions.requireSuper(adminId);
+    }
+
+    public List<CoffeeStore> stores(Long adminId) {
+        return permissions.stores(adminId);
+    }
+
+    public List<String> permissions(Long adminId) {
+        return permissions.permissions(adminId).stream()
+                .filter(p -> p.startsWith("coffee:"))
+                .toList();
     }
 }

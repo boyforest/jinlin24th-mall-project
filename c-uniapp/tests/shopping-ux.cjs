@@ -192,6 +192,8 @@ async function openCheckout(page) {
     await page.evaluate(() => window.scrollTo(0, 290));
     for (const width of [320, 375, 390, 430]) {
       await page.setViewportSize({ width, height: 844 })
+      // uni-app rpx 布局在 resize 事件后异步更新，等待实际行宽适配再测量。
+      await page.waitForFunction(() => { const row = document.querySelector('.review-item'), plus = document.querySelector('.review-item .step:last-child'); if (!row || !plus) return false; const r = row.getBoundingClientRect(), p = plus.getBoundingClientRect(); return p.right <= r.right + 1 })
       const content = await page.locator('.ink-page-content:visible').boundingBox()
       assert(content.x >= 0 && content.x + content.width <= width + 1)
       const row = await page.locator('.review-item').boundingBox()

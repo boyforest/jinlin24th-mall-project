@@ -2,6 +2,7 @@ package com.jinlin24th.jinlin.service.impl;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.jinlin24th.jinlin.common.auth.AuthSessionService;
+import com.jinlin24th.jinlin.common.auth.AdminPermissions;
 import com.jinlin24th.jinlin.common.exception.BizException;
 import com.jinlin24th.jinlin.common.util.ClientIpUtil;
 import com.jinlin24th.jinlin.common.util.JwtUtil;
@@ -86,12 +87,16 @@ public class SysAdminServiceImpl extends ServiceImpl<SysAdminMapper, SysAdmin> i
             .eq(SysAdmin::getUsername, username)
             .eq(SysAdmin::getDeleted, 0)
             .one();
+        if (admin != null) admin = baseMapper.lockById(admin.getId());
         if (admin == null || !passwordEncoder.matches(dto.getPassword(), admin.getPasswordHash())) {
             throw BizException.unauthorized("账号或密码错误");
         }
         if (!Objects.equals(admin.getStatus(), 1)) {
             throw BizException.forbidden("管理员账号已被禁用");
         }
+
+        // 使用数据库中的规范账号名，避免 MySQL 不区分大小写时生成无法统一撤销的会话键。
+        username = admin.getUsername();
 
         // 登录成功后更新最后登录信息，方便后台安全审计。
         lambdaUpdate()
@@ -149,6 +154,8 @@ public class SysAdminServiceImpl extends ServiceImpl<SysAdminMapper, SysAdmin> i
         if (admin == null) {
             throw BizException.unauthorized("管理员不存在");
         }
+        admin = baseMapper.lockById(adminId);
+        if (!Objects.equals(admin.getStatus(), 1)) throw BizException.unauthorized("管理员账号已失效");
         if (!passwordEncoder.matches(dto.getOldPassword(), admin.getPasswordHash())) {
             throw BizException.badRequest("旧密码不正确");
         }
@@ -229,6 +236,10 @@ public class SysAdminServiceImpl extends ServiceImpl<SysAdminMapper, SysAdmin> i
             return Collections.emptyList();
         }
 
+        List<String> roleCodes = getRoleCodes(adminId);
+        if (roleCodes.stream().allMatch(AdminPermissions.ROLES::containsKey)) {
+            return roleCodes.stream().flatMap(r -> AdminPermissions.ROLES.get(r).stream()).distinct().toList();
+        }
         Set<Long> enabledRoleIds = sysRoleMapper.selectList(
                 com.baomidou.mybatisplus.core.toolkit.Wrappers.<SysRole>lambdaQuery()
                     .in(SysRole::getId, roleIds)

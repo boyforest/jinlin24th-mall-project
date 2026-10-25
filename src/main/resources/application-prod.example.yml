@@ -85,3 +85,5 @@ logging:
 # 再以 SUPER_ADMIN 维护真实门店/菜单，设置环境变量 COFFEE_CATALOG_ENABLED=true。
 # 默认 false；仅开放浏览/加购，不存在开启咖啡下单或支付的配置。
 # GOODS_STORE_NAME 用于统一订单列表的商品商城展示名。
+
+# 咖啡独立商户/回调及模板变量见 .env.example；COFFEE_ORDERING_ENABLED 默认 false。

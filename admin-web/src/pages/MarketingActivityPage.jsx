@@ -11,6 +11,8 @@ import { activityLinkType, activityPosition, commonStatus, formatDateTime } from
 
 export default function MarketingActivityPage() {
   return (
+    <>
+    <p>首页主推展示有效列表第一条；推荐养护按排序展示前六项，可继续保存更多记录。</p>
     <CrudTable
       title="活动运营"
       listApi={listMarketingActivities}
@@ -61,5 +63,6 @@ export default function MarketingActivityPage() {
         { label: '更新时间', dataIndex: 'updateTime', type: 'datetime' }
       ]}
     />
+    </>
   )
 }

@@ -28,13 +28,14 @@ class CoffeeAdminAccessTest extends CoffeeDatabaseTestSupport {
                 BizCode.FORBIDDEN,
                 () -> catalog.saveProduct(20L, null, Long.valueOf(product.getId()), productDTO()));
         when(admins.getRoleCodes(ADMIN)).thenReturn(List.of());
+        when(admins.getPermissionCodes(ADMIN)).thenReturn(List.of());
         error(BizCode.FORBIDDEN, () -> catalog.context(ADMIN));
     }
 
     @Test
     void onlyOneStoreCanExistAndContextHasMinimalPermissions() {
         assertEquals(
-                List.of("coffee:menu:read", "coffee:menu:write"),
+                com.jinlin24th.jinlin.common.auth.AdminPermissions.COFFEE,
                 catalog.context(ADMIN).getPermissions());
         assertEquals(storeId, catalog.context(ADMIN).getStores().get(0).getId());
         error(

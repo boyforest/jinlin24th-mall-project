@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { App, Breadcrumb, Button, Layout, Menu, Typography } from 'antd'
 import { LogoutOutlined, MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons'
+import { useCoffeeAccess } from '../components/CoffeeAccess'
 import { adminRoutes } from '../router/routes.jsx'
 import { adminMenuGroups } from '../utils/adminUi.jsx'
 import { clearAuth, getUsername } from '../utils/auth'
@@ -13,6 +14,7 @@ const { Header, Sider, Content } = Layout
  * 标准后台布局：侧边栏、顶部栏、面包屑、主内容区。
  */
 export default function AdminLayout() {
+  const coffeeAccess = useCoffeeAccess()
   const { modal } = App.useApp()
   const [collapsed, setCollapsed] = useState(false)
   const location = useLocation()
@@ -44,14 +46,14 @@ export default function AdminLayout() {
       type: 'group',
       children: group.children
         .map(path => adminRoutes.find(route => route.path === path))
-        .filter(Boolean)
+        .filter(route => route && (!route.coffeePermission || coffeeAccess.canRead))
         .map(route => ({
           key: route.path,
           icon: route.icon,
           label: route.label
         }))
     }))
-  ), [])
+  ), [coffeeAccess.canRead])
 
   /**
    * 退出登录前统一确认，替代原生 confirm。

@@ -5,6 +5,9 @@ import com.jinlin24th.jinlin.common.auth.CurrentUserIdArgumentResolver;
 import com.jinlin24th.jinlin.common.auth.AdminJwtInterceptor;
 import com.jinlin24th.jinlin.common.auth.JwtInterceptor;
 import com.jinlin24th.jinlin.common.log.OperationLogInterceptor;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
@@ -59,7 +62,22 @@ public class WebMvcConfig implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         // 用户端接口统一走 JWT 鉴权（登录接口放行）
-        registry.addInterceptor(jwtInterceptor)
+        registry.addInterceptor(new HandlerInterceptor() {
+            @Override
+            public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
+                String path = request.getRequestURI().substring(request.getContextPath().length());
+                if ("GET".equals(request.getMethod())
+                    && ("/user/coffee/store".equals(path) || "/user/coffee/menu".equals(path))) {
+                    return true;
+                }
+                return jwtInterceptor.preHandle(request, response, handler);
+            }
+
+            @Override
+            public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) {
+                jwtInterceptor.afterCompletion(request, response, handler, ex);
+            }
+        })
             .addPathPatterns("/user/**")
             .excludePathPatterns(
                 "/user/appUser/login",

@@ -238,5 +238,5 @@ onPullDownRefresh(async () => { await loadActivities(); uni.stopPullDownRefresh(
 .entry-title { color: #2e382c; font-size: 32rpx; font-weight: 600; margin: 6rpx 0; }
 .entry-sub { color: #65755d; font-size: 20rpx; white-space: nowrap; }
 .care-note { display: flex; justify-content: space-between; gap: 10rpx; padding: 30rpx 4rpx; font-size: 23rpx; color: #65755d; }
-@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+@media (prefers-reduced-motion: reduce) { view, text, image, button, scroll-view, view::before, view::after, text::before, text::after, button::before, button::after { animation: none !important; transition: none !important; } }
 </style>

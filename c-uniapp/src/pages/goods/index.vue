@@ -619,5 +619,5 @@ button[disabled] { opacity: .45; }
 .checkout-btn { background: #637f51; }
 .cart-drawer { bottom: calc(100rpx + env(safe-area-inset-bottom)); }
 .cart-drawer.open { height: min(740rpx, 72vh); }
-@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+@media (prefers-reduced-motion: reduce) { view, text, image, button, scroll-view, view::before, view::after, text::before, text::after, button::before, button::after { animation: none !important; transition: none !important; } }
 </style>

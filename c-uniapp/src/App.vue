@@ -422,6 +422,10 @@ page { --business-green: #637f51; --business-bg: #f4f7ef; --business-surface: #f
 .business-page .ink-card { background: #fffef9; box-shadow: 0 4rpx 14rpx rgba(66,86,51,.04); border-color: #e5ebdf; }
 .business-page .ink-card::before { display: none; }
 .business-page { padding-bottom: calc(300rpx + env(safe-area-inset-bottom)); }
-.page-hidden *, .page-hidden *::before, .page-hidden *::after { animation-play-state: paused !important; }
+/* WXSS 不支持通配选择器，显式列出需要暂停动效的节点。 */
+.page-hidden view, .page-hidden text, .page-hidden image, .page-hidden button,
+.page-hidden view::before, .page-hidden view::after,
+.page-hidden text::before, .page-hidden text::after,
+.page-hidden button::before, .page-hidden button::after { animation-play-state: paused !important; }
 @media (prefers-reduced-motion: reduce) { page, view, text, button, image, view::before, view::after { animation: none !important; transition: none !important; } }
 </style>

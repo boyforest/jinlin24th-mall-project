@@ -1,15 +1,22 @@
 import { STORAGE_KEYS } from '@/config/app'
 
+const accountListeners = new Set<() => void>()
+export function onAccountChange(listener: () => void) { accountListeners.add(listener) }
+function notifyAccountChange() { accountListeners.forEach(listener => listener()) }
+
 export function getToken(): string {
   return (uni.getStorageSync(STORAGE_KEYS.token) as string) || ''
 }
 
 export function setToken(token: string) {
+  if (getToken() === token) return
   uni.setStorageSync(STORAGE_KEYS.token, token || '')
+  notifyAccountChange()
 }
 
 export function clearToken() {
   uni.removeStorageSync(STORAGE_KEYS.token)
+  notifyAccountChange()
 }
 
 export function getUserId(): number | null {

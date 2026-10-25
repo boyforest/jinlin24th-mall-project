@@ -10,6 +10,7 @@ export interface CheckoutItem {
 
 export const useCartStore = defineStore('cart', {
   state: () => ({
+    revision: 0,
     items: [] as CartVO[],
     loading: false,
     error: '',
@@ -38,41 +39,44 @@ export const useCartStore = defineStore('cart', {
     },
   },
   actions: {
+    clear() { const revision = this.revision + 1; this.$reset(); this.revision = revision },
     async refresh(_redirectUrl = '/pages/home/index') {
-      if (!getToken()) { this.$reset(); return false }
+      if (!getToken()) { this.clear(); return false }
       if (this.loading || this.busy) return false
-      const token = getToken()
+      const token = getToken(), revision = ++this.revision
       this.loading = true
       this.error = ''
       try {
         const items = await listCart()
-        if (getToken() !== token) { this.$reset(); return false }
+        if (getToken() !== token || revision !== this.revision) return false
         this.items = items || []
         return true
       } catch (e: any) {
-        if (getToken() !== token) this.$reset()
-        else this.error = e?.message || '养物暂时加载失败，请重试'
+        if (getToken() === token && revision === this.revision) this.error = e?.message || '养物暂时加载失败，请重试'
         return false
-      } finally { this.loading = false }
+      } finally { if (revision === this.revision) this.loading = false }
     },
     /** 两个入口共用请求锁；请求成功后才提交本地状态，失败保留可重试状态。 */
     async mutate(id: number, operation: () => Promise<void>) {
       if (this.busy || this.loading) return false
       if (!requireLogin()) return false
-      const token = getToken()
+      const token = getToken(), revision = ++this.revision
       this.pendingId = id
       try {
         await operation()
-        if (getToken() !== token) { this.$reset(); return false }
+        if (getToken() !== token || revision !== this.revision) return false
         this.error = ''
         return true
       } catch (e: any) {
-        if (getToken() === token) {
+        if (getToken() === token && revision === this.revision) {
+          // Confirm the actual server state after an uncertain write, without replaying it.
+          try { const rows = await listCart(); if (getToken() === token && revision === this.revision) this.items = rows } catch {}
+          if (getToken() !== token || revision !== this.revision) return false
           this.error = '操作未完成，请重试以确认购物车信息'
           uni.showToast({ title: e?.message || '更新失败，请重试', icon: 'none' })
-        } else this.$reset()
+        }
         return false
-      } finally { this.pendingId = null }
+      } finally { if (revision === this.revision) this.pendingId = null }
     },
     async add(productId: number, skuId: number, quantity = 1, redirectUrl = '/pages/home/index') {
       if (!requireLogin(redirectUrl)) return false

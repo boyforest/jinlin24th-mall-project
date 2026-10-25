@@ -13,30 +13,19 @@
       <button class="ink-btn-primary state-action" @click="browse">去逛逛</button>
     </view>
     <view v-else class="cart-list">
-      <view v-for="item in cart.items" :key="item.id" class="cart-row ink-card" :class="{ pending: cart.pendingId === item.id }">
-        <button class="check" :class="{ checked: item.checked !== 0 }" :disabled="cart.busy" :aria-label="`${item.checked !== 0 ? '取消选择' : '选择'}${item.productName || '商品'}`" @click="cart.setChecked(item, item.checked === 0 ? 1 : 0)">{{ item.checked !== 0 ? '✓' : '' }}</button>
-        <image v-if="item.skuImage || item.productMainImage" class="cover" :src="item.skuImage || item.productMainImage" mode="aspectFill" />
-        <view v-else class="cover placeholder">养</view>
-        <view class="meta">
-          <text class="name">{{ item.productName || '商品信息待更新' }}</text>
-          <text class="spec">{{ item.skuName || '默认规格' }}</text>
-          <text v-if="item.stock != null && item.stock < item.quantity" class="stock-warning">{{ item.stock ? `仅余 ${item.stock} 件，请调整数量` : '暂时售罄，可移出或取消勾选' }}</text>
-          <view class="price-row">
-            <text class="price ink-price">¥{{ money(item.effectivePrice ?? item.price) }}</text>
-            <view class="stepper">
-              <button class="step" :disabled="cart.busy || item.quantity <= 1" aria-label="减少数量" @click="cart.setQuantity(item, item.quantity - 1)">−</button>
-              <text class="quantity">{{ item.quantity }}</text>
-              <button class="step" :disabled="cart.busy || item.quantity >= (item.stock ?? 0)" aria-label="增加数量" @click="cart.setQuantity(item, item.quantity + 1)">+</button>
-            </view>
-          </view>
-          <view class="item-bottom"><text class="feedback">{{ cart.pendingId === item.id ? '正在更新…' : '' }}</text><button class="remove" :disabled="cart.busy" @click="cart.remove(item.id)">移出</button></view>
-        </view>
-      </view>
+      <CartLineItem :compact="compact" v-for="item in cart.items" :key="item.id"
+        :name="item.productName || '商品信息待更新'" :spec="item.skuName || '默认规格'"
+        :image="item.skuImage || item.productMainImage" :price="money(item.effectivePrice ?? item.price)"
+        :quantity="item.quantity" :checked="item.checked !== 0" :busy="cart.busy" :pending="cart.pendingId === item.id"
+        :can-increase="item.quantity < (item.stock ?? 0)"
+        :warning="item.stock != null && item.stock < item.quantity ? (item.stock ? `仅余 ${item.stock} 件，请调整数量` : '暂时售罄，可移出或取消勾选') : ''"
+        @check="cart.setChecked(item, $event)" @quantity="cart.setQuantity(item, $event)" @remove="cart.remove(item.id)" />
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
+import CartLineItem from './CartLineItem.vue'
 import { useCartStore } from '@/stores/cart'
 import { money } from '@/utils/auth'
 defineProps<{ compact?: boolean }>()
@@ -44,7 +33,7 @@ const emit = defineEmits<{ (event: 'browse'): void }>()
 const cart = useCartStore()
 function browse() {
   emit('browse')
-  uni.switchTab({ url: '/pages/home/index' })
+  uni.navigateTo({ url: '/pages/goods/index' })
 }
 </script>
 

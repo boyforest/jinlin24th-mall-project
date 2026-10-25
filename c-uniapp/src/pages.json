@@ -48,12 +48,25 @@
       "style": {
         "navigationBarTitleText": "登录"
       }
+    },
+    {
+      "path": "pages/goods/index",
+      "style": {
+        "navigationBarTitleText": "商品选购",
+        "enablePullDownRefresh": true
+      }
+    },
+    {
+      "path": "pages/coffee/index",
+      "style": {
+        "navigationBarTitleText": "咖啡点单"
+      }
     }
   ],
   "tabBar": {
     "color": "#7B8378",
-    "selectedColor": "#6F9F58",
-    "backgroundColor": "#FDFDFB",
+    "selectedColor": "#637F51",
+    "backgroundColor": "#FFFEF9",
     "borderStyle": "white",
     "list": [
       {
@@ -85,7 +98,7 @@
   "globalStyle": {
     "navigationBarTextStyle": "black",
     "navigationBarTitleText": "金霖二十四养",
-    "navigationBarBackgroundColor": "#F7F8FA",
-    "backgroundColor": "#F7F8FA"
+    "navigationBarBackgroundColor": "#F4F7EF",
+    "backgroundColor": "#F4F7EF"
   }
 }

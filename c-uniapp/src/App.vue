@@ -411,4 +411,17 @@ button::after {
   0%, 100% { box-shadow: 0 0 8rpx rgba(111, 159, 88, 0.04); }
   50%      { box-shadow: 0 0 28rpx rgba(111, 159, 88, 0.14); }
 }
+
+/* Shared phase A surfaces, with an opaque fallback on unsupported platforms. */
+page { --business-green: #637f51; --business-bg: #f4f7ef; --business-surface: #fffef9; --business-price: #a65e4e; --business-radius: 24rpx; --business-motion: 210ms; background: #f4f7ef; color: #2e382c; }
+.ink-price { color: #a65e4e; white-space: nowrap; }
+.ink-btn-primary { background: #637f51; }
+.ink-empty-title { font-family: inherit; font-size: 34rpx; letter-spacing: 1rpx; }
+.business-page, .home-page { background: repeating-linear-gradient(0deg, transparent, transparent 3rpx, rgba(130,155,111,.035) 3rpx, rgba(130,155,111,.035) 4rpx), radial-gradient(ellipse at 80% 5%, rgba(220,233,207,.45), transparent 60%), #f4f7ef; }
+.business-page::before, .home-page::before { opacity: .3; }
+.business-page .ink-card { background: #fffef9; box-shadow: 0 4rpx 14rpx rgba(66,86,51,.04); border-color: #e5ebdf; }
+.business-page .ink-card::before { display: none; }
+.business-page { padding-bottom: calc(300rpx + env(safe-area-inset-bottom)); }
+.page-hidden *, .page-hidden *::before, .page-hidden *::after { animation-play-state: paused !important; }
+@media (prefers-reduced-motion: reduce) { page, view, text, button, image, view::before, view::after { animation: none !important; transition: none !important; } }
 </style>

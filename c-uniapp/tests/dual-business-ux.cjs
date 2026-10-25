@@ -69,6 +69,8 @@ async function scenario(auth = true) {
     if (p.startsWith('/user/cart/')) { const row = state.goods.find(row => row.id === Number(p.split('/').pop())); Object.assign(row, body); return reply(row) }
     if (p === '/user/business-order/list') {
       const query = Object.fromEntries(url.searchParams); state.orderRequests.push(query)
+      // Match the real controller: empty optional filters are invalid, not defaults.
+      if (['businessType', 'statusGroup', 'status'].some(key => key in query && !query[key])) return reply(null, 400, 40001, '订单筛选或分页参数错误')
       if (query.status === 'PENDING_PAY' || query.statusGroup === 'IN_PROGRESS') await delay(state.orderDelay)
       if (query.businessType === 'COFFEE') return reply({ records: [], total: 0, size: 20, current: Number(query.page), pages: 0 })
       const current = Number(query.page), filtered = state.orders.filter(row => !query.status || row.status === query.status)

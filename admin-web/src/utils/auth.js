@@ -3,6 +3,8 @@ export const USERNAME_KEY = 'jinlin_admin_username'
 export const ADMIN_ID_KEY = 'jinlin_admin_id'
 export const REAL_NAME_KEY = 'jinlin_admin_real_name'
 export const ROLES_KEY = 'jinlin_admin_roles'
+export const CONTEXT_KEY = 'jinlin_admin_context'
+export const PASSWORD_KEY = 'jinlin_admin_must_change_pwd'
 export const PERMISSIONS_KEY = 'jinlin_admin_permissions'
 
 /**
@@ -16,6 +18,8 @@ export function getToken() {
  * 保存登录态。
  */
 export function saveAuth(data) {
+  localStorage.removeItem(CONTEXT_KEY)
+  localStorage.setItem(PASSWORD_KEY, data.mustChangePwd ? '1' : '0')
   localStorage.setItem(TOKEN_KEY, data.token)
   localStorage.setItem(USERNAME_KEY, data.username)
   localStorage.setItem(ADMIN_ID_KEY, data.adminId || '')
@@ -28,6 +32,8 @@ export function saveAuth(data) {
  * 清空登录态。
  */
 export function clearAuth() {
+  localStorage.removeItem(CONTEXT_KEY)
+  localStorage.removeItem(PASSWORD_KEY)
   localStorage.removeItem(TOKEN_KEY)
   localStorage.removeItem(USERNAME_KEY)
   localStorage.removeItem(ADMIN_ID_KEY)
@@ -55,7 +61,7 @@ export function getRealName() {
  */
 export function getAdminId() {
   const value = localStorage.getItem(ADMIN_ID_KEY)
-  return value ? Number(value) : undefined
+  return value || undefined
 }
 
 /**
@@ -71,3 +77,7 @@ export function getRoles() {
 export function getPermissions() {
   return JSON.parse(localStorage.getItem(PERMISSIONS_KEY) || '[]')
 }
+
+// 展示缓存，路由授权始终使用本次服务端请求结果。
+export function cacheAdminContext(context) { localStorage.setItem(CONTEXT_KEY, JSON.stringify(context)) }
+export function mustChangePassword() { return localStorage.getItem(PASSWORD_KEY) === "1" }

@@ -68,3 +68,9 @@ VITE_API_TARGET=http://localhost:7878 npm run dev
 - `GET /admin/distribution/export`
 - `GET /admin/distribution/config`
 - `PUT /admin/distribution/config`
+
+## 咖啡菜单（阶段 A）
+
+`/coffee-menu` 先请求 `/admin/coffee/context`，有 `coffee:menu:read` 才显示入口和数据，有 `coffee:menu:write` 才允许维护。后端仍必须独立校验可信平台管理员权限。页面支持首个门店、分类、饮品和规格维护，价格以整数分填写，图片复用 `/admin/upload/image`；不提供咖啡下单工作台、支付开关或物理删除。
+
+单元测试纳入 `npm test`。浏览器权限、首店创建与规格保存回归位于小程序目录的 `npm run test:dual-business-ux`；启动方式和真实联调限制见 [前端验证记录](../c-uniapp/DUAL_BUSINESS_VERIFICATION.md)。

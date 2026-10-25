@@ -66,11 +66,14 @@ async function scenario(auth = true) {
       return reply({ id: 99, orderNo: 'PREVIEW-99', totalAmount: state.createPayAmount, payAmount: state.createPayAmount, status: 0, items: [] })
     }
     if (pathname.endsWith('/pay')) { state.payRequests++; return reply(null, 503) }
-    if (pathname === '/user/order/list') {
+    if (pathname === '/user/coffee/store') return reply(null, 404)
+    if (pathname === '/user/business-order/list') {
       if (state.failOrders) return reply(null, 503)
-      const status = url.searchParams.get('status')
-      if (status === '0') await new Promise(resolve => setTimeout(resolve, 350))
-      return reply({ records: state.emptyOrders ? [] : [{ id: Number(status || 99), orderNo: `订单-${status || '全部'}`, status: Number(status || 0), payAmount: 0, totalAmount: 69.9, items: [{ skuId: 11, productName: product.name, quantity: 1 }] }], total: 1 })
+      const status = url.searchParams.get('status') || 'PENDING_PAY'
+      if (status === 'PENDING_PAY') await new Promise(resolve => setTimeout(resolve, 350))
+      return reply({ records: state.emptyOrders ? [] : [{ businessType: 'GOODS', id: '99', orderNo: `订单-${status}`, storeId: null, storeName: '二十四养', fulfillmentType: 'DELIVERY', status, createdAt: '2026-10-24T12:00:00+08:00', itemCount: 1,
+        summaryItems: [{ productId: '1', skuId: '11', productName: product.name, specName: '日常装', imageUrl: null, unitPriceCent: 6990, quantity: 1, lineTotalCent: 6990 }],
+        amounts: { totalAmountCent: 6990, discountAmountCent: 0, freightAmountCent: 0, payableAmountCent: 0, paidAmountCent: null }, pickupCode: null, pickupDate: null }], total: state.emptyOrders ? 0 : 1, current: 1, size: 20, pages: state.emptyOrders ? 0 : 1 })
     }
     if (pathname.startsWith('/user/order/')) return reply({ id: 99, orderNo: 'PREVIEW-99', status: 0, payAmount: 119.8, totalAmount: 119.8, items: [] })
     if (pathname.endsWith('/login')) return reply({ token: 'preview-authenticated', userId: 1 })
@@ -104,23 +107,23 @@ async function openCheckout(page) {
 ;(async () => {
   browser = await chromium.launch({ channel: process.env.UX_BROWSER_CHANNEL || 'chrome', headless: true })
   await check('游客首页刷新无登录跳转和购物车请求', async ({ page, state }) => {
-    await go(page, '/pages/home/index'); await page.waitForSelector('.goods-card'); await page.reload(); await page.waitForSelector('.goods-card')
+    await go(page, '/pages/goods/index'); await page.waitForSelector('.goods-card'); await page.reload(); await page.waitForSelector('.goods-card')
     assert(!page.url().includes('/login')); assert.equal(state.cartReads, 0)
   }, false)
   await check('加购引导登录后保留首页搜索和滚动位置', async ({ page }) => {
-    await go(page, '/pages/home/index'); await page.waitForSelector('.goods-card')
+    await go(page, '/pages/goods/index'); await page.waitForSelector('.goods-card')
     await page.locator('.search-input input').fill('秋养')
     await page.evaluate(() => window.scrollTo(0, 420))
     await page.locator('.add-btn').click()
     await page.waitForURL('**/pages/login/index**')
     await page.evaluate(() => { window.uni.login = async () => ({ code: 'mock-weixin-code' }) })
     await page.locator('uni-button').filter({ hasText: '微信一键登录' }).click()
-    await page.waitForURL('**/pages/home/index')
+    await page.waitForURL('**/pages/goods/index')
     assert.equal(await page.locator('.search-input input').inputValue(), '秋养')
     assert(await page.evaluate(() => window.scrollY) > 0)
   }, false)
   await check('过期登录的首页购物车同步不强制跳走', async ({ page, state }) => {
-    state.expired = true; await go(page, '/pages/home/index'); await page.waitForSelector('.goods-card')
+    state.expired = true; await go(page, '/pages/goods/index'); await page.waitForSelector('.goods-card')
     await page.waitForTimeout(250); assert(!page.url().includes('/login'))
     assert.equal(await page.evaluate(() => localStorage.getItem('jl_user_token')), null)
   })
@@ -168,7 +171,7 @@ async function openCheckout(page) {
   await check('两个购物车入口共享勾选数量与结算金额', async ({ page }) => {
     await go(page, '/pages/cart/index'); await page.waitForSelector('.cart-row')
     await page.locator('[aria-label="增加数量"]').first().click(); await page.waitForFunction(() => document.querySelector('.sum')?.textContent.includes('179.70'))
-    await page.evaluate(() => window.uni.switchTab({ url: '/pages/home/index' })); await page.waitForSelector('.floating-cart:visible')
+    await page.evaluate(() => window.uni.navigateTo({ url: '/pages/goods/index' })); await page.waitForSelector('.floating-cart:visible')
     await page.locator('.floating-cart').click(); await page.locator('.cart-drawer .cart-row').first().waitFor()
     assert.equal(await page.locator('.cart-drawer .quantity').first().innerText(), '3')
     assert((await page.locator('.basket-sub').innerText()).includes('179.70'))
@@ -222,13 +225,15 @@ async function openCheckout(page) {
     state.failOrders = true; await go(page, '/pages/orders/index'); await page.getByText('清单暂时未能加载', { exact: true }).waitFor(); await shot(page, 'shopping-orders-error')
     state.failOrders = false; await page.locator('.state-action').click(); await page.locator('.order-card').waitFor()
     assert((await page.locator('.amount').innerText()).includes('0.00'))
+    await page.getByRole('tab', { name: '商品订单', exact: true }).click(); await page.locator('.order-card').waitFor()
     state.emptyOrders = true; await page.locator('.tab').filter({ hasText: '待发货' }).click(); await page.getByText('暂无此状态的订单', { exact: true }).waitFor()
     await page.locator('.state-action').click(); await page.getByText('还没有养物清单', { exact: true }).waitFor()
   })
   await check('快速切换订单筛选时旧响应不能覆盖新结果', async ({ page }) => {
     await go(page, '/pages/orders/index'); await page.locator('.order-card').waitFor()
-    await page.locator('.tab').filter({ hasText: '待支付' }).click(); await page.locator('.tab').filter({ hasText: '待发货' }).click()
-    await page.waitForTimeout(500); assert.equal(await page.locator('.order-no').innerText(), '订单-10')
+    await page.getByRole('tab', { name: '商品订单', exact: true }).click(); await page.locator('.order-card').waitFor()
+    await page.locator('.tab').filter({ hasText: '待付款' }).click(); await page.locator('.tab').filter({ hasText: '待发货' }).click()
+    await page.waitForTimeout(500); assert.equal(await page.locator('.order-no').innerText(), '订单-PENDING_SHIP')
   })
   await check('报价期间库存减少时显示原因并禁止提交', async ({ page, state }) => {
     await go(page, '/pages/cart/index'); await page.waitForSelector('.cart-row')

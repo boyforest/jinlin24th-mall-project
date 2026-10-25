@@ -8,7 +8,8 @@
 #   DB_URL / DB_USERNAME / DB_PASSWORD
 #   REDIS_HOST / REDIS_PORT / REDIS_PASSWORD / REDIS_DATABASE
 #   JWT_SECRET / CORS_ALLOWED_ORIGINS / APP_PUBLIC_URL
-#   WX_MINIAPP_* / WX_PAY_*
+#   WX_MINIAPP_* / WX_PAY_* / COFFEE_PAY_* / COFFEE_READY_*
+#   COFFEE_ORDERING_ENABLED 默认 false；完整咖啡配置继承 application.yml
 #
 # 安全默认值（关闭 Swagger、关闭 SQL 日志）同时写在基座 application.yml 里，
 # 即使本文件缺失或 profile 未生效也不会退化为"生产开调试"。

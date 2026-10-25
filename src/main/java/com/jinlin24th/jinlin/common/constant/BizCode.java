@@ -55,6 +55,15 @@ public enum BizCode {
     DISTRIBUTION_NOT_FOUND(70404, HttpStatus.NOT_FOUND, "分销记录不存在"),
     CART_RECORD_NOT_FOUND(80404, HttpStatus.NOT_FOUND, "购物车记录不存在"),
 
+    ADMIN_ACCOUNT_CONFLICT(91409, HttpStatus.CONFLICT, "账号或授权冲突"),
+    ADMIN_LAST_SUPER(91410, HttpStatus.CONFLICT, "不能停用或降级最后一个启用超管"),
+    COFFEE_ORDER_NOT_FOUND(92404, HttpStatus.NOT_FOUND, "咖啡订单不存在"),
+    COFFEE_ORDER_CONFLICT(92409, HttpStatus.CONFLICT, "咖啡订单状态或版本冲突"),
+    COFFEE_REQUEST_CONFLICT(92410, HttpStatus.CONFLICT, "请求键已用于其他参数"),
+    COFFEE_MENU_CONFLICT(92411, HttpStatus.CONFLICT, "咖啡菜单已更新"),
+    COFFEE_CHANNEL_INVALID(92412, HttpStatus.BAD_REQUEST, "咖啡渠道数据校验失败"),
+    COFFEE_CHANNEL_UNAVAILABLE(92503, 503, "咖啡支付渠道暂不可用"),
+
     COFFEE_STORE_NOT_FOUND(90401, HttpStatus.NOT_FOUND, "咖啡门店未配置或未开放"),
     COFFEE_SKU_NOT_FOUND(90402, HttpStatus.NOT_FOUND, "咖啡规格不存在"),
     COFFEE_SKU_UNAVAILABLE(90403, HttpStatus.CONFLICT, "咖啡规格当前不可售"),

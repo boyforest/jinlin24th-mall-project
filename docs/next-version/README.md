@@ -53,3 +53,7 @@ $stop-that-shit change -- 阅读 docs/next-version/README.md、coffee-workbench-
 ```text
 $stop-that-shit change -- 阅读 docs/next-version/README.md、coffee-workbench-rbac-discussion.md、implementation-contract.md、backend-implementation.md 和 miniprogram-regression.md，实施本轮后端。在独立工作目录和 uniapp-coffee-workbench-backend 分支工作，只修改后端、SQL、必要配置/脚本及后端文档。完成服务端 RBAC、超管账号管理与咖啡门店授权、独立咖啡交易、人工接单/拒单、整单制作取餐和全额退款、流水及制作完成提醒衔接。保留商品交易和商户配置，不改前端，不提前开放线上咖啡下单，不实现未确认的自动拒单、顾客页面、团购核销等功能。按共用契约交付，必要调整先更新并说明；补齐针对性测试、存量升级验证和部署说明，不部署生产。
 ```
+
+## 后端实施产物（2026-10-26）
+
+后端分支 `uniapp-coffee-workbench-backend` 的接口沿用共用契约；专项约束和新增错误码见契约补充。实施验证见 [backend-verification.md](backend-verification.md)，迁移、配置与恢复交接见 [backend-deployment.md](backend-deployment.md)。点单仍默认关闭，真实商户及小程序真机交易验收尚未进行。

@@ -76,6 +76,8 @@ public class OperationLogInterceptor implements HandlerInterceptor {
         return request.getRequestURI().startsWith("/admin/")
             && Arrays.asList("POST", "PUT", "DELETE").contains(request.getMethod().toUpperCase())
             && !request.getRequestURI().equals("/admin/login")
+            // 账号操作在业务事务内同步审计，不依赖 MQ，避免重复写入。
+            && !request.getRequestURI().startsWith("/admin/accounts")
             && !request.getRequestURI().startsWith("/admin/password");
     }
 
@@ -91,6 +93,7 @@ public class OperationLogInterceptor implements HandlerInterceptor {
         message.setRequestMethod(request.getMethod());
         message.setRequestUri(request.getRequestURI());
         message.setRequestParams(JSON.toJSONString(request.getParameterMap().entrySet().stream()
+            .filter(entry -> !entry.getKey().toLowerCase(java.util.Locale.ROOT).matches(".*(password|token|secret|authorization|hash).*"))
             .collect(Collectors.toMap(Map.Entry::getKey, entry -> Arrays.asList(entry.getValue())))));
         message.setIp(clientIp(request));
         message.setStatus(ex == null && response.getStatus() < 400 ? 1 : 0);

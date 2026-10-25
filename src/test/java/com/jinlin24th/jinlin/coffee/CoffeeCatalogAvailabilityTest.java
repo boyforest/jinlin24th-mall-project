@@ -18,7 +18,7 @@ class CoffeeCatalogAvailabilityTest extends CoffeeDatabaseTestSupport {
         assertTrue(store.getCapabilities().getAddToCart());
         assertFalse(store.getCapabilities().getPlaceOrder());
         assertFalse(store.getCapabilities().getPayOnline());
-        assertEquals("PAYMENT_NOT_READY", store.getOrderUnavailableReason());
+        assertEquals("ORDERING_DISABLED", store.getOrderUnavailableReason());
         CoffeeMenuVO menu = catalog.menu(Long.valueOf(storeId));
         assertEquals(2, menu.getProducts().get(0).getSkus().size());
         assertFalse(menu.getProducts().get(0).getSkus().get(1).getAvailable());

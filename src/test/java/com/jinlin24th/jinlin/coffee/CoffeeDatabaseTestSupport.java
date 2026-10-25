@@ -49,6 +49,15 @@ abstract class CoffeeDatabaseTestSupport {
             jdbc.update("DELETE FROM " + table);
         }
         reset(admins);
+        when(admins.getById(anyLong())).thenAnswer(invocation -> {
+            var admin = new com.jinlin24th.jinlin.pojo.entity.SysAdmin();
+            admin.setId(invocation.getArgument(0));
+            admin.setUsername(ADMIN.equals(admin.getId()) ? "admin" : "staff");
+            admin.setStatus(1);
+            return admin;
+        });
+        when(admins.getPermissionCodes(ADMIN)).thenReturn(
+                com.jinlin24th.jinlin.common.auth.AdminPermissions.ROLES.get("SUPER_ADMIN"));
         when(admins.getRoleCodes(ADMIN)).thenReturn(List.of("SUPER_ADMIN"));
         storeId = catalog.saveStore(ADMIN, null, storeDTO()).getId();
         CoffeeCategorySaveDTO category = new CoffeeCategorySaveDTO();

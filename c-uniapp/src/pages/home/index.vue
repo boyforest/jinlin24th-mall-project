@@ -12,17 +12,20 @@
         <text class="notice-text">{{ notices[0].title }}</text>
       </view>
 
-      <swiper v-if="banners.length" class="activity-swiper" circular :autoplay="visible" interval="4200">
-        <swiper-item v-for="activity in banners" :key="activity.id">
-          <view class="activity-card" @click="openActivity(activity)">
-            <image v-if="activity.imageUrl" class="activity-image" :src="activity.imageUrl" mode="aspectFill" />
-            <view class="activity-copy">
-              <text class="activity-title ink-title">{{ activity.title }}</text>
-              <text v-if="activity.subtitle" class="activity-sub">{{ activity.subtitle }}</text>
-            </view>
+      <view v-if="banners.length" class="activity-card" @click="openActivity(banners[0])">
+        <image v-if="banners[0].imageUrl" class="activity-image" :src="banners[0].imageUrl" mode="aspectFill" />
+        <view class="activity-copy"><text class="activity-title ink-title">{{ banners[0].title }}</text><text v-if="banners[0].subtitle" class="activity-sub">{{ banners[0].subtitle }}</text></view>
+      </view>
+      <view v-if="recommendations.length" class="recommendations">
+        <text class="recommend-heading">推荐养护</text>
+        <view class="recommend-grid">
+          <view v-for="activity in recommendations" :key="activity.id" class="recommend-item" @click="openActivity(activity)">
+            <image v-if="activity.imageUrl" class="recommend-image" :src="activity.imageUrl" mode="aspectFill" />
+            <text class="recommend-title">{{ activity.title }}</text>
+            <text v-if="activity.subtitle" class="recommend-reason">{{ activity.subtitle }}</text>
           </view>
-        </swiper-item>
-      </swiper>
+        </view>
+      </view>
 
     </view>
     <view v-if="popupVisible && loginPopup" class="popup-mask" @click="popupVisible = false">
@@ -49,26 +52,19 @@ import { getLocalDateTime } from '@/utils/solarTerms'
 const visible = ref(true)
 const localNow = ref(getLocalDateTime())
 const banners = ref<MarketingActivityVO[]>([])
+const recommendations = ref<MarketingActivityVO[]>([])
 const notices = ref<MarketingActivityVO[]>([])
 const loginPopup = ref<MarketingActivityVO | null>(null)
 const popupVisible = ref(false)
 function go(business: string) { uni.navigateTo({ url: `/pages/${business}/index` }) }
 async function loadActivities() {
-  try {
-    const [bannerData, noticeData, popupData] = await Promise.all([
-      listMarketingActivities('home_banner'),
-      listMarketingActivities('home_notice'),
-      listMarketingActivities('login_popup'),
-    ])
-    banners.value = bannerData || []
-    notices.value = noticeData || []
-    const popups = (popupData || []) as MarketingActivityVO[]
-    loginPopup.value = popups.length > 0 ? popups[0] : null
-  } catch {
-    banners.value = []
-    notices.value = []
-    loginPopup.value = null
-  }
+  // 各位置独立更新；接口已按有效期与 sort DESC / id DESC 排序。
+  await Promise.allSettled([
+    listMarketingActivities('home_banner').then(data => { banners.value = (data || []).slice(0, 1) }).catch(() => { banners.value = [] }),
+    listMarketingActivities('home_recommend').then(data => { recommendations.value = (data || []).slice(0, 6) }).catch(() => { recommendations.value = [] }),
+    listMarketingActivities('home_notice').then(data => { notices.value = data || [] }).catch(() => { notices.value = [] }),
+    listMarketingActivities('login_popup').then(data => { loginPopup.value = data?.[0] || null }).catch(() => { loginPopup.value = null }),
+  ])
 }
 
 function openActivity(activity: MarketingActivityVO) {
@@ -81,7 +77,10 @@ function openActivity(activity: MarketingActivityVO) {
     return
   }
   if (activity.linkType === 'page' && activity.linkValue) {
-    uni.navigateTo({ url: activity.linkValue })
+    const url = activity.linkValue
+    const path = url.split('?')[0]
+    if (['/pages/home/index', '/pages/cart/index', '/pages/orders/index', '/pages/my/index'].includes(path)) uni.switchTab({ url: path })
+    else uni.navigateTo({ url })
   }
 }
 
@@ -134,11 +133,8 @@ onPullDownRefresh(async () => { await loadActivities(); uni.stopPullDownRefresh(
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.activity-swiper {
-  height: 176rpx;
-  margin-bottom: 24rpx;
-}
 .activity-card {
+  margin-bottom: 26rpx;
   position: relative;
   height: 176rpx;
   overflow: hidden;
@@ -175,6 +171,12 @@ onPullDownRefresh(async () => { await loadActivities(); uni.stopPullDownRefresh(
   color: #6d7c67;
   font-size: 24rpx;
 }
+.recommend-heading { display: block; font-size: 30rpx; color: #314d35; margin: 28rpx 0 20rpx; }
+.recommend-grid { display: flex; flex-wrap: wrap; margin: 0 -10rpx; }
+.recommend-item { width: calc(50% - 20rpx); margin: 0 10rpx 28rpx; display: flex; flex-direction: column; }
+.recommend-image { width: 100%; height: 240rpx; border-radius: 14rpx; background: #e6eddc; }
+.recommend-title { color: #2e382c; font-size: 28rpx; margin-top: 14rpx; line-height: 1.5; }
+.recommend-reason { color: #65755d; font-size: 23rpx; margin-top: 6rpx; line-height: 1.6; }
 /* 登录弹窗 */
 .popup-mask {
   position: fixed;

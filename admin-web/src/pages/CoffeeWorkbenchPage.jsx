@@ -84,7 +84,7 @@ export default function CoffeeWorkbenchPage() {
               <Button type="link" onClick={() => setDetailId(order.id)}>详情与操作记录</Button>
             </article>)}
             <p className="coffee-column-count">已显示 {column.records.length} / {column.total}</p>
-            {column.current < column.pages && <Button block loading={loading} onClick={() => { loadedPages.current[status] = column.current + 1; load() }}>继续加载（剩余 {Math.max(0, column.total - column.records.length)}）</Button>}
+            {column.current < column.pages && <Button block loading={loading} onClick={() => { loadedPages.current[status] = column.current + 1; connected.current = false; load() }}>继续加载（剩余 {Math.max(0, column.total - column.records.length)}）</Button>}
           </section>
         })}
       </div>

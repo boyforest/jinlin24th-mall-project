@@ -57,3 +57,7 @@ $stop-that-shit change -- 阅读 docs/next-version/README.md、coffee-workbench-
 ## 后端实施产物（2026-10-26）
 
 后端分支 `uniapp-coffee-workbench-backend` 的接口沿用共用契约；专项约束和新增错误码见契约补充。实施验证见 [backend-verification.md](backend-verification.md)，迁移、配置与恢复交接见 [backend-deployment.md](backend-deployment.md)。点单仍默认关闭，真实商户及小程序真机交易验收尚未进行。
+
+## 联合验收记录（2026-10-26）
+
+见[初次验收](acceptance-20261026.md)及[最终复验与代码交付](acceptance-final-20261026.md)。代码合并检查通过；原生、真机与真实微信交易验收尚未完成，不表示已部署或已开放咖啡线上下单。

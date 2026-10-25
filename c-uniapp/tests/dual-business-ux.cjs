@@ -228,7 +228,7 @@ async function adminCheck(name, options, fn) {
   })
   await check('版本冲突重新读取服务端新数量，禁止旧请求覆盖', async ({ page, state }) => {
     await coffeeCart(page); state.conflict = true; await page.locator('[aria-label="增加数量"]').first().click(); await waitQuantity(page, 5)
-    assert((await page.locator('body').innerText()).includes('重新同步')); assert.equal(state.writes, 1)
+    await page.getByText('购物篮已发生变化，已重新同步，请确认后再操作', { exact: true }).waitFor(); assert.equal(state.writes, 1)
   })
   await check('POST 超时后只读回结果，不自动重放或提示假成功', async ({ page, state }) => {
     state.lostPost = true; await openSpec(page); await page.locator('.sheet-foot uni-button').click(); await page.waitForFunction(() => document.querySelector('.basket-title')?.textContent.includes('7'), null, { timeout: 22000 })

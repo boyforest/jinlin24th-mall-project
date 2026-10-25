@@ -110,7 +110,7 @@ public class CoffeePaymentService {
                                         CoffeeRefund::getRefundNo,
                                         fact.path("out_refund_no").asText()));
         if (r == null) throw BizException.of(BizCode.COFFEE_CHANNEL_INVALID);
-        orders.refundFact(r.getOrderId(), fact);
+        orders.refundNotificationFact(r.getOrderId(), fact);
     }
 
     public void reconcile(Long id) {

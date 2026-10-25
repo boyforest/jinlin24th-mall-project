@@ -44,6 +44,7 @@ async function fixture(role = 'COFFEE_ADMIN', logged = true) {
       const [, , , , id, action] = p.split('/'), row = state.rows.find(o => o.id === id)
       if(!row) return reply(null,404,'订单不可见')
       if(method === 'GET') return reply(row)
+      if(state.validationError) { state.validationError = false; return route.fulfill({ status:400,contentType:'application/json',body:JSON.stringify({code:40001,message:'原因参数校验失败',data:null}) }) }
       if(state.conflict) { state.conflict = false; row.version++; row.fulfillmentStatus = 'WAIT_MAKE'; row.allowedActions = actionMap.WAIT_MAKE; return reply(null,409,'另一位店员已经接单') }
       assert.equal(body.expectedVersion,row.version)
       if(['refund','reject'].includes(action)) {
@@ -150,6 +151,43 @@ const ok = page => page.locator('.ant-modal:visible').getByRole('button',{ name:
   await check('401撤销会话退出，403保持无权限提示',async ({page,state}) => {
     state.contextError=403; await page.goto(`${origin}/coffee/workbench`); await page.getByText('无法取得后台授权',{exact:true}).waitFor(); assert(!page.url().includes('/login'))
     state.contextError=401; await page.reload(); await page.waitForURL('**/login?redirect=**'); assert.equal(await page.evaluate(()=>localStorage.getItem('jinlin_admin_token')),null)
+  })
+  await check('拒单完整原因含分类分隔符最多255字符，超长就地提示且不提交',async ({page,state}) => {
+    await board(page); await card(page).getByRole('button',{name:'无法接单'}).click()
+    await page.locator('#reasonType').click(); await page.locator('.ant-select-item-option-content').getByText('缺货',{exact:true}).click()
+    const reason=page.locator('#reason'); assert.equal(await reason.getAttribute('maxlength'),'255')
+    await reason.fill('因'.repeat(253)); await ok(page).click()
+    await page.getByText('完整原因最多255字符（含拒单分类和分隔符）',{exact:true}).waitFor()
+    assert.equal(state.calls.filter(c=>c.method==='POST').length,0); assert.equal(await reason.inputValue(),'因'.repeat(253))
+    await reason.fill('因'.repeat(252))
+    await page.locator('#reasonType').click(); await page.locator('.ant-select-item-option-content').getByText('暂停营业',{exact:true}).click()
+    await ok(page).click(); await page.getByText('完整原因最多255字符（含拒单分类和分隔符）',{exact:true}).waitFor()
+    assert.equal(state.calls.filter(c=>c.method==='POST').length,0)
+    await page.locator('#reasonType').click(); await page.locator('.ant-select-item-option-content').getByText('缺货',{exact:true}).click()
+    await ok(page).click(); await page.locator('.ant-modal').waitFor({state:'hidden'})
+    const submitted=state.calls.filter(c=>c.method==='POST')[0].body.reason
+    assert.equal(submitted,'缺货：'+'因'.repeat(252)); assert.equal(submitted.length,255)
+  })
+  await check('退款参数400保留弹窗及255字符输入，修正后由店员重新提交',async ({page,state}) => {
+    state.validationError=true; await page.goto(`${origin}/coffee/orders`)
+    await page.getByRole('button',{name:'整单全额退款',exact:true}).first().click()
+    const reason=page.locator('#reason'); assert.equal(await reason.getAttribute('maxlength'),'255')
+    await reason.fill('因'.repeat(255)); await ok(page).click()
+    await page.locator('.ant-modal').getByText('原因参数校验失败',{exact:true}).waitFor()
+    assert.equal(await reason.inputValue(),'因'.repeat(255)); assert.equal(state.calls.filter(c=>c.method==='POST').length,1)
+    assert(!state.calls.some(c=>c.method==='GET' && /\/orders\/\d+$/.test(c.path)))
+    await reason.fill('修正后的退款原因'); await ok(page).click(); await page.locator('.ant-modal').waitFor({state:'hidden'})
+    const posts=state.calls.filter(c=>c.method==='POST'); assert.equal(posts.length,2); assert.equal(posts[0].body.reason.length,255); assert.equal(posts[1].body.reason,'修正后的退款原因')
+  })
+  await check('拒单400保留分类和输入，409则关闭旧弹窗并读取最新订单',async ({page,state}) => {
+    state.validationError=true; await board(page); await card(page).getByRole('button',{name:'无法接单'}).click()
+    await page.locator('#reasonType').click(); await page.locator('.ant-select-item-option-content').getByText('缺货',{exact:true}).click()
+    await page.locator('#reason').fill('牛奶用完'); await ok(page).click()
+    await page.locator('.ant-modal').getByText('原因参数校验失败',{exact:true}).waitFor()
+    assert.equal(await page.locator('#reason').inputValue(),'牛奶用完'); await page.locator('.ant-modal').getByText('缺货',{exact:true}).waitFor()
+    state.conflict=true; await ok(page).click(); await page.locator('.ant-modal').waitFor({state:'hidden'})
+    await card(page).getByRole('button',{name:'开始制作',exact:true}).waitFor()
+    assert.equal(state.calls.filter(c=>c.method==='POST').length,2); assert(state.calls.some(c=>c.method==='GET' && c.path.endsWith(state.rows[0].id)))
   })
   console.log(`Coffee workbench UX: ${passed} scenarios passed`)
 })().catch(e=>{console.error(e);process.exitCode=1}).finally(async()=>{await browser?.close()})

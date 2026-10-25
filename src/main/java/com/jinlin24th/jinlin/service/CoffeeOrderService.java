@@ -140,7 +140,8 @@ public class CoffeeOrderService {
         sequence.setNextNumber(Math.addExact(number, 1));
         sequences.updateById(sequence);
         CoffeeOrder order = new CoffeeOrder();
-        order.setOrderNo("CF" + UUID.randomUUID().toString().replace("-", ""));
+        // 完整 UUID 的 32 位十六进制表示，在创建时持久化并用于所有支付重试。
+        order.setOrderNo(UUID.randomUUID().toString().replace("-", ""));
         order.setUserId(userId);
         order.setStoreId(storeId);
         order.setStoreName(store.getName());
@@ -536,6 +537,9 @@ public class CoffeeOrderService {
                 || !o.getExpiresAt().isAfter(CoffeeTime.now())
                 || p.getCloseRequested()) conflict();
         merchant(p);
+        // 历史映射保持不变；不向渠道提交不符合协议的旧单号，也不临时换号。
+        if (p.getMerchantOrderNo() == null
+                || !p.getMerchantOrderNo().matches("[A-Za-z0-9_\\-|*]{6,32}")) invalid();
         p.setInitiated(true);
         p.setNextQueryAt(CoffeeTime.now().plusSeconds(30));
         payments.updateById(p);
@@ -667,6 +671,15 @@ public class CoffeeOrderService {
 
     @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public void refundFact(Long id, JsonNode fact) {
+        applyRefundFact(id, fact, false);
+    }
+
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
+    public void refundNotificationFact(Long id, JsonNode fact) {
+        applyRefundFact(id, fact, true);
+    }
+
+    private void applyRefundFact(Long id, JsonNode fact, boolean notification) {
         CoffeeOrder o = load(id, true);
         CoffeeRefund r = refund(id);
         CoffeePayment p = payment(id);
@@ -683,11 +696,10 @@ public class CoffeeOrderService {
                 || !a.path("total").isIntegralNumber()
                 || !a.path("total").canConvertToLong()
                 || a.path("total").asLong() != p.getAmountCent()
-                || !"CNY".equals(a.path("currency").asText())) invalid();
-        String state =
-                fact.has("refund_status")
-                        ? fact.path("refund_status").asText()
-                        : fact.path("status").asText();
+                // 官方退款通知不含 currency；查询/申请应答仍必须提供，通知提供时也校验。
+                || ((!notification || a.has("currency"))
+                        && !"CNY".equals(a.path("currency").asText()))) invalid();
+        String state = fact.path(notification ? "refund_status" : "status").asText();
         if ("SUCCESS".equals(r.getStatus())) return;
         if ("SUCCESS".equals(state)) {
             if (fact.path("refund_id").asText().isBlank()) invalid();

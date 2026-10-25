@@ -10,7 +10,7 @@
 - 管理接口使用管理员 Bearer token。身份、权限和门店归属从服务端取得，不接受客户端提交操作者身份或支付金额授权。
 - 401：需要重新登录；403：身份有效但无权；404：资源不存在或不在可见范围；409：状态/版本冲突；400：参数错误。沿用现有业务码；新增细分码由后端统一登记，不靠中文 message 分支。
 - 写操作超时先查询结果，不自动重发新增、退款等操作。409 后读取最新状态，不强行覆盖。
-- 新建用户名为 3–64 位 ASCII 字母、数字、下划线、点或短横线；临时密码至少 8 字符、最多 72 UTF-8 字节（BCrypt 限制）。requestKey 为 1–64 位 ASCII 字母、数字、下划线或短横线，可直接使用 UUID。remark/reason 最多 255 字符；remark 首尾空白会裁剪，空串归一为 null。同一 SKU 重复项合并后数量也必须为 1–99。
+- 新建用户名为 3–64 位 ASCII 字母、数字、下划线、点或短横线；临时密码至少 8 字符、最多 72 UTF-8 字节（BCrypt 限制）。requestKey 为 1–64 位 ASCII 字母、数字、下划线或短横线，可直接使用 UUID。remark/reason 最多 255 字符；拒单 reason 上限按最终提交的分类、分隔符与说明合计计算，参数错误保留弹窗和输入，409 则重新读取最新订单；remark 首尾空白会裁剪，空串归一为 null。同一 SKU 重复项合并后数量也必须为 1–99。
 
 ## 2. 角色与权限
 
@@ -91,6 +91,10 @@ items[{productId,skuId,productName,specName,imageUrl,temperature,sugar,unitPrice
 amounts{totalAmountCent,payableAmountCent,paidAmountCent,refundedAmountCent},
 allowedActions[], notificationStatus
 ```
+
+新订单 orderNo 使用完整 UUID 的 32 位十六进制表示，创建时一并持久化为 coffee_payment.merchant_order_no，所有发起支付、查询、关单及回调按保存的映射复用；不在支付时截断或重新生成。已有订单号和渠道映射不迁移；历史不合规单号在新发起支付时本地拒绝，已有支付/退款通知仍按原映射校验处理。
+
+退款查询/申请应答按 amount.currency=CNY 校验；退款通知使用官方 refund_status 与 amount（total/refund/payer_total/payer_refund）结构，不要求通知提供 currency，提供时必须为 CNY。独立商户验签/解密及商户、交易号、订单号、退款号、原金额和退款金额校验继续保留。
 
 时间与尚未发生的金额可为 null；itemCount 是杯数总和。未发生退款的 refundedAmountCent=0。内容和金额取订单快照；不回查当前价格重算历史单。取餐号由服务端生成，门店+取餐日期+号码唯一，拒单后不重复利用号码。
 

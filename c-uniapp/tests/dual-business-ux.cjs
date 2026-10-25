@@ -115,9 +115,10 @@ async function adminScenario(options = {}) {
     const req = route.request(), u = new URL(req.url()), body = req.postDataJSON()
     state.calls.push({ path: u.pathname, method: req.method(), body })
     const reply = (data, status = 200, code = 0, message = 'ok') => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify({ code, message, data }) })
+    if (u.pathname === '/admin/auth/context') return reply({ adminId: '9007199254740999', username: '回归管理员', realName: null, roles: ['SUPER_ADMIN'], permissions: options.forbidden ? [] : options.readonly ? ['coffee:menu:read'] : ['coffee:menu:read', 'coffee:menu:write', 'coffee:store:write'], stores: options.empty && !state.created ? [] : [{ id: store.id, name: store.name }], defaultRoute: '/coffee/menu' })
     if (u.pathname === '/admin/coffee/context') {
       if (options.forbidden) return reply(null, 403, 40300, '需要平台管理员权限')
-      return reply({ stores: options.empty && !state.created ? [] : [{ id: store.id, name: store.name }], permissions: options.readonly ? ['coffee:menu:read'] : ['coffee:menu:read', 'coffee:menu:write'] })
+      return reply({ stores: options.empty && !state.created ? [] : [{ id: store.id, name: store.name }], permissions: options.readonly ? ['coffee:menu:read'] : ['coffee:menu:read', 'coffee:menu:write', 'coffee:store:write'] })
     }
     if (u.pathname.startsWith('/admin/coffee/store')) {
       if (req.method() === 'POST') { state.created = true; Object.assign(state.store, body); return reply(state.store) }
@@ -272,8 +273,9 @@ async function adminCheck(name, options, fn) {
     assert((await page.locator('.amount').first().innerText()).includes('应付')); assert((await page.locator('.amount').nth(1).innerText()).includes('实付')); assert((await page.locator('.amount').nth(1).innerText()).includes('0.00'))
     await page.locator('.load-more').click(); await page.waitForFunction(() => document.querySelectorAll('.order-card').length === 21)
     assert.equal(state.orderRequests[1].page, '2'); assert.equal(state.requests.filter(r => /^\/user\/order\//.test(r.path)).length, 0)
+    const detailRequest = page.waitForResponse(response => new URL(response.url()).pathname === '/user/order/9007199254741010')
     await page.locator('.order-card').first().click(); await page.waitForURL('**/pages/order-detail/index?id=9007199254741010')
-    await page.waitForTimeout(100); assert(state.requests.some(r => r.path === '/user/order/9007199254741010'))
+    await detailRequest; assert(state.requests.some(r => r.path === '/user/order/9007199254741010'))
   })
   await check('全部业务含关闭售后分组，具体商品含取消退款，切业务重置筛选', async ({ page, state }) => {
     await go(page, '/pages/orders/index'); await page.locator('.order-card').waitFor()
@@ -321,9 +323,9 @@ async function adminCheck(name, options, fn) {
     assert.equal(state.coffee.length, 2)
   })
   await adminCheck('后台服务端拒绝权限时直达 URL 也无维护入口或请求', { forbidden: true }, async ({ page, state }) => {
-    await page.getByText('无咖啡菜单维护权限', { exact: true }).waitFor()
+    await page.getByText('无权限访问此页面', { exact: true }).waitFor()
     assert.equal(await page.getByRole('button', { name: '新增饮品' }).count(), 0)
-    assert(state.calls.every(call => call.path === '/admin/coffee/context'))
+    assert(state.calls.every(call => call.path === '/admin/auth/context'))
   })
   await adminCheck('后台只读权限可看停用菜单，不显示写操作', { readonly: true }, async ({ page, state }) => {
     await page.getByRole('heading', { name: '咖啡菜单', exact: true }).waitFor(); await page.getByText('本地回归拿铁', { exact: true }).waitFor()
@@ -331,7 +333,7 @@ async function adminCheck(name, options, fn) {
   })
   await adminCheck('授权管理员建立首店后不再显示新建店入口', { empty: true }, async ({ page, state }) => {
     await page.getByRole('button', { name: '建立首个门店' }).click(); await page.locator('#name').fill('真实测试门店'); await page.locator('#address').fill('测试地址'); await page.locator('#openingHours').fill('09:00–18:00')
-    await page.getByRole('button', { name: '确 定' }).click(); await page.getByText('真实测试门店', { exact: true }).waitFor()
+    await page.getByRole('button', { name: '确 定' }).click(); await page.getByText('真实测试门店', { exact: true }).first().waitFor()
     assert.equal(await page.getByRole('button', { name: '建立首个门店' }).count(), 0)
     const body = state.calls.find(call => call.method === 'POST').body
     assert.equal(body.businessStatus, 'CLOSED'); assert(!('placeOrder' in body)); assert(!('payOnline' in body))
@@ -344,6 +346,17 @@ async function adminCheck(name, options, fn) {
     const body = state.calls.find(call => call.method === 'PUT' && call.path.includes('/product/')).body
     assert.equal(body.skus[0].id, '1001'); assert.equal(body.skus[0].priceCent, 1999); assert.equal(typeof body.skus[0].available, 'boolean'); assert.equal(typeof body.status, 'number')
     assert(state.calls.every(call => call.method !== 'DELETE')); await shot(page, 'dual-admin-coffee-menu')
+  })
+  await adminCheck('咖啡售罄恢复快捷操作复用完整饮品保存并保留规格ID', {}, async ({ page, state }) => {
+    const row = page.locator('.ant-table-row').filter({ hasText: '本地回归拿铁' })
+    await row.getByRole('button', { name: '售 罄', exact: true }).first().click()
+    await row.getByRole('button', { name: '恢复供应', exact: true }).first().waitFor()
+    const saved = state.calls.find(call => call.method === 'PUT' && call.path.includes('/product/')).body
+    assert.equal(saved.skus[0].available, false); assert.equal(saved.skus[0].id, '1001'); assert.equal(saved.skus[0].priceCent, 1800)
+    assert.equal(saved.skus.length, 5); assert(!('stock' in saved))
+    await row.getByRole('button', { name: '恢复供应', exact: true }).first().click()
+    await row.getByRole('button', { name: '售 罄', exact: true }).first().waitFor()
+    assert.equal(state.calls.filter(call => call.method === 'PUT').at(-1).body.skus[0].available, true)
   })
   console.log(`Dual business UX: ${passed} scenarios passed`)
 })().catch(error => { console.error(error); process.exitCode = 1 }).finally(async () => { if (browser) await browser.close() })

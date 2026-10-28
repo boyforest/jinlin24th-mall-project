@@ -6,14 +6,14 @@
       <scroll-view scroll-x class="status-scroll"><view class="tabs"><button v-for="filter in filters" :key="filter.value" class="tab" :class="{ active: selected === filter.value }" @click="selectStatus(filter.value)">{{ filter.label }}</button></view></scroll-view>
       <view v-if="loading && !orders.length" class="ink-loading"><view class="ink-loading-mark" /><text>翻阅清单中…</text></view>
       <view v-else-if="error" class="ink-empty ink-card"><text class="ink-empty-title">清单暂时未能加载</text><text class="ink-empty-sub">{{ error }}</text><button class="ink-btn-secondary state-action" @click="load(page === 1)">重新加载</button></view>
-      <view v-else-if="!orders.length" class="ink-empty ink-card"><text class="ink-empty-title">{{ selected !== 'ALL' ? '暂无此状态的订单' : business === 'COFFEE' ? '暂时还没有点单订单' : '还没有养物清单' }}</text><text class="ink-empty-sub">{{ business === 'COFFEE' ? '点单筹备中，可先浏览与加购' : '可以查看全部订单，或继续挑选养物' }}</text><button v-if="selected !== 'ALL'" class="ink-btn-secondary state-action" @click="selectStatus('ALL')">查看全部订单</button><button v-else class="ink-btn-primary state-action" @click="goBrowse">{{ business === 'COFFEE' ? '去选饮品' : '去逛逛' }}</button></view>
+      <view v-else-if="!orders.length" class="ink-empty ink-card"><text class="ink-empty-title">{{ selected !== 'ALL' ? '暂无此状态的订单' : business === 'COFFEE' ? '暂时还没有点单订单' : '还没有养物清单' }}</text><text class="ink-empty-sub">{{ business === 'COFFEE' ? '选一杯喜欢的饮品，到店自取' : '可以查看全部订单，或继续挑选养物' }}</text><button v-if="selected !== 'ALL'" class="ink-btn-secondary state-action" @click="selectStatus('ALL')">查看全部订单</button><button v-else class="ink-btn-primary state-action" @click="goBrowse">{{ business === 'COFFEE' ? '去选饮品' : '去逛逛' }}</button></view>
       <view v-else class="list">
         <view v-for="order in orders" :key="`${order.businessType}:${order.id}`" class="order-card ink-card" @click="goDetail(order)">
           <view class="row"><text class="store-name">{{ order.storeName }} · {{ order.businessType === 'GOODS' ? '商品配送' : '到店自取' }}</text><text class="order-status">{{ businessOrderStatusText[order.status] }}</text></view>
           <text class="order-no">{{ order.orderNo }}</text>
           <view v-for="(item, index) in order.summaryItems" :key="`${item.skuId}:${index}`" class="order-item"><image v-if="imageUrl(item.imageUrl)" class="item-cover" :src="imageUrl(item.imageUrl)" mode="aspectFill" /><view v-else class="item-cover placeholder">{{ order.businessType === 'GOODS' ? '养' : '饮' }}</view><view class="item-copy"><text class="item-name">{{ item.productName }}</text><text class="item-spec">{{ item.specName }} × {{ item.quantity }}</text></view><text class="ink-price">¥{{ cents(item.lineTotalCent) }}</text></view>
           <view class="order-bottom"><text>共 {{ order.itemCount }} {{ order.businessType === 'GOODS' ? '件' : '杯' }}</text><text class="amount">{{ order.amounts.paidAmountCent === null ? '应付' : '实付' }} <text class="ink-price">¥{{ cents(order.amounts.paidAmountCent ?? order.amounts.payableAmountCent) }}</text></text></view>
-          <text v-if="order.businessType === 'GOODS'" class="detail-hint">查看详情{{ order.status === 'PENDING_PAY' ? ' · 继续付款' : order.status === 'PENDING_RECEIVE' ? ' · 确认收货' : '' }} →</text>
+          <text class="detail-hint">查看详情{{ order.status === 'PENDING_PAY' ? ' · 继续付款' : order.status === 'PENDING_RECEIVE' ? ' · 确认收货' : '' }} →</text>
         </view>
         <button v-if="!finished" class="ink-btn-secondary load-more" :disabled="loading" @click="load(false)">{{ loading ? '加载中…' : '加载更多' }}</button><text v-else class="end-note">已展示全部订单</text>
       </view>
@@ -58,7 +58,7 @@ async function load(reset = true) {
 function selectBusiness(value: string) { business.value = value as 'ALL' | BusinessType; selected.value = 'ALL'; load() }
 function selectStatus(value: string) { selected.value = value; load() }
 function goBrowse() { uni.navigateTo({ url: business.value === 'COFFEE' ? '/pages/coffee/index' : '/pages/goods/index' }) }
-function goDetail(order: BusinessOrderSummary) { if (order.businessType === 'GOODS') uni.navigateTo({ url: `/pages/order-detail/index?id=${encodeURIComponent(order.id)}` }) }
+function goDetail(order: BusinessOrderSummary) { uni.navigateTo({ url: `/pages/${order.businessType === 'GOODS' ? 'order-detail' : 'coffee-order'}/index?id=${encodeURIComponent(order.id)}` }) }
 onShow(() => load())
 onHide(() => { ++requestId; loading.value = false; if (!getToken()) orders.value = [] })
 onReachBottom(() => load(false))

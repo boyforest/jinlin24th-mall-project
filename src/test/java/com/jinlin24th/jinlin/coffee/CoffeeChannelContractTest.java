@@ -49,6 +49,46 @@ class CoffeeChannelContractTest extends WorkbenchDatabaseTestSupport {
     }
 
     @Test
+    void sharedMerchantUsesCoffeeCallbackAndSnapshotThroughPaymentAndRefund() {
+        String merchant = config.getMchId(), app = config.getAppId();
+        try {
+            // 与商品商户相同的身份不影响咖啡的独立单号、通知路径和退款记录。
+            config.setMchId("shared-goods-merchant");
+            config.setAppId("shared-miniapp");
+            var order = create();
+            Long id = Long.valueOf(order.getId());
+            when(client.request(eq("POST"), eq("/v3/pay/transactions/jsapi"), any()))
+                    .thenReturn(json.createObjectNode().put("prepay_id", "shared-prepay"));
+            payment.payment(10L, id);
+            var capture = ArgumentCaptor.forClass(Object.class);
+            verify(client).request(eq("POST"), eq("/v3/pay/transactions/jsapi"), capture.capture());
+            var body = (Map<?, ?>) capture.getValue();
+            assertEquals("shared-goods-merchant", body.get("mchid"));
+            assertEquals("shared-miniapp", body.get("appid"));
+            assertEquals(config.getNotifyUrl(), body.get("notify_url"));
+            assertEquals("shared-goods-merchant", orders.payment(id).getMerchantId());
+            var headers = new Headers.Builder().build();
+            var fact = paid(order).put("mchid", config.getMchId()).put("appid", config.getAppId());
+            when(client.notification(headers, "shared-payment")).thenReturn(fact);
+            payment.paymentNotify(headers, "shared-payment");
+            var paidOrder = orders.userDetail(10L, id);
+            assertEquals("PAID", paidOrder.getPaymentStatus());
+            orders.requestRefund(coffeeAdmin, id, true, refund(paidOrder, "shared-refund"));
+            var refundFact = notification(id, "SUCCESS");
+            when(client.notification(headers, "shared-refund")).thenReturn(refundFact);
+            payment.refundNotify(headers, "shared-refund");
+            payment.refundNotify(headers, "shared-refund");
+            assertEquals("SUCCESS", orders.refund(id).getStatus());
+            assertEquals(3600L, orders.userDetail(10L, id).getAmounts().getRefundedAmountCent());
+            config.setMchId("future-independent-merchant");
+            error(BizCode.COFFEE_CHANNEL_INVALID, () -> orders.merchant(orders.payment(id)));
+        } finally {
+            config.setMchId(merchant);
+            config.setAppId(app);
+        }
+    }
+
+    @Test
     void existingChannelMappingIsReusedWithoutDerivingItFromBusinessNumber() {
         var order = create();
         Long id = Long.valueOf(order.getId());

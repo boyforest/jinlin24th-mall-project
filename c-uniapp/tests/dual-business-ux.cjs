@@ -190,8 +190,8 @@ async function adminCheck(name, options, fn) {
     assert((await card.locator('.ink-price').innerText()).includes('已售罄'))
     assert.equal(await card.locator('.spec-button').getAttribute('disabled'), 'true')
   })
-  await check('首发菜单、购物篮弹层、购物车直接触发也不发起咖啡交易', async ({ page, state }) => {
-    state.store.capabilities.placeOrder = true; state.store.capabilities.payOnline = true
+  await check('下单关闭时菜单、购物篮弹层、购物车不发起咖啡交易', async ({ page, state }) => {
+    state.store.capabilities.placeOrder = false; state.store.capabilities.payOnline = false
     await go(page, '/pages/coffee/index'); await page.locator('.coffee-card').first().waitFor()
     await page.locator('.unavailable-button').dispatchEvent('click'); await page.locator('.basket-summary').click()
     await page.locator('.coffee-drawer .cart-row').first().waitFor(); await page.locator('.unavailable-button').dispatchEvent('click'); await shot(page, 'dual-coffee-basket-disabled')
@@ -349,12 +349,16 @@ async function adminCheck(name, options, fn) {
   })
   await adminCheck('咖啡售罄恢复快捷操作复用完整饮品保存并保留规格ID', {}, async ({ page, state }) => {
     const row = page.locator('.ant-table-row').filter({ hasText: '本地回归拿铁' })
+    const sold = page.waitForResponse(response => response.request().method() === 'PUT' && new URL(response.url()).pathname.includes('/admin/coffee/product/'))
     await row.getByRole('button', { name: '售 罄', exact: true }).first().click()
+    await sold
     await row.getByRole('button', { name: '恢复供应', exact: true }).first().waitFor()
     const saved = state.calls.find(call => call.method === 'PUT' && call.path.includes('/product/')).body
     assert.equal(saved.skus[0].available, false); assert.equal(saved.skus[0].id, '1001'); assert.equal(saved.skus[0].priceCent, 1800)
     assert.equal(saved.skus.length, 5); assert(!('stock' in saved))
+    const restored = page.waitForResponse(response => response.request().method() === 'PUT' && new URL(response.url()).pathname.includes('/admin/coffee/product/'))
     await row.getByRole('button', { name: '恢复供应', exact: true }).first().click()
+    await restored
     await row.getByRole('button', { name: '售 罄', exact: true }).first().waitFor()
     assert.equal(state.calls.filter(call => call.method === 'PUT').at(-1).body.skus[0].available, true)
   })

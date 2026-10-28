@@ -82,7 +82,7 @@ services:
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:?set CORS_ALLOWED_ORIGINS in .env}
       APP_PUBLIC_URL: ${APP_PUBLIC_URL:?set APP_PUBLIC_URL in .env}
-      # 咖啡阶段 A：目录默认关闭，迁移并维护真实门店后再启用；不开放咖啡交易。
+      # 咖啡目录与交易默认关闭，迁移和渠道验收后启用；商户凭据见 .env.example。
       COFFEE_CATALOG_ENABLED: ${COFFEE_CATALOG_ENABLED:-false}
       COFFEE_ORDERING_ENABLED: ${COFFEE_ORDERING_ENABLED:-false}
       COFFEE_PAYMENT_ENABLED: ${COFFEE_PAYMENT_ENABLED:-false}

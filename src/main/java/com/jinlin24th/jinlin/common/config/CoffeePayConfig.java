@@ -29,7 +29,7 @@ public class CoffeePayConfig {
 
     @PostConstruct
     public void validate() {
-        if (orderingEnabled && !paymentEnabled) throw new IllegalStateException("咖啡点单启用时必须配置独立支付");
+        if (orderingEnabled && !paymentEnabled) throw new IllegalStateException("咖啡点单启用时必须配置咖啡支付");
         if (!paymentEnabled) return;
         for (String value :
                 new String[] {
@@ -44,7 +44,7 @@ public class CoffeePayConfig {
                     refundNotifyUrl
                 })
             if (value == null || value.isBlank() || value.contains("your-"))
-                throw new IllegalStateException("独立咖啡支付配置不完整");
+                throw new IllegalStateException("咖啡支付配置不完整");
         if (apiV3Key.length() != 32
                 || !notifyUrl.startsWith("https://")
                 || !refundNotifyUrl.startsWith("https://"))

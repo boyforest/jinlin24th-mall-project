@@ -5,7 +5,7 @@
         <text class="page-kicker">COFFEE & DAILY MOMENTS</text>
         <text class="store-name">{{ store?.name || '咖啡点单' }}</text>
         <template v-if="store"><text class="store-status">{{ businessStatusText[store.businessStatus] }}</text><text class="store-detail">{{ store.address }} · {{ store.openingHours }}</text><text v-if="store.announcement" class="store-detail">{{ store.announcement }}</text></template>
-        <text class="preparation-note">点单筹备中，可先浏览与加购</text>
+        <text class="preparation-note">{{ coffeeOrderingText(store) }}</text>
       </view>
       <view v-if="loading" class="ink-loading"><view class="ink-loading-mark" /><text>正在查看菜单…</text></view>
       <view v-else-if="error" class="ink-empty"><text class="ink-empty-title">{{ unavailable ? '门店筹备中' : '菜单暂时未能加载' }}</text><text class="ink-empty-sub">{{ error }}</text><button class="ink-btn-secondary state-action" @click="loadMenu">重新加载</button></view>
@@ -22,8 +22,8 @@
       </view>
     </view>
     <view v-if="cartOpen" class="basket-mask" @click="cartOpen = false" />
-    <view v-if="cartOpen" class="coffee-drawer"><view class="drawer-title"><text>咖啡篮</text><button aria-label="关闭咖啡篮" @click="cartOpen = false">×</button></view><text class="preparation-note">点单筹备中，可先浏览与加购</text><scroll-view class="drawer-content" scroll-y><CoffeeCartItems :authenticated="authenticated" compact @browse="cartOpen = false" /></scroll-view></view>
-    <GlassActionBar business-nav><view class="basket-summary" @click="openCart"><text class="basket-title">咖啡篮 · {{ cart.totalCount }}</text><text class="basket-amount">{{ cart.loading ? '正在同步…' : cart.error ? '同步失败，点击重试' : `已选 ${cart.checkedCount} 杯 · ¥${cart.checkedAmountText}` }}</text></view><button class="ink-btn-primary unavailable-button" disabled>暂未开放</button></GlassActionBar>
+    <view v-if="cartOpen" class="coffee-drawer"><view class="drawer-title"><text>咖啡篮</text><button aria-label="关闭咖啡篮" @click="cartOpen = false">×</button></view><text class="preparation-note">{{ coffeeOrderingText(store) }}</text><scroll-view class="drawer-content" scroll-y><CoffeeCartItems :authenticated="authenticated" compact @browse="cartOpen = false" /></scroll-view></view>
+    <GlassActionBar business-nav><view class="basket-summary" @click="openCart"><text class="basket-title">咖啡篮 · {{ cart.totalCount }}</text><text class="basket-amount">{{ cart.loading ? '正在同步…' : cart.error ? '同步失败，点击重试' : `已选 ${cart.checkedCount} 杯 · ¥${cart.checkedAmountText}` }}</text></view><button class="ink-btn-primary unavailable-button" :disabled="!canCheckout" @click="checkout">{{ store?.capabilities.placeOrder ? '去结算' : '暂未开放' }}</button></GlassActionBar>
     <BusinessTabBar business="COFFEE" />
     <CoffeeSpecSheet :product="selectedProduct" :selected-id="selectedSkuId" :busy="cart.busy || cart.loading" :can-add="!loading && !error && !!store?.capabilities.addToCart" @select="selectedSkuId = $event" @close="selectedProduct = null" @add="addSelected" />
   </view>
@@ -36,7 +36,8 @@ import { useCoffeeCartStore } from '@/stores/coffeeCart'
 import { useBusinessContext } from '@/stores/businessContext'
 import { useAuthStore } from '@/stores/auth'
 import { getToken } from '@/utils/storage'
-import { cents, fromPrice, imageUrl } from '@/utils/coffee'
+import { requireLogin } from '@/utils/auth'
+import { cents, fromPrice, imageUrl, coffeeOrderingText } from '@/utils/coffee'
 import GlassActionBar from '@/components/GlassActionBar.vue'
 import BusinessTabBar from '@/components/BusinessTabBar.vue'
 import CoffeeSpecSheet from '@/components/CoffeeSpecSheet.vue'
@@ -50,6 +51,12 @@ const categoryId = ref(''), paneScroll = ref(0), cartOpen = ref(false)
 const selectedProduct = ref<CoffeeProduct | null>(null), selectedSkuId = ref('')
 const businessStatusText = { OPEN: '营业中', CLOSED: '休息中', PAUSED: '暂停营业' }
 const products = computed(() => (menu.value?.products || []).filter(p => !categoryId.value || p.categoryId === categoryId.value))
+const canCheckout = computed(() => !!store.value?.capabilities.placeOrder && !!store.value?.capabilities.payOnline && !loading.value && !error.value && !cart.loading && !cart.busy && !cart.error && cart.checkedCount > 0)
+function checkout() {
+  if (!canCheckout.value || !requireLogin('/pages/coffee/index')) return
+  cartOpen.value = false
+  uni.navigateTo({ url: '/pages/coffee-checkout/index' })
+}
 function selectCategory(id: string) { categoryId.value = id; paneScroll.value = 0 }
 async function loadMenu() {
   if (loading.value) return
@@ -86,8 +93,7 @@ async function addSelected() {
 function openCart() { cartOpen.value = true; if (store.value) cart.refresh(store.value.id) }
 onShow(() => {
   visible.value = true; context.cartBusiness = 'COFFEE'; cart.syncAccount()
-  if (!menu.value) loadMenu()
-  else if (store.value) cart.refresh(store.value.id)
+  loadMenu()
 })
 onHide(() => { visible.value = false })
 </script>

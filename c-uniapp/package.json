@@ -38,6 +38,7 @@
     "test:solar-terms": "node --test tests/solarTerms.test.mjs",
     "test:shopping-ux": "node tests/shopping-ux.cjs",
     "test:dual-business-ux": "node tests/dual-business-ux.cjs",
+    "test:coffee-checkout-ux": "node tests/coffee-checkout-ux.cjs",
     "test:home-marketing-ux": "node tests/home-marketing-ux.cjs"
   },
   "dependencies": {

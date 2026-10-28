@@ -20,7 +20,7 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
-/** 独立咖啡商户；仅复用无状态签名工具，不注入商品支付客户端。 */
+/** 咖啡交易渠道；可配置与商品相同的商户，仅复用无状态签名工具。 */
 @Service
 @RequiredArgsConstructor
 public class CoffeePayClient {
